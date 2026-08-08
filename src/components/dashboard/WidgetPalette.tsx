@@ -25,10 +25,12 @@ function PaletteItem({ item }: { item: WidgetCatalogItem }) {
 }
 
 export interface WidgetPaletteProps {
+  /** 목록이 이 높이를 넘어가면 모달 전체가 아니라 목록 안에서만 스크롤된다 */
+  maxHeight?: number
   className?: string
 }
 
-export function WidgetPalette({ className }: WidgetPaletteProps) {
+export function WidgetPalette({ maxHeight, className }: WidgetPaletteProps) {
   const defaultWidgets = WIDGET_CATALOG.filter((item) => item.category === 'default')
   const additionalWidgets = WIDGET_CATALOG.filter((item) => item.category === 'additional')
 
@@ -48,22 +50,24 @@ export function WidgetPalette({ className }: WidgetPaletteProps) {
         </p>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Default Value
-        </span>
-        {defaultWidgets.map((item) => (
-          <PaletteItem key={item.kind} item={item} />
-        ))}
-      </div>
+      <div className="flex flex-col gap-4 overflow-y-auto" style={{ maxHeight }}>
+        <div className="flex flex-col gap-3">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Default Value
+          </span>
+          {defaultWidgets.map((item) => (
+            <PaletteItem key={item.kind} item={item} />
+          ))}
+        </div>
 
-      <div className="flex flex-col gap-3">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Additional Value
-        </span>
-        {additionalWidgets.map((item) => (
-          <PaletteItem key={item.kind} item={item} />
-        ))}
+        <div className="flex flex-col gap-3">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Additional Value
+          </span>
+          {additionalWidgets.map((item) => (
+            <PaletteItem key={item.kind} item={item} />
+          ))}
+        </div>
       </div>
     </div>
   )

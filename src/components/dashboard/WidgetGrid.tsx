@@ -9,6 +9,8 @@ export interface WidgetGridProps extends HTMLAttributes<HTMLDivElement> {
   rows?: number
   /** 칸 하나의 픽셀 크기. 위젯은 이 단위의 배수로 배치된다 (docs/db_schema.typ: grid_x, grid_y, width, height) */
   cellSize?: number
+  /** 배치 편집 중임을 보여주는 격자선. 실제 대시보드 뷰에서는 끈다 */
+  showGridLines?: boolean
 }
 
 /**
@@ -17,17 +19,19 @@ export interface WidgetGridProps extends HTMLAttributes<HTMLDivElement> {
  * 드롭 좌표 계산 등을 위해 ref로 DOM 노드에 접근할 수 있다.
  */
 export const WidgetGrid = forwardRef<HTMLDivElement, WidgetGridProps>(function WidgetGrid(
-  { columns = 10, rows = 16, cellSize = 30, className, style, children, ...props },
+  { columns = 10, rows = 16, cellSize = 30, showGridLines = true, className, style, children, ...props },
   ref,
 ) {
   const gridLineStyle: CSSProperties = {
     width: columns * cellSize,
     height: rows * cellSize,
-    backgroundImage: [
-      'linear-gradient(to right, rgb(var(--border) / 0.6) 1px, transparent 1px)',
-      'linear-gradient(to bottom, rgb(var(--border) / 0.6) 1px, transparent 1px)',
-    ].join(', '),
-    backgroundSize: `${cellSize}px ${cellSize}px`,
+    ...(showGridLines && {
+      backgroundImage: [
+        'linear-gradient(to right, rgb(var(--border) / 0.6) 1px, transparent 1px)',
+        'linear-gradient(to bottom, rgb(var(--border) / 0.6) 1px, transparent 1px)',
+      ].join(', '),
+      backgroundSize: `${cellSize}px ${cellSize}px`,
+    }),
     ...style,
   }
 

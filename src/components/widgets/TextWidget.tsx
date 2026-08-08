@@ -33,7 +33,7 @@ export function TextWidget({
         value={value}
         placeholder={placeholder}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChange?.(event.target.value)}
-        className="w-full min-w-0 truncate bg-transparent text-lg text-foreground placeholder:text-muted-foreground focus:outline-none"
+        className="w-full min-w-0 truncate bg-transparent text-2xl text-foreground placeholder:text-muted-foreground focus:outline-none"
       />
     </div>
   )

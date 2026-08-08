@@ -5,15 +5,20 @@ import { Button } from '@/components/ui/button'
 import { CharacterBanner } from '@/components/character/CharacterBanner'
 import { CharacterBannerCompact } from '@/components/character/CharacterBannerCompact'
 import { WidgetDashboard } from '@/components/dashboard/WidgetDashboard'
+import { GuardianWidget } from '@/components/widgets/GuardianWidget'
+import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
 import { mockCharacter } from '@/mocks/character'
+import { mockGuardian } from '@/mocks/guardian'
 import { mockKurzanFrontline } from '@/mocks/kurzanFrontline'
 
 function App() {
   const [isDark, setIsDark] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [guardian, setGuardian] = useState(mockGuardian)
   const [kurzanFrontline, setKurzanFrontline] = useState(mockKurzanFrontline)
+  const [isKurzanSettingsOpen, setIsKurzanSettingsOpen] = useState(false)
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
@@ -51,6 +56,15 @@ function App() {
       </div>
 
       <div className="w-full max-w-4xl">
+        <h1 className="mb-4 text-lg font-semibold">Guardian</h1>
+        <GuardianWidget
+          data={guardian}
+          className="max-w-sm"
+          onToggleHarvested={(checked) => setGuardian((prev) => ({ ...prev, isHarvested: checked }))}
+        />
+      </div>
+
+      <div className="w-full max-w-4xl">
         <h1 className="mb-4 text-lg font-semibold">Kurzan Frontline</h1>
         <KurzanFrontlineWidget
           data={kurzanFrontline}
@@ -58,6 +72,14 @@ function App() {
           onToggleHarvested={(checked) =>
             setKurzanFrontline((prev) => ({ ...prev, isHarvested: checked }))
           }
+          onOpenSettings={() => setIsKurzanSettingsOpen(true)}
+        />
+        <KurzanFrontlineSettingsModal
+          open={isKurzanSettingsOpen}
+          onClose={() => setIsKurzanSettingsOpen(false)}
+          characterName={mockCharacter.characterName}
+          data={kurzanFrontline}
+          onSave={setKurzanFrontline}
         />
       </div>
 
@@ -66,9 +88,13 @@ function App() {
         <TextWidget value={textValue} onChange={setTextValue} className="max-w-sm" />
       </div>
 
-      <div className="flex w-full max-w-4xl flex-col gap-4">
+      <div className="flex w-full flex-col gap-4">
         <h1 className="text-lg font-semibold">Widget Grid — Drag &amp; Drop</h1>
-        <WidgetDashboard />
+        <div className="flex flex-wrap gap-6">
+          <WidgetDashboard />
+          <WidgetDashboard />
+          <WidgetDashboard />
+        </div>
       </div>
     </div>
   )
