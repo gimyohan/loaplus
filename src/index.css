@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 255 255 255;
+    --foreground: 15 23 42;
+
+    --card: 255 255 255;
+    --card-foreground: 15 23 42;
+
+    --border: 226 232 240;
+
+    --muted: 241 245 249;
+    --muted-foreground: 100 116 139;
+
+    /* 프로젝트 포인트 컬러 (docs/design.typ) — primary, secondary 두 가지만 사용 */
+    --primary: 92 122 255; /* #5c7aff */
+    --primary-foreground: 255 255 255;
+
+    --secondary: 89 210 254; /* #59d2fe */
+    --secondary-foreground: 15 23 42;
+
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 2 6 23;
+    --foreground: 241 245 249;
+
+    --card: 15 23 42;
+    --card-foreground: 241 245 249;
+
+    --border: 30 41 59;
+
+    --muted: 30 41 59;
+    --muted-foreground: 148 163 184;
+
+    --primary: 92 122 255; /* #5c7aff */
+    --primary-foreground: 255 255 255;
+
+    --secondary: 89 210 254; /* #59d2fe */
+    --secondary-foreground: 2 6 23;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
