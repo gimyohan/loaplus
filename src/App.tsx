@@ -9,6 +9,11 @@ import { GuardianWidget } from '@/components/widgets/GuardianWidget'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
+import {
+  applyKurzanFrontlineHarvest,
+  resetKurzanFrontlineWithResonancePotion,
+  revertKurzanFrontlineHarvest,
+} from '@/lib/kurzanFrontline'
 import { mockCharacter } from '@/mocks/character'
 import { mockGuardian } from '@/mocks/guardian'
 import { mockKurzanFrontline } from '@/mocks/kurzanFrontline'
@@ -70,7 +75,12 @@ function App() {
           data={kurzanFrontline}
           className="max-w-sm"
           onToggleHarvested={(checked) =>
-            setKurzanFrontline((prev) => ({ ...prev, isHarvested: checked }))
+            setKurzanFrontline((prev) =>
+              checked ? applyKurzanFrontlineHarvest(prev) : revertKurzanFrontlineHarvest(prev),
+            )
+          }
+          onUseResonancePotion={() =>
+            setKurzanFrontline((prev) => resetKurzanFrontlineWithResonancePotion(prev))
           }
           onOpenSettings={() => setIsKurzanSettingsOpen(true)}
         />

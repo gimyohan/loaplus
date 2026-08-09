@@ -1,23 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="200" height="200">
-    <!-- 오직 흰색 선만 사용한 단순화된 아이콘 -->
-    <!-- 기본 날개 윤곽 -->
-    <path d="M 50 15 Q 70 10 90 35 Q 85 55 75 60 L 65 85 L 50 95 L 35 85 L 25 60 Q 15 55 10 35 Q 30 10 50 15 Z" fill="none" stroke="white" stroke-width="2.5" />
-    
-    <!-- 내부 장식 윤곽 -->
-    <path d="M 50 25 Q 65 30 65 50 Q 65 70 50 85 Q 35 70 35 50 Q 35 30 50 25 Z" fill="none" stroke="white" stroke-width="2" />
-    
-    <!-- 중앙 크리스탈 윤곽 -->
-    <polygon points="50,40 55,55 50,70 45,55" fill="none" stroke="white" stroke-width="2" />
-    
-    <!-- 좌측 상단 뿔 형태 윤곽 -->
-    <path d="M 40 30 Q 35 15 25 20 Q 35 25 35 40 Z" fill="none" stroke="white" stroke-width="2" />
-    
-    <!-- 우측 상단 뿔 형태 윤곽 -->
-    <path d="M 60 30 Q 65 15 75 20 Q 65 25 65 40 Z" fill="none" stroke="white" stroke-width="2" />
-
-    <!-- 좌측 하단 펜던트 윤곽 -->
-    <rect x="26" y="60" width="5" height="25" rx="1" fill="none" stroke="white" stroke-width="2" />
-    
-    <!-- 우측 하단 펜던트 윤곽 -->
-    <rect x="69" y="60" width="5" height="25" rx="1" fill="none" stroke="white" stroke-width="2" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+  <path d="M 50,8 L 59,41 L 92,50 L 59,59 L 50,92 L 41,59 L 8,50 L 41,41 Z" fill="none" stroke="#ffffff" stroke-width="6" stroke-linejoin="round" />
 </svg>

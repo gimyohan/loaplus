@@ -1,3 +1,4 @@
+import { Minus, Plus } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -8,12 +9,17 @@ import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
 const GAUGE_MARKS = [0, 20, 40, 60, 80, 100]
 
 // 슬라이더 thumb 크기(h-4 w-4 = 16px). 트랙 양 끝은 thumb 반지름(8px)만큼 안쪽으로 밀려서
-// 움직이므로, 아래 마크 라벨도 같은 만큼 보정해야 실제 thumb 위치와 정확히 겹친다.
+// 움직이므로, 마크/임계치 마커도 같은 만큼 보정해야 실제 thumb 위치와 정확히 겹친다.
 const THUMB_SIZE_PX = 16
 
-// TODO: 실제로는 캐릭터가 진행 가능한 쿠르잔 전선 단계 목록을 백엔드에서 받아와야 한다.
-// 배열의 첫 번째 항목이 캐릭터가 갈 수 있는 가장 높은 목표(기본 값)다.
-const TARGET_OPTIONS = ['네프타 작전 1', '아비도스 3 작전', '아비도스 2 작전', '아비도스 1 작전']
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+/** 트랙 좌표 계산에 쓰이는 공통 공식 (thumb 인셋 보정) */
+function trackPosition(percent: number) {
+  return `calc(${THUMB_SIZE_PX / 2}px + (100% - ${THUMB_SIZE_PX}px) * ${percent / 100})`
+}
 
 export interface KurzanFrontlineSettingsModalProps {
   open: boolean
@@ -24,8 +30,8 @@ export interface KurzanFrontlineSettingsModalProps {
 }
 
 /**
- * 쿠르잔 전선 위젯의 톱니바퀴를 누르면 뜨는 설정 모달. 휴식 게이지를 직접 조절하고
- * 진행할 목표(전선 단계)를 고를 수 있다.
+ * 쿠르잔 전선 위젯의 톱니바퀴를 누르면 뜨는 설정 모달. 휴식 게이지를 직접 조절한다.
+ * 진행할 목표(전선 단계)는 항상 최고 단계로 자동 진행하므로 별도로 고를 필요가 없다.
  */
 export function KurzanFrontlineSettingsModal({
   open,
@@ -35,20 +41,22 @@ export function KurzanFrontlineSettingsModal({
   onSave,
 }: KurzanFrontlineSettingsModalProps) {
   const [restGauge, setRestGauge] = useState(data.restGauge)
-  const [targetName, setTargetName] = useState(data.targetName)
+  const [threshold, setThreshold] = useState(data.restGaugeThreshold)
 
   useEffect(() => {
     if (open) {
       setRestGauge(data.restGauge)
-      setTargetName(data.targetName)
+      setThreshold(data.restGaugeThreshold)
     }
   }, [open, data])
 
+  const step = data.restGaugeMax / 10
   const percent = Math.round((restGauge / data.restGaugeMax) * 100)
+  const thresholdPercent = Math.round((threshold / data.restGaugeMax) * 100)
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
-    onSave({ ...data, restGauge, targetName })
+    onSave({ ...data, restGauge, restGaugeThreshold: threshold })
     onClose()
   }
 
@@ -64,18 +72,26 @@ export function KurzanFrontlineSettingsModal({
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted p-4">
-            <input
-              type="range"
-              min={0}
-              max={data.restGaugeMax}
-              step={data.restGaugeMax / 10}
-              value={restGauge}
-              onChange={(event) => setRestGauge(Number(event.target.value))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-border [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary [&::-moz-range-thumb]:bg-white"
-              style={{
-                background: `linear-gradient(to right, rgb(var(--primary)) 0%, rgb(var(--secondary)) ${percent}%, rgb(var(--border)) ${percent}%)`,
-              }}
-            />
+            {/* 트랙 위에 임계치 마커를 겹쳐 그리므로 relative 래퍼가 필요하다 */}
+            <div className="relative flex items-center">
+              <input
+                type="range"
+                min={0}
+                max={data.restGaugeMax}
+                step={step}
+                value={restGauge}
+                onChange={(event) => setRestGauge(Number(event.target.value))}
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-border [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary [&::-moz-range-thumb]:bg-white"
+                style={{
+                  background: `linear-gradient(to right, rgb(var(--primary)) 0%, rgb(var(--secondary)) ${percent}%, rgb(var(--border)) ${percent}%)`,
+                }}
+              />
+              {/* 임계치 마커: 별도 슬라이더 대신 같은 트랙 위의 기준선으로 표시 */}
+              <div
+                className="pointer-events-none absolute h-4 w-0.5 -translate-x-1/2 rounded-full bg-foreground shadow-[0_0_0_1.5px_rgb(var(--muted))]"
+                style={{ left: trackPosition(thresholdPercent) }}
+              />
+            </div>
             <div className="relative h-3">
               {GAUGE_MARKS.map((mark) => (
                 <span
@@ -84,55 +100,42 @@ export function KurzanFrontlineSettingsModal({
                     'absolute -translate-x-1/2 font-mono text-[10px] text-muted-foreground',
                     mark === percent && 'font-bold text-secondary',
                   )}
-                  style={{
-                    left: `calc(${THUMB_SIZE_PX / 2}px + (100% - ${THUMB_SIZE_PX}px) * ${mark / 100})`,
-                  }}
+                  style={{ left: trackPosition(mark) }}
                 >
                   {mark}%
                 </span>
               ))}
             </div>
-          </div>
-        </section>
 
-        <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-foreground">목표 설정</h3>
-          <div className="flex flex-col gap-1.5">
-            {TARGET_OPTIONS.map((option, index) => (
-              <label
-                key={option}
-                className={cn(
-                  'flex cursor-pointer items-center justify-between gap-2 rounded-lg border p-3 transition-colors',
-                  targetName === option
-                    ? 'border-primary bg-muted'
-                    : 'border-border bg-card hover:bg-muted',
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="targetName"
-                    checked={targetName === option}
-                    onChange={() => setTargetName(option)}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  <span
-                    className={cn(
-                      'text-sm',
-                      targetName === option ? 'text-foreground' : 'text-muted-foreground',
-                    )}
-                  >
-                    {option}
-                  </span>
+            {/* 임계치는 게이지와 같은 축 위의 기준점이므로, 슬라이더를 하나 더 두지 않고
+                위 마커 + 숫자 스테퍼로만 조절한다 */}
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="h-2 w-0.5 rounded-full bg-foreground" aria-hidden="true" />
+                임계치
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="임계치 감소"
+                  onClick={() => setThreshold((prev) => clamp(prev - step, 0, data.restGaugeMax))}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+                >
+                  <Minus className="h-3 w-3" />
+                </button>
+                <span className="w-10 text-center font-mono text-xs text-foreground">
+                  {thresholdPercent}%
                 </span>
-                {/* 목록의 첫 항목 = 캐릭터가 갈 수 있는 가장 높은 목표 */}
-                {index === 0 && (
-                  <span className="shrink-0 rounded bg-background px-2 py-1 font-mono text-[10px] text-primary">
-                    기본 값
-                  </span>
-                )}
-              </label>
-            ))}
+                <button
+                  type="button"
+                  aria-label="임계치 증가"
+                  onClick={() => setThreshold((prev) => clamp(prev + step, 0, data.restGaugeMax))}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 

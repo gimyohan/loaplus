@@ -10,9 +10,14 @@ export interface ModalProps {
   title: string
   children: ReactNode
   className?: string
+  /**
+   * 'start'로 두면 모달 상단을 화면에 고정하고 아래로만 늘어나게 한다. 탭 전환 등으로
+   * 콘텐츠 높이가 바뀌어도(예: 보상 선택 모달) 상단 요소 위치가 흔들리지 않아야 할 때 쓴다.
+   */
+  align?: 'center' | 'start'
 }
 
-export function Modal({ open, onClose, title, children, className }: ModalProps) {
+export function Modal({ open, onClose, title, children, className, align = 'center' }: ModalProps) {
   useEffect(() => {
     if (!open) return
 
@@ -27,7 +32,10 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className={cn(
+        'fixed inset-0 z-50 flex justify-center overflow-y-auto bg-black/50 p-4',
+        align === 'start' ? 'items-start pt-[10vh]' : 'items-center',
+      )}
       onClick={onClose}
     >
       <div

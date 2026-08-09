@@ -1,38 +1,14 @@
-import { Check, Settings, Sparkles } from 'lucide-react'
+import { Check, Settings } from 'lucide-react'
 
+import { AzenaBlessingIcon, ShardIcon } from '@/components/widgets/icons'
+import { RestGaugeBar } from '@/components/widgets/RestGaugeBar'
 import { cn } from '@/lib/utils'
 import type { GuardianSummary } from '@/types/guardian'
-
-const GAUGE_SEGMENTS = 5
-
-/**
- * public/편린_icon.svg를 CSS mask로 불러온다. 파일 내용을 그대로 참조하므로 이후 아이콘을
- * 다시 교체해도 코드 수정 없이 반영되고, mask는 currentColor(bg-current)를 사용하므로
- * 다른 아이콘처럼 hover/다크·라이트 모드 색상에 맞춰 변한다.
- */
-function ShardIcon({ className }: { className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn('inline-block bg-current', className)}
-      style={{
-        maskImage: 'url(/편린_icon.svg)',
-        maskRepeat: 'no-repeat',
-        maskPosition: 'center',
-        maskSize: 'contain',
-        WebkitMaskImage: 'url(/편린_icon.svg)',
-        WebkitMaskRepeat: 'no-repeat',
-        WebkitMaskPosition: 'center',
-        WebkitMaskSize: 'contain',
-      }}
-    />
-  )
-}
 
 // 가디언 토벌에서는 편린 / 아제나 축복만 사용한다
 const QUICK_ACTIONS = [
   { key: 'shard', label: '편린', icon: ShardIcon },
-  { key: 'azenaBlessing', label: '아제나 축복', icon: Sparkles },
+  { key: 'azenaBlessing', label: '아제나 축복', icon: AzenaBlessingIcon },
 ] as const
 
 export interface GuardianWidgetProps {
@@ -56,7 +32,6 @@ export function GuardianWidget({
   className,
 }: GuardianWidgetProps) {
   const { targetName, restGauge, restGaugeMax, isHarvested } = data
-  const filledSegments = Math.round((restGauge / restGaugeMax) * GAUGE_SEGMENTS)
 
   return (
     <div
@@ -102,17 +77,7 @@ export function GuardianWidget({
             {restGauge}/{restGaugeMax}
           </span>
         </div>
-        <div className="flex h-3 w-full gap-1">
-          {Array.from({ length: GAUGE_SEGMENTS }, (_, index) => (
-            <div
-              key={index}
-              className={cn(
-                'flex-1 rounded-sm bg-muted',
-                index < filledSegments && 'bg-gradient-to-r from-primary to-secondary',
-              )}
-            />
-          ))}
-        </div>
+        <RestGaugeBar value={restGauge} max={restGaugeMax} />
       </div>
 
       {/* 하단: 관련 재화 바로가기. 이등분해서 아이콘 주변 배경을 눌러도 클릭되도록 버튼이 각 영역을 꽉 채운다 */}

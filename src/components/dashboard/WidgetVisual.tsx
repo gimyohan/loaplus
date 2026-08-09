@@ -7,6 +7,11 @@ import { GuardianWidget } from '@/components/widgets/GuardianWidget'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
+import {
+  applyKurzanFrontlineHarvest,
+  resetKurzanFrontlineWithResonancePotion,
+  revertKurzanFrontlineHarvest,
+} from '@/lib/kurzanFrontline'
 import { cn } from '@/lib/utils'
 import {
   BANNER_COMPACT_NATIVE_HEIGHT,
@@ -103,7 +108,14 @@ export function WidgetVisual({ kind, width, height, interactive = false, classNa
         >
           <KurzanFrontlineWidget
             data={kurzanData}
-            onToggleHarvested={(checked) => setKurzanData((prev) => ({ ...prev, isHarvested: checked }))}
+            onToggleHarvested={(checked) =>
+              setKurzanData((prev) =>
+                checked ? applyKurzanFrontlineHarvest(prev) : revertKurzanFrontlineHarvest(prev),
+              )
+            }
+            onUseResonancePotion={() =>
+              setKurzanData((prev) => resetKurzanFrontlineWithResonancePotion(prev))
+            }
             onOpenSettings={() => setIsKurzanSettingsOpen(true)}
           />
         </ScaleToFit>
