@@ -31,26 +31,13 @@ export function WidgetDashboard() {
   const [columns, setColumns] = useState(DEFAULT_COLUMNS)
   const [rows, setRows] = useState(DEFAULT_ROWS)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [settingsPosition, setSettingsPosition] = useState({ x: 0, y: 0 })
-  const [isDraggingSettings, setIsDraggingSettings] = useState(false)
+  const [characterName, setCharacterName] = useState('')
   const gridRef = useRef<HTMLDivElement>(null)
   const dragState = useRef<DragState | null>(null)
-  const settingsDragState = useRef<{
-    pointerStartX: number
-    pointerStartY: number
-    originX: number
-    originY: number
-  } | null>(null)
 
-  // 그리드를 줄일 때 이미 배치된 위젯(설정 아이콘 포함)이 밖으로 밀려나지 않도록 최소 칸 수를 계산
-  const minColumns = Math.max(
-    widgets.reduce((max, w) => Math.max(max, w.x + w.w), 1),
-    settingsPosition.x + 1,
-  )
-  const minRows = Math.max(
-    widgets.reduce((max, w) => Math.max(max, w.y + w.h), 1),
-    settingsPosition.y + 1,
-  )
+  // 그리드를 줄일 때 이미 배치된 위젯이 밖으로 밀려나지 않도록 최소 칸 수를 계산
+  const minColumns = widgets.reduce((max, w) => Math.max(max, w.x + w.w), 1)
+  const minRows = widgets.reduce((max, w) => Math.max(max, w.y + w.h), 1)
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -112,60 +99,30 @@ export function WidgetDashboard() {
     setWidgets((prev) => prev.filter((w) => w.id !== id))
   }
 
-  const handleSettingsPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId)
-    settingsDragState.current = {
-      pointerStartX: event.clientX,
-      pointerStartY: event.clientY,
-      originX: settingsPosition.x,
-      originY: settingsPosition.y,
-    }
-    setIsDraggingSettings(true)
-  }
-
-  const handleSettingsPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-    const drag = settingsDragState.current
-    if (!drag) return
-
-    const deltaX = event.clientX - drag.pointerStartX
-    const deltaY = event.clientY - drag.pointerStartY
-    const x = clamp(Math.round(drag.originX + deltaX / CELL_SIZE), 0, columns - 1)
-    const y = clamp(Math.round(drag.originY + deltaY / CELL_SIZE), 0, rows - 1)
-
-    setSettingsPosition({ x, y })
-  }
-
-  const handleSettingsPointerUp = (event: PointerEvent<HTMLButtonElement>) => {
-    settingsDragState.current = null
-    setIsDraggingSettings(false)
-    event.currentTarget.releasePointerCapture(event.pointerId)
-  }
-
   return (
     <div>
       {/* 실제 대시보드에 보여지는 뷰. 위젯과 상호작용할 수 있고 격자선은 보이지 않는다.
           배치 편집은 설정 아이콘 → 모달에서 이루어진다 */}
-      <WidgetGrid columns={columns} rows={rows} cellSize={CELL_SIZE} showGridLines={false}>
-        <GridSettingsButton
-          style={{ left: settingsPosition.x * CELL_SIZE, top: settingsPosition.y * CELL_SIZE }}
-          onClick={() => setIsSettingsOpen(true)}
-        />
+      <div className="relative inline-block">
+        <WidgetGrid columns={columns} rows={rows} cellSize={CELL_SIZE} showGridLines={false}>
+          {widgets.map((widget) => (
+            <div
+              key={widget.id}
+              className="absolute z-10"
+              style={{
+                left: widget.x * CELL_SIZE,
+                top: widget.y * CELL_SIZE,
+                width: widget.w * CELL_SIZE,
+                height: widget.h * CELL_SIZE,
+              }}
+            >
+              <PlacedWidgetContent widget={widget} interactive characterName={characterName} />
+            </div>
+          ))}
+        </WidgetGrid>
 
-        {widgets.map((widget) => (
-          <div
-            key={widget.id}
-            className="absolute"
-            style={{
-              left: widget.x * CELL_SIZE,
-              top: widget.y * CELL_SIZE,
-              width: widget.w * CELL_SIZE,
-              height: widget.h * CELL_SIZE,
-            }}
-          >
-            <PlacedWidgetContent widget={widget} interactive />
-          </div>
-        ))}
-      </WidgetGrid>
+        <GridSettingsButton onClick={() => setIsSettingsOpen(true)} />
+      </div>
 
       <GridSettingsModal
         open={isSettingsOpen}
@@ -181,59 +138,55 @@ export function WidgetDashboard() {
       >
         {/* 위젯 목록에서 그리드로 드래그해서 배치/이동/삭제하는 편집기 */}
         <div className="flex flex-wrap items-start gap-6">
-          <WidgetGrid
-            ref={gridRef}
-            columns={columns}
-            rows={rows}
-            cellSize={CELL_SIZE}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          >
-            {/* 삭제 버튼 없이 위치만 옮길 수 있는, 항상 존재하는 설정 아이콘 */}
-            <GridSettingsButton
-              style={{
-                left: settingsPosition.x * CELL_SIZE,
-                top: settingsPosition.y * CELL_SIZE,
-              }}
-              draggable
-              className={isDraggingSettings ? 'z-50' : undefined}
-              onPointerDown={handleSettingsPointerDown}
-              onPointerMove={handleSettingsPointerMove}
-              onPointerUp={handleSettingsPointerUp}
-            />
-
-            {widgets.map((widget) => (
-              <div
-                key={widget.id}
-                onPointerDown={handleWidgetPointerDown(widget)}
-                onPointerMove={handleWidgetPointerMove(widget)}
-                onPointerUp={handleWidgetPointerUp}
-                className={cn(
-                  'group absolute touch-none cursor-move',
-                  draggingId === widget.id && 'z-50',
-                )}
-                style={{
-                  left: widget.x * CELL_SIZE,
-                  top: widget.y * CELL_SIZE,
-                  width: widget.w * CELL_SIZE,
-                  height: widget.h * CELL_SIZE,
-                }}
-              >
-                <PlacedWidgetContent widget={widget} />
-                <button
-                  type="button"
-                  data-widget-delete
-                  onClick={() => removeWidget(widget.id)}
-                  aria-label="위젯 삭제"
-                  className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow transition-opacity hover:bg-red-600 group-hover:opacity-100"
+          <div className="relative inline-block">
+            <WidgetGrid
+              ref={gridRef}
+              columns={columns}
+              rows={rows}
+              cellSize={CELL_SIZE}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {widgets.map((widget) => (
+                <div
+                  key={widget.id}
+                  onPointerDown={handleWidgetPointerDown(widget)}
+                  onPointerMove={handleWidgetPointerMove(widget)}
+                  onPointerUp={handleWidgetPointerUp}
+                  className={cn(
+                    'group absolute z-10 touch-none cursor-move',
+                    draggingId === widget.id && 'z-50',
+                  )}
+                  style={{
+                    left: widget.x * CELL_SIZE,
+                    top: widget.y * CELL_SIZE,
+                    width: widget.w * CELL_SIZE,
+                    height: widget.h * CELL_SIZE,
+                  }}
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </WidgetGrid>
+                  <PlacedWidgetContent widget={widget} characterName={characterName} />
+                  <button
+                    type="button"
+                    data-widget-delete
+                    onClick={() => removeWidget(widget.id)}
+                    aria-label="위젯 삭제"
+                    className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </WidgetGrid>
 
-          <WidgetPalette maxHeight={rows * CELL_SIZE} />
+            {/* 그리드 밖에 책갈피처럼 고정된 설정 아이콘. 편집 모드에서도 항상 같은 자리 */}
+            <GridSettingsButton className="cursor-default" />
+          </div>
+
+          <WidgetPalette
+            maxHeight={rows * CELL_SIZE}
+            characterName={characterName}
+            onCharacterNameChange={setCharacterName}
+          />
         </div>
       </GridSettingsModal>
     </div>

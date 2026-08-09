@@ -1,45 +1,27 @@
-import type { CSSProperties, PointerEvent } from 'react'
 import { Settings } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { CELL_SIZE } from '@/lib/widgetCatalog'
 
 export interface GridSettingsButtonProps {
-  style?: CSSProperties
   onClick?: () => void
-  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void
-  onPointerMove?: (event: PointerEvent<HTMLButtonElement>) => void
-  onPointerUp?: (event: PointerEvent<HTMLButtonElement>) => void
-  /** 위젯 설정 모달 안에서는 다른 위젯처럼 드래그로 재배치할 수 있다 */
-  draggable?: boolean
   className?: string
 }
 
 /**
- * 그리드에 반드시 포함되는 설정 아이콘. 다른 위젯과 달리 팔레트에서 배치하는 대상이 아니고
- * 삭제할 수 없지만, 위젯 설정 모달 안에서는 다른 위젯처럼 위치를 옮길 수 있다.
+ * 그리드 칸을 차지하지 않고 그리드 우상단 모서리 위로 거의 다 빠져나와 걸리는 책갈피 모양 설정 버튼.
+ * 끝의 작은 V자 노치만 그리드 상단 테두리에 살짝 걸쳐 "매달린" 느낌을 준다.
+ * 부모가 relative 컨테이너여야 하고, 이 버튼은 overflow-hidden인 WidgetGrid 바깥(형제)에 둬야 잘리지 않는다.
+ * z-index를 그리드 위젯(z-10)보다 낮게 둬서, 노치가 겹치는 자리에 위젯이 있으면 위젯이 위로 보이게 한다.
  */
-export function GridSettingsButton({
-  style,
-  onClick,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  draggable = false,
-  className,
-}: GridSettingsButtonProps) {
+export function GridSettingsButton({ onClick, className }: GridSettingsButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
       aria-label="위젯 설정"
-      style={{ width: CELL_SIZE, height: CELL_SIZE, ...style }}
+      style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%)' }}
       className={cn(
-        'absolute z-10 flex touch-none items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow transition-colors hover:border-primary hover:text-primary',
-        draggable && 'cursor-move',
+        'absolute -top-9 right-5 z-0 flex h-11 w-8 items-start justify-center rounded-t-md border border-border bg-card pt-1.5 text-muted-foreground shadow-lg transition-colors hover:border-primary hover:text-primary',
         className,
       )}
     >
