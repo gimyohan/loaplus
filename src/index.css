@@ -69,3 +69,14 @@
 .animate-flash-warning {
   animation: flash-warning 0.4s ease-in-out 3;
 }
+
+/* 0개인 재화를 더 사용하려 할 때 숫자를 빨갛게 깜빡여 경고하는 용도 */
+@keyframes flash-warning-text {
+  50% {
+    color: rgb(239, 68, 68);
+  }
+}
+
+.animate-flash-warning-text {
+  animation: flash-warning-text 0.4s ease-in-out 3;
+}

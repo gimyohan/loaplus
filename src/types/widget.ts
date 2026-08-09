@@ -1,5 +1,6 @@
-// docs/widgets.typ 기준 위젯 종류. 'banner'/'bannerCompact'/'kurzanFrontline'만 실제 컴포넌트로
-// 구현되어 있고, 나머지는 그리드 배치 동작을 보여주기 위한 자리표시(placeholder) 위젯이다.
+// docs/widgets.typ 기준 위젯 종류. 'banner'/'bannerCompact'/'guardian'/'kurzanFrontline'/'paradise'/
+// 'text'만 실제 컴포넌트로 구현되어 있고, 나머지는 그리드 배치 동작을 보여주기 위한
+// 자리표시(placeholder) 위젯이다.
 export type WidgetKind =
   | 'banner'
   | 'bannerCompact'

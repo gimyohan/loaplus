@@ -6,7 +6,7 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
   { kind: 'bannerCompact', label: '배너 (10x1)', category: 'default', w: 10, h: 1 },
   { kind: 'guardian', label: '가디언', category: 'default', w: 5, h: 3 },
   { kind: 'kurzanFrontline', label: '쿠르잔 전선', category: 'default', w: 5, h: 3 },
-  { kind: 'paradise', label: '낙원', category: 'default', w: 5, h: 4 },
+  { kind: 'paradise', label: '낙원', category: 'default', w: 5, h: 2 },
   { kind: 'text', label: '텍스트', category: 'additional', w: 5, h: 1 },
   { kind: 'textCheckbox', label: '텍스트 · 체크박스', category: 'additional', w: 4, h: 2 },
   { kind: 'image', label: '이미지', category: 'additional', w: 4, h: 4 },
@@ -32,6 +32,10 @@ export const KURZAN_FRONTLINE_NATIVE_HEIGHT = 210
 /** 가디언(5x3)의 디자인 원본 크기. 쿠르잔 전선과 레이아웃이 동일하다. */
 export const GUARDIAN_NATIVE_WIDTH = 350
 export const GUARDIAN_NATIVE_HEIGHT = 210
+
+/** 낙원(5x2)의 디자인 원본 크기. */
+export const PARADISE_NATIVE_WIDTH = 350
+export const PARADISE_NATIVE_HEIGHT = 140
 
 /** 텍스트(5x1)의 디자인 원본 크기. */
 export const TEXT_NATIVE_WIDTH = 500

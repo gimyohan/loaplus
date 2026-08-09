@@ -8,15 +8,19 @@ import { WidgetDashboard } from '@/components/dashboard/WidgetDashboard'
 import { GuardianWidget } from '@/components/widgets/GuardianWidget'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
+import { ParadiseSettingsModal } from '@/components/widgets/ParadiseSettingsModal'
+import { ParadiseWidget } from '@/components/widgets/ParadiseWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
 import {
   applyKurzanFrontlineHarvest,
   resetKurzanFrontlineWithResonancePotion,
   revertKurzanFrontlineHarvest,
 } from '@/lib/kurzanFrontline'
+import { decrementParadiseKey, decrementParadiseTicket } from '@/lib/paradise'
 import { mockCharacter } from '@/mocks/character'
 import { mockGuardian } from '@/mocks/guardian'
 import { mockKurzanFrontline } from '@/mocks/kurzanFrontline'
+import { mockParadise } from '@/mocks/paradise'
 
 function App() {
   const [isDark, setIsDark] = useState(true)
@@ -24,6 +28,8 @@ function App() {
   const [guardian, setGuardian] = useState(mockGuardian)
   const [kurzanFrontline, setKurzanFrontline] = useState(mockKurzanFrontline)
   const [isKurzanSettingsOpen, setIsKurzanSettingsOpen] = useState(false)
+  const [paradise, setParadise] = useState(mockParadise)
+  const [isParadiseSettingsOpen, setIsParadiseSettingsOpen] = useState(false)
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
@@ -90,6 +96,24 @@ function App() {
           characterName={mockCharacter.characterName}
           data={kurzanFrontline}
           onSave={setKurzanFrontline}
+        />
+      </div>
+
+      <div className="w-full max-w-4xl">
+        <h1 className="mb-4 text-lg font-semibold">Paradise</h1>
+        <ParadiseWidget
+          data={paradise}
+          className="max-w-sm"
+          onDecrementTicket={() => setParadise((prev) => decrementParadiseTicket(prev))}
+          onDecrementKey={() => setParadise((prev) => decrementParadiseKey(prev))}
+          onOpenSettings={() => setIsParadiseSettingsOpen(true)}
+        />
+        <ParadiseSettingsModal
+          open={isParadiseSettingsOpen}
+          onClose={() => setIsParadiseSettingsOpen(false)}
+          characterName={mockCharacter.characterName}
+          data={paradise}
+          onSave={setParadise}
         />
       </div>
 

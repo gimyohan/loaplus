@@ -6,12 +6,15 @@ import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { GuardianWidget } from '@/components/widgets/GuardianWidget'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
+import { ParadiseSettingsModal } from '@/components/widgets/ParadiseSettingsModal'
+import { ParadiseWidget } from '@/components/widgets/ParadiseWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
 import {
   applyKurzanFrontlineHarvest,
   resetKurzanFrontlineWithResonancePotion,
   revertKurzanFrontlineHarvest,
 } from '@/lib/kurzanFrontline'
+import { decrementParadiseKey, decrementParadiseTicket } from '@/lib/paradise'
 import { cn } from '@/lib/utils'
 import {
   BANNER_COMPACT_NATIVE_HEIGHT,
@@ -22,6 +25,8 @@ import {
   GUARDIAN_NATIVE_WIDTH,
   KURZAN_FRONTLINE_NATIVE_HEIGHT,
   KURZAN_FRONTLINE_NATIVE_WIDTH,
+  PARADISE_NATIVE_HEIGHT,
+  PARADISE_NATIVE_WIDTH,
   TEXT_NATIVE_HEIGHT,
   TEXT_NATIVE_WIDTH,
   WIDGET_CATALOG,
@@ -29,6 +34,7 @@ import {
 import { mockCharacter } from '@/mocks/character'
 import { mockGuardian } from '@/mocks/guardian'
 import { mockKurzanFrontline } from '@/mocks/kurzanFrontline'
+import { mockParadise } from '@/mocks/paradise'
 import { getMockCharacterRecord, updateMockGuardian, updateMockKurzanFrontline } from '@/mocks/characterRegistry'
 import type { GuardianSummary } from '@/types/guardian'
 import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
@@ -156,6 +162,9 @@ export function WidgetVisual({ kind, width, height, interactive = false, charact
 
   const [textValue, setTextValue] = useState('')
 
+  const [paradiseData, setParadiseData] = useState(mockParadise)
+  const [isParadiseSettingsOpen, setIsParadiseSettingsOpen] = useState(false)
+
   // 카드에는 배치됐지만 (1) 아직 캐릭터 이름이 설정되지 않았거나 (2) 설정한 이름이 조회되지
   // 않는 경우, Default Value 위젯은 실제 데이터 대신 안내만 보여준다 (docs/db_schema.typ:
   // Default Value는 캐릭터에 종속되므로 캐릭터를 특정할 수 없으면 노출할 데이터가 없다).
@@ -253,6 +262,34 @@ export function WidgetVisual({ kind, width, height, interactive = false, charact
           }}
         />
       </ScaleToFit>
+    )
+  }
+
+  if (kind === 'paradise') {
+    return (
+      <>
+        <ScaleToFit
+          nativeWidth={PARADISE_NATIVE_WIDTH}
+          nativeHeight={PARADISE_NATIVE_HEIGHT}
+          width={width}
+          height={height}
+          className={cn('select-none rounded-xl', disabledClassName, className)}
+        >
+          <ParadiseWidget
+            data={paradiseData}
+            onDecrementTicket={() => setParadiseData((prev) => decrementParadiseTicket(prev))}
+            onDecrementKey={() => setParadiseData((prev) => decrementParadiseKey(prev))}
+            onOpenSettings={() => setIsParadiseSettingsOpen(true)}
+          />
+        </ScaleToFit>
+        <ParadiseSettingsModal
+          open={isParadiseSettingsOpen}
+          onClose={() => setIsParadiseSettingsOpen(false)}
+          characterName={bannerCharacter.characterName}
+          data={paradiseData}
+          onSave={setParadiseData}
+        />
+      </>
     )
   }
 
