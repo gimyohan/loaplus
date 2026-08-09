@@ -3,12 +3,14 @@ import { useState } from 'react'
 import { CharacterBanner } from '@/components/character/CharacterBanner'
 import { CharacterBannerCompact } from '@/components/character/CharacterBannerCompact'
 import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
+import { GuardianSettingsModal } from '@/components/widgets/GuardianSettingsModal'
 import { GuardianWidget } from '@/components/widgets/GuardianWidget'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
 import { ParadiseSettingsModal } from '@/components/widgets/ParadiseSettingsModal'
 import { ParadiseWidget } from '@/components/widgets/ParadiseWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
+import { applyGuardianHarvest, revertGuardianHarvest } from '@/lib/guardian'
 import {
   applyKurzanFrontlineHarvest,
   resetKurzanFrontlineWithResonancePotion,
@@ -60,6 +62,8 @@ const DEFAULT_VALUE_KINDS: WidgetKind[] = ['banner', 'bannerCompact', 'guardian'
 
 interface GuardianWidgetBoundProps {
   initialGuardian: GuardianSummary
+  characterNameForModal: string
+  characterItemLevel: number
   onPersist: (next: GuardianSummary) => void
 }
 
@@ -68,20 +72,40 @@ interface GuardianWidgetBoundProps {
  * 카드에 귀속된 캐릭터가 바뀌면 이 컴포넌트가 통째로 재마운트되어 새 캐릭터의 값으로 다시 초기화된다
  * — useEffect로 기존 state를 되맞추는 방식보다 확실하고, 리렌더 한 번의 지연도 없다.
  */
-function GuardianWidgetBound({ initialGuardian, onPersist }: GuardianWidgetBoundProps) {
+function GuardianWidgetBound({
+  initialGuardian,
+  characterNameForModal,
+  characterItemLevel,
+  onPersist,
+}: GuardianWidgetBoundProps) {
   const [guardianData, setGuardianData] = useState(initialGuardian)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   return (
-    <GuardianWidget
-      data={guardianData}
-      onToggleHarvested={(checked) =>
-        setGuardianData((prev) => {
-          const next = { ...prev, isHarvested: checked }
+    <>
+      <GuardianWidget
+        data={guardianData}
+        onToggleHarvested={(checked) =>
+          setGuardianData((prev) => {
+            const next = checked ? applyGuardianHarvest(prev) : revertGuardianHarvest(prev)
+            onPersist(next)
+            return next
+          })
+        }
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+      <GuardianSettingsModal
+        open={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        characterName={characterNameForModal}
+        characterItemLevel={characterItemLevel}
+        data={guardianData}
+        onSave={(next) => {
+          setGuardianData(next)
           onPersist(next)
-          return next
-        })
-      }
-    />
+        }}
+      />
+    </>
   )
 }
 
@@ -257,6 +281,8 @@ export function WidgetVisual({ kind, width, height, interactive = false, charact
         <GuardianWidgetBound
           key={boundKey}
           initialGuardian={record?.guardian ?? mockGuardian}
+          characterNameForModal={bannerCharacter.characterName}
+          characterItemLevel={bannerCharacter.itemLevel}
           onPersist={(next) => {
             if (characterName) updateMockGuardian(characterName, next)
           }}

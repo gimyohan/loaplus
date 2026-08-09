@@ -35,7 +35,9 @@ const registry = new Map<string, CharacterDefaultValueRecord>([
         targetName: '베히모스',
         restGauge: 75,
         restGaugeMax: 100,
+        restGaugeThreshold: 20,
         isHarvested: false,
+        restGaugeConsumedByHarvest: false,
       },
       kurzanFrontline: {
         targetName: '네프타 작전 2',

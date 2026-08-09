@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button'
 import { CharacterBanner } from '@/components/character/CharacterBanner'
 import { CharacterBannerCompact } from '@/components/character/CharacterBannerCompact'
 import { WidgetDashboard } from '@/components/dashboard/WidgetDashboard'
+import { GuardianSettingsModal } from '@/components/widgets/GuardianSettingsModal'
 import { GuardianWidget } from '@/components/widgets/GuardianWidget'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
 import { ParadiseSettingsModal } from '@/components/widgets/ParadiseSettingsModal'
 import { ParadiseWidget } from '@/components/widgets/ParadiseWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
+import { applyGuardianHarvest, revertGuardianHarvest } from '@/lib/guardian'
 import {
   applyKurzanFrontlineHarvest,
   resetKurzanFrontlineWithResonancePotion,
@@ -26,6 +28,7 @@ function App() {
   const [isDark, setIsDark] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [guardian, setGuardian] = useState(mockGuardian)
+  const [isGuardianSettingsOpen, setIsGuardianSettingsOpen] = useState(false)
   const [kurzanFrontline, setKurzanFrontline] = useState(mockKurzanFrontline)
   const [isKurzanSettingsOpen, setIsKurzanSettingsOpen] = useState(false)
   const [paradise, setParadise] = useState(mockParadise)
@@ -71,7 +74,18 @@ function App() {
         <GuardianWidget
           data={guardian}
           className="max-w-sm"
-          onToggleHarvested={(checked) => setGuardian((prev) => ({ ...prev, isHarvested: checked }))}
+          onToggleHarvested={(checked) =>
+            setGuardian((prev) => (checked ? applyGuardianHarvest(prev) : revertGuardianHarvest(prev)))
+          }
+          onOpenSettings={() => setIsGuardianSettingsOpen(true)}
+        />
+        <GuardianSettingsModal
+          open={isGuardianSettingsOpen}
+          onClose={() => setIsGuardianSettingsOpen(false)}
+          characterName={mockCharacter.characterName}
+          characterItemLevel={mockCharacter.itemLevel}
+          data={guardian}
+          onSave={setGuardian}
         />
       </div>
 
