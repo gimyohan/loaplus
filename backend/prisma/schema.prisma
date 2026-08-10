@@ -1,0 +1,186 @@
+// docs/db_schema.typ 를 그대로 옮긴 스키마입니다. 테이블/컬럼을 바꿀 일이 있으면
+// 반드시 docs/db_schema.typ 먼저 수정 후 이 파일에 반영하세요 (.agents/AGENTS.md 문서 우선 원칙).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// == Users (계정 및 지연 평가 기준 시각) ====================================
+model User {
+  id            String    @id @default(uuid())
+  googleSub     String    @unique @map("google_sub")
+  nickname      String?
+  /// 반드시 애플리케이션 레이어에서 암호화한 값만 저장한다 (평문 금지)
+  lostarkApiKey String?   @map("lostark_api_key")
+  lastVisitedAt DateTime? @map("last_visited_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  characters         Character[]
+  actionLogs         ActionLog[]
+  dashboardTemplates DashboardTemplate[]
+
+  @@map("users")
+}
+
+// == Characters (캐릭터 프로필) ==============================================
+model Character {
+  id            String  @id @default(uuid())
+  userId        String  @map("user_id")
+  serverName    String  @map("server_name")
+  characterName String  @map("character_name")
+  itemLevel     Float   @map("item_level")
+  combatPower   Float   @map("combat_power")
+  className     String  @map("class_name")
+  imageUrl      String? @map("image_url")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  guardian         Guardian?
+  kurzanFrontline  KurzanFrontline?
+  paradise         Paradise?
+  goldStats        CharacterGoldStat?
+  dashboardWidgets DashboardWidget[]
+  actionLogs       ActionLog[]
+  rewardStats      CharacterRewardStat[]
+
+  @@map("characters")
+}
+
+// == Guardians / Kurzan_Frontlines (캐릭터와 1:1, 컬럼 구조 동일하지만 별개 테이블) ==
+model Guardian {
+  characterId               String  @id @map("character_id")
+  targetName                String  @map("target_name")
+  restGauge                 Int     @map("rest_gauge")
+  restGaugeMax              Int     @map("rest_gauge_max")
+  restGaugeThreshold        Int     @map("rest_gauge_threshold")
+  isHarvested                Boolean @default(false) @map("is_harvested")
+  restGaugeConsumedByHarvest Boolean @default(false) @map("rest_gauge_consumed_by_harvest")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("guardians")
+}
+
+model KurzanFrontline {
+  characterId               String  @id @map("character_id")
+  targetName                String  @map("target_name")
+  restGauge                 Int     @map("rest_gauge")
+  restGaugeMax              Int     @map("rest_gauge_max")
+  restGaugeThreshold        Int     @map("rest_gauge_threshold")
+  isHarvested                Boolean @default(false) @map("is_harvested")
+  restGaugeConsumedByHarvest Boolean @default(false) @map("rest_gauge_consumed_by_harvest")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("kurzan_frontlines")
+}
+
+// == Paradises (낙원 상태, 캐릭터와 1:1) =====================================
+model Paradise {
+  characterId  String  @id @map("character_id")
+  ticketCount  Int     @default(0) @map("ticket_count")
+  keyCount     Int     @default(0) @map("key_count")
+  autoRecharge Boolean @default(false) @map("auto_recharge")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("paradises")
+}
+
+// == Character_Gold_Stats (골드 획득 누적 통계, 캐릭터와 1:1) ===================
+model CharacterGoldStat {
+  characterId     String @id @map("character_id")
+  totalGoldEarned BigInt @default(0) @map("total_gold_earned")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("character_gold_stats")
+}
+
+// == Dashboard_Widgets (위젯 배치 및 Additional Value 데이터) ==================
+enum WidgetType {
+  BANNER
+  GUARDIAN
+  KURZAN_FRONTLINE
+  PARADISE
+  IMAGE
+  TEXT
+  TEXT_CHECKBOX
+  LINK_ICON
+}
+
+model DashboardWidget {
+  id          String     @id @default(uuid())
+  characterId String     @map("character_id")
+  widgetType  WidgetType @map("widget_type")
+  gridX       Int        @map("grid_x")
+  gridY       Int        @map("grid_y")
+  width       Int
+  height      Int
+  /// Additional Value 위젯일 때만 값이 들어감 (docs/db_schema.typ 예시 참고)
+  customData  Json?      @map("custom_data")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("dashboard_widgets")
+}
+
+// == Dashboard_Templates (템플릿 테이블) =====================================
+model DashboardTemplate {
+  id           String  @id @default(uuid())
+  authorUserId String  @map("author_user_id")
+  title        String
+  description  String?
+  layoutSchema Json    @map("layout_schema")
+
+  author User @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@map("dashboard_templates")
+}
+
+// == Action_Logs (통계/롤백 대상 행위 로그) ===================================
+enum ActionType {
+  HARVEST_GUARDIAN
+  HARVEST_KURZAN
+}
+
+model ActionLog {
+  id           String     @id @default(uuid())
+  userId       String     @map("user_id")
+  characterId  String     @map("character_id")
+  actionType   ActionType @map("action_type")
+  /// 이 행위를 되돌리는 데 필요한 최소 정보 (action_type별로 서버 로직이 정해져 있음)
+  revertParams Json       @map("revert_params")
+  /// 획득한 보상 카탈로그 항목 참조. { categoryKey, itemId, itemName, quantity }
+  reward       Json?
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("action_logs")
+}
+
+// == Character_Reward_Stats (보상 획득 횟수 통계) =============================
+enum ContentType {
+  GUARDIAN
+  KURZAN
+  PARADISE
+}
+
+model CharacterRewardStat {
+  characterId  String      @map("character_id")
+  contentType  ContentType @map("content_type")
+  rewardItemId String      @map("reward_item_id")
+  count        Int         @default(0)
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, contentType, rewardItemId])
+  @@map("character_reward_stats")
+}
