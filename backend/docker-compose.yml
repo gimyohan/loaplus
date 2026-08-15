@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: loaplus
+      POSTGRES_PASSWORD: loaplus
+      POSTGRES_DB: loaplus
+    ports:
+      - "5432:5432"
+    volumes:
+      - loaplus_pgdata:/var/lib/postgresql/data
+
+volumes:
+  loaplus_pgdata:

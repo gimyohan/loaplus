@@ -1,8 +1,8 @@
 {
   "categories": [
     {
-      "key": "gold",
-      "label": "골드",
+      "key": "boundGold",
+      "label": "귀속 골드",
       "items": [
         { "id": "azena-gold-pile-300000", "name": "300,000골드", "quantity": 1, "imageUrl": null },
         { "id": "azena-gold-pile-200000", "name": "200,000골드", "quantity": 1, "imageUrl": null },

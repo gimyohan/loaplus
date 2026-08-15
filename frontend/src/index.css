@@ -22,6 +22,15 @@
     --secondary: 89 210 254; /* #59d2fe */
     --secondary-foreground: 15 23 42;
 
+    /* 통계 차트 전용 카테고리 색상(레이드/편린/아제나 축복/낙원/기타 고정 순서) — dataviz 스킬의
+       기본 팔레트에서 5개 슬롯을 그대로 가져왔다. UI는 primary/secondary만 쓰지만(docs/design.typ),
+       5개 카테고리를 구분해야 하는 차트에는 그 규칙이 적용되지 않는다. */
+    --chart-1: 42 120 214; /* #2a78d6 blue */
+    --chart-2: 235 104 52; /* #eb6834 orange */
+    --chart-3: 27 175 122; /* #1baf7a aqua */
+    --chart-4: 237 161 0; /* #eda100 yellow */
+    --chart-5: 232 123 164; /* #e87ba4 magenta */
+
     --radius: 1rem;
   }
 
@@ -42,6 +51,12 @@
 
     --secondary: 89 210 254; /* #59d2fe */
     --secondary-foreground: 2 6 23;
+
+    --chart-1: 57 135 229; /* #3987e5 blue */
+    --chart-2: 217 89 38; /* #d95926 orange */
+    --chart-3: 25 158 112; /* #199e70 aqua */
+    --chart-4: 201 133 0; /* #c98500 yellow */
+    --chart-5: 213 81 129; /* #d55181 magenta */
   }
 
   * {
@@ -50,6 +65,13 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* 카드 높이가 폭에 비례해 커지는 대시보드 그리드에서, 세로 스크롤바가 나타났다 사라졌다 하면
+     그때마다 뷰포트 폭(따라서 카드 폭)이 스크롤바 두께만큼 바뀌어 크기가 계속 흔들리는 순환
+     참조 현상이 생긴다. 스크롤바 자리를 항상 예약해 두어 그 토글 자체가 안 생기게 막는다. */
+  html {
+    scrollbar-gutter: stable;
   }
 }
 

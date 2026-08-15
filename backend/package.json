@@ -8,15 +8,19 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "migrate:ability-stone": "tsx src/scripts/migrateAbilityStoneDump.ts",
+    "grant-premium": "tsx src/scripts/grantPremium.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.3.0",
     "@prisma/client": "^6.4.1",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.0.1",
     "google-auth-library": "^9.15.1",
+    "node-cron": "^4.6.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

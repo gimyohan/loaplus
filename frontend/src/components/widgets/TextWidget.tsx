@@ -7,6 +7,8 @@ const DEFAULT_PLACEHOLDER = '텍스트를 입력하세요'
 export interface TextWidgetProps {
   value: string
   onChange?: (value: string) => void
+  /** 포커스가 벗어날 때(편집 확정 시점)만 저장을 트리거하기 위한 훅 */
+  onBlur?: () => void
   placeholder?: string
   className?: string
 }
@@ -18,6 +20,7 @@ export interface TextWidgetProps {
 export function TextWidget({
   value,
   onChange,
+  onBlur,
   placeholder = DEFAULT_PLACEHOLDER,
   className,
 }: TextWidgetProps) {
@@ -33,6 +36,7 @@ export function TextWidget({
         value={value}
         placeholder={placeholder}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChange?.(event.target.value)}
+        onBlur={() => onBlur?.()}
         className="w-full min-w-0 truncate bg-transparent text-2xl text-foreground placeholder:text-muted-foreground focus:outline-none"
       />
     </div>

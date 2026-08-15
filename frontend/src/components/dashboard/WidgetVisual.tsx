@@ -1,46 +1,92 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { CharacterBanner } from '@/components/character/CharacterBanner'
 import { CharacterBannerCompact } from '@/components/character/CharacterBannerCompact'
 import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
+import { AbilityStoneModal } from '@/components/widgets/AbilityStoneModal'
+import { AbilityStoneWidget } from '@/components/widgets/AbilityStoneWidget'
 import { GuardianSettingsModal } from '@/components/widgets/GuardianSettingsModal'
 import { GuardianWidget } from '@/components/widgets/GuardianWidget'
+import { ImageWidget } from '@/components/widgets/ImageWidget'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
+import { LinkIconSettingsModal } from '@/components/widgets/LinkIconSettingsModal'
+import { LinkIconWidget } from '@/components/widgets/LinkIconWidget'
+import { ParadiseGoldRewardModal } from '@/components/widgets/ParadiseGoldRewardModal'
 import { ParadiseSettingsModal } from '@/components/widgets/ParadiseSettingsModal'
 import { ParadiseWidget } from '@/components/widgets/ParadiseWidget'
+import { RaidTargetModal } from '@/components/widgets/RaidTargetModal'
+import { RaidWidget, type RaidGateView } from '@/components/widgets/RaidWidget'
+import {
+  RESET_DAYS_OFF,
+  TextCheckboxSettingsModal,
+  type TextCheckboxResetDays,
+} from '@/components/widgets/TextCheckboxSettingsModal'
+import { TextCheckboxWidget } from '@/components/widgets/TextCheckboxWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
-import { applyGuardianHarvest, revertGuardianHarvest } from '@/lib/guardian'
+import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import {
-  applyKurzanFrontlineHarvest,
-  resetKurzanFrontlineWithResonancePotion,
-  revertKurzanFrontlineHarvest,
-} from '@/lib/kurzanFrontline'
-import { decrementParadiseKey, decrementParadiseTicket } from '@/lib/paradise'
+  claimGuardianAzenaBlessingReward,
+  claimGuardianShardReward,
+  claimKurzanAzenaBlessingReward,
+  claimKurzanShardReward,
+  consumeParadiseKey,
+  consumeParadiseTicket,
+  fetchHomeworks,
+  harvestGuardian,
+  harvestKurzan,
+  recordParadiseGoldReward,
+  resetKurzan,
+  undoGuardianHarvest,
+  undoKurzanHarvest,
+  updateGuardianTarget,
+  updateKurzanTarget,
+  updateParadiseSettings,
+} from '@/lib/homeworks'
+import { notifyHomeworksChanged, subscribeHomeworksChanged } from '@/lib/homeworksEvents'
 import { cn } from '@/lib/utils'
+import raidCatalogData from '@/data/raidCatalog.json'
 import {
+  ABILITY_STONE_NATIVE_HEIGHT,
+  ABILITY_STONE_NATIVE_WIDTH,
   BANNER_COMPACT_NATIVE_HEIGHT,
   BANNER_COMPACT_NATIVE_WIDTH,
   BANNER_NATIVE_HEIGHT,
   BANNER_NATIVE_WIDTH,
   GUARDIAN_NATIVE_HEIGHT,
   GUARDIAN_NATIVE_WIDTH,
+  IMAGE_NATIVE_HEIGHT,
+  IMAGE_NATIVE_WIDTH,
   KURZAN_FRONTLINE_NATIVE_HEIGHT,
   KURZAN_FRONTLINE_NATIVE_WIDTH,
+  LINK_ICON_NATIVE_HEIGHT,
+  LINK_ICON_NATIVE_WIDTH,
   PARADISE_NATIVE_HEIGHT,
   PARADISE_NATIVE_WIDTH,
+  RAID_NATIVE_HEIGHT,
+  RAID_NATIVE_WIDTH,
+  TEXT_CHECKBOX_NATIVE_HEIGHT,
+  TEXT_CHECKBOX_NATIVE_WIDTH,
   TEXT_NATIVE_HEIGHT,
   TEXT_NATIVE_WIDTH,
   WIDGET_CATALOG,
 } from '@/lib/widgetCatalog'
 import { mockCharacter } from '@/mocks/character'
-import { mockGuardian } from '@/mocks/guardian'
-import { mockKurzanFrontline } from '@/mocks/kurzanFrontline'
-import { mockParadise } from '@/mocks/paradise'
-import { getMockCharacterRecord, updateMockGuardian, updateMockKurzanFrontline } from '@/mocks/characterRegistry'
 import type { GuardianSummary } from '@/types/guardian'
 import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
+import type { ParadiseSummary } from '@/types/paradise'
+import type { RaidTargetSummary } from '@/types/raid'
 import type { WidgetKind } from '@/types/widget'
+
+const RAID_CATALOG = raidCatalogData.raids
+
+// 팔레트 미리보기 등 특정 위젯 인스턴스에 묶이지 않은 곳에서 raid를 렌더링할 때 쓰는 예시 데이터.
+// 실제로 막 추가한 레이드 위젯도 목표 없이 빈 상태로 시작하므로, 미리보기도 같은 빈 상태를 보여준다.
+const MOCK_RAID_PREVIEW: RaidTargetSummary = {
+  raidKey: null,
+  difficultyKey: null,
+  gates: [],
+}
 
 export interface WidgetVisualProps {
   kind: WidgetKind
@@ -50,49 +96,121 @@ export interface WidgetVisualProps {
   interactive?: boolean
   /**
    * 이 위젯이 속한 카드에 귀속된 캐릭터 이름. Default Value 위젯(배너, 가디언, 쿠르잔 전선)의
-   * 상태를 이 이름을 기준으로 mock 저장소에서 조회/저장한다.
+   * 상태를 이 이름으로 실제 캐릭터 API(CharacterDirectoryContext)에서 조회한다.
    * 팔레트 미리보기처럼 특정 카드에 속하지 않은 경우 이 prop 자체를 생략해서 예시 데이터를 보여주고,
    * 카드에는 배치됐지만 아직 이름을 설정하지 않은 경우엔 빈 문자열을 넘겨 안내 문구를 보여준다.
    */
   characterName?: string
+  /** Additional Value 위젯의 위젯별 데이터(text/textCheckbox/image/linkIcon). Default Value 위젯은 무시된다. */
+  customData?: Record<string, unknown> | null
+  /** Additional Value 위젯의 내용이 바뀌었을 때(interactive일 때만 호출됨) */
+  onCustomDataChange?: (customData: Record<string, unknown>) => void
+  /** textCheckbox 위젯의 체크 토글(interactive일 때만 호출됨) */
+  onCheckboxToggle?: (isChecked: boolean) => void
+  /** kind === 'raid'일 때 이 위젯 인스턴스가 가리키는 레이드 슬롯의 목표/관문 상태 */
+  raid?: RaidTargetSummary | null
+  /** 이미 다른 레이드 위젯이 쓰고 있는 레이드 키 목록(이 위젯 자신은 제외) — 목표 변경 모달에서
+   * 같은 레이드를 중복으로 고르지 못하게 막는 데 쓴다 */
+  raidExcludedKeys?: string[]
+  /** 레이드 관문 완료 체크박스 토글(interactive일 때만 호출됨) */
+  onRaidGateToggle?: (gateIndex: number, cleared: boolean) => void
+  /** 레이드 관문 '더보기' 토글(interactive일 때만 호출됨) */
+  onRaidMoreRewardToggle?: (gateIndex: number, enabled: boolean) => void
+  /** 레이드 목표(레이드/난이도) 변경(interactive일 때만 호출됨) */
+  onRaidTargetChange?: (raidKey: string, difficultyKey: string) => void
   className?: string
 }
 
-const DEFAULT_VALUE_KINDS: WidgetKind[] = ['banner', 'bannerCompact', 'guardian', 'kurzanFrontline']
+const DEFAULT_VALUE_KINDS: WidgetKind[] = [
+  'banner',
+  'bannerCompact',
+  'guardian',
+  'kurzanFrontline',
+  'paradise',
+  'raid',
+]
+
+const LOADING_PLACEHOLDER_CLASSNAME =
+  'flex aspect-[5/3] items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground'
+// 낙원(5x2)은 가디언/쿠르잔 전선(5x3)과 원본 비율이 달라 로딩 중 자리표시 상자도 따로 둔다.
+const PARADISE_LOADING_PLACEHOLDER_CLASSNAME =
+  'flex aspect-[5/2] items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground'
 
 interface GuardianWidgetBoundProps {
-  initialGuardian: GuardianSummary
+  characterId: string
   characterNameForModal: string
   characterItemLevel: number
-  onPersist: (next: GuardianSummary) => void
 }
 
 /**
- * 가디언 위젯의 로컬 편집 상태(체크 여부 등)를 소유한다. 부모가 key={characterName}로 렌더링해서,
- * 카드에 귀속된 캐릭터가 바뀌면 이 컴포넌트가 통째로 재마운트되어 새 캐릭터의 값으로 다시 초기화된다
- * — useEffect로 기존 state를 되맞추는 방식보다 확실하고, 리렌더 한 번의 지연도 없다.
+ * 가디언 위젯의 실제 상태를 소유한다. 마운트 시 `GET .../homeworks`로 초기값을 가져오고,
+ * 이후 체크/설정 저장은 각각 harvest·reset·target API를 호출해 서버 응답으로 갱신한다.
+ * 부모가 key={characterId}로 렌더링해서, 카드에 귀속된 캐릭터가 바뀌면 재마운트되어 다시 조회한다.
  */
 function GuardianWidgetBound({
-  initialGuardian,
+  characterId,
   characterNameForModal,
   characterItemLevel,
-  onPersist,
 }: GuardianWidgetBoundProps) {
-  const [guardianData, setGuardianData] = useState(initialGuardian)
+  const [guardianData, setGuardianData] = useState<GuardianSummary | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      fetchHomeworks(characterId).then(({ guardian }) => {
+        if (!cancelled) setGuardianData(guardian)
+      })
+    }
+    load()
+    // Logs 탭에서 이 캐릭터의 HARVEST_GUARDIAN 로그를 되돌리면 여기도 다시 조회해 반영한다.
+    const unsubscribe = subscribeHomeworksChanged(characterId, load)
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [characterId])
+
+  if (!guardianData) {
+    return <div className={LOADING_PLACEHOLDER_CLASSNAME}>불러오는 중...</div>
+  }
 
   return (
     <>
       <GuardianWidget
         data={guardianData}
-        onToggleHarvested={(checked) =>
-          setGuardianData((prev) => {
-            const next = checked ? applyGuardianHarvest(prev) : revertGuardianHarvest(prev)
-            onPersist(next)
-            return next
-          })
-        }
+        onToggleHarvested={(checked) => {
+          if (checked) {
+            harvestGuardian(characterId, guardianData.targetName)
+              .then((next) => {
+                setGuardianData(next)
+                notifyHomeworksChanged(characterId)
+              })
+              .catch((err) => console.error('가디언 수확 처리 실패', err))
+            return
+          }
+
+          // 체크 해제 = 로그 롤백 재사용(게이지 원복 + 로그 삭제). /guardian/reset과는 다른 동작이다
+          // (docs/api.typ "체크박스 해제" 참고) — 롤백 후 최신 상태를 다시 조회한다.
+          undoGuardianHarvest(characterId)
+            .then(() => fetchHomeworks(characterId))
+            .then(({ guardian }) => {
+              setGuardianData(guardian)
+              notifyHomeworksChanged(characterId)
+            })
+            .catch((err) => console.error('가디언 수확 되돌리기 실패', err))
+        }}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onClaimShardReward={(item) => {
+          claimGuardianShardReward(characterId, item.id, guardianData.targetName).catch((err) =>
+            console.error('편린 보상 확정 실패', err),
+          )
+        }}
+        onClaimAzenaBlessingReward={(item) => {
+          claimGuardianAzenaBlessingReward(characterId, item.id, guardianData.targetName).catch((err) =>
+            console.error('아제나 축복 보상 확정 실패', err),
+          )
+        }}
       />
       <GuardianSettingsModal
         open={isSettingsOpen}
@@ -102,7 +220,13 @@ function GuardianWidgetBound({
         data={guardianData}
         onSave={(next) => {
           setGuardianData(next)
-          onPersist(next)
+          updateGuardianTarget(characterId, {
+            targetName: next.targetName,
+            restGauge: next.restGauge,
+            restGaugeThreshold: next.restGaugeThreshold,
+          })
+            .then(setGuardianData)
+            .catch((err) => console.error('가디언 설정 저장 실패', err))
         }}
       />
     </>
@@ -110,39 +234,82 @@ function GuardianWidgetBound({
 }
 
 interface KurzanFrontlineWidgetBoundProps {
-  initialKurzan: KurzanFrontlineSummary
+  characterId: string
   characterNameForModal: string
-  onPersist: (next: KurzanFrontlineSummary) => void
 }
 
-/** 쿠르잔 전선 버전의 {@link GuardianWidgetBound} — 같은 이유로 key={characterName}로 재마운트한다. */
+/** 쿠르잔 전선 버전의 {@link GuardianWidgetBound} — 같은 이유로 key={characterId}로 재마운트한다. */
 function KurzanFrontlineWidgetBound({
-  initialKurzan,
+  characterId,
   characterNameForModal,
-  onPersist,
 }: KurzanFrontlineWidgetBoundProps) {
-  const [kurzanData, setKurzanData] = useState(initialKurzan)
+  const [kurzanData, setKurzanData] = useState<KurzanFrontlineSummary | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      fetchHomeworks(characterId).then(({ kurzan }) => {
+        if (!cancelled) setKurzanData(kurzan)
+      })
+    }
+    load()
+    // Logs 탭에서 이 캐릭터의 HARVEST_KURZAN 로그를 되돌리면 여기도 다시 조회해 반영한다.
+    const unsubscribe = subscribeHomeworksChanged(characterId, load)
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [characterId])
+
+  if (!kurzanData) {
+    return <div className={LOADING_PLACEHOLDER_CLASSNAME}>불러오는 중...</div>
+  }
 
   return (
     <>
       <KurzanFrontlineWidget
         data={kurzanData}
-        onToggleHarvested={(checked) =>
-          setKurzanData((prev) => {
-            const next = checked ? applyKurzanFrontlineHarvest(prev) : revertKurzanFrontlineHarvest(prev)
-            onPersist(next)
-            return next
-          })
-        }
-        onUseResonancePotion={() =>
-          setKurzanData((prev) => {
-            const next = resetKurzanFrontlineWithResonancePotion(prev)
-            onPersist(next)
-            return next
-          })
-        }
+        onToggleHarvested={(checked) => {
+          if (checked) {
+            harvestKurzan(characterId, kurzanData.targetName)
+              .then((next) => {
+                setKurzanData(next)
+                notifyHomeworksChanged(characterId)
+              })
+              .catch((err) => console.error('쿠르잔 전선 수확 처리 실패', err))
+            return
+          }
+
+          // 체크 해제 = 로그 롤백 재사용(게이지 원복 + 로그 삭제). 공명의 비약(/kurzan/reset)과는
+          // 다른 동작이다(docs/api.typ "체크박스 해제" 참고) — 롤백 후 최신 상태를 다시 조회한다.
+          undoKurzanHarvest(characterId)
+            .then(() => fetchHomeworks(characterId))
+            .then(({ kurzan }) => {
+              setKurzanData(kurzan)
+              notifyHomeworksChanged(characterId)
+            })
+            .catch((err) => console.error('쿠르잔 전선 수확 되돌리기 실패', err))
+        }}
+        onUseResonancePotion={() => {
+          resetKurzan(characterId)
+            .then((next) => {
+              setKurzanData(next)
+              notifyHomeworksChanged(characterId)
+            })
+            .catch((err) => console.error('공명비약 사용 실패', err))
+        }}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onClaimShardReward={(item) => {
+          claimKurzanShardReward(characterId, item.id, kurzanData.targetName).catch((err) =>
+            console.error('편린 보상 확정 실패', err),
+          )
+        }}
+        onClaimAzenaBlessingReward={(item) => {
+          claimKurzanAzenaBlessingReward(characterId, item.id, kurzanData.targetName).catch((err) =>
+            console.error('아제나 축복 보상 확정 실패', err),
+          )
+        }}
       />
       <KurzanFrontlineSettingsModal
         open={isSettingsOpen}
@@ -151,7 +318,83 @@ function KurzanFrontlineWidgetBound({
         data={kurzanData}
         onSave={(next) => {
           setKurzanData(next)
-          onPersist(next)
+          updateKurzanTarget(characterId, {
+            restGauge: next.restGauge,
+            restGaugeThreshold: next.restGaugeThreshold,
+          })
+            .then(setKurzanData)
+            .catch((err) => console.error('쿠르잔 전선 설정 저장 실패', err))
+        }}
+      />
+    </>
+  )
+}
+
+interface ParadiseWidgetBoundProps {
+  characterId: string
+  characterNameForModal: string
+}
+
+/**
+ * 낙원 버전의 {@link GuardianWidgetBound} — 같은 이유로 key={characterId}로 재마운트한다. 가디언/
+ * 쿠르잔 전선과 달리 티켓/열쇠 소모나 자동 충전 토글이 로그로 남지 않아(rollback 대상이 아님)
+ * Logs 탭 되돌리기에 반응할 필요가 없으므로 subscribeHomeworksChanged는 구독하지 않는다.
+ */
+function ParadiseWidgetBound({ characterId, characterNameForModal }: ParadiseWidgetBoundProps) {
+  const [paradiseData, setParadiseData] = useState<ParadiseSummary | null>(null)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isGoldRewardOpen, setIsGoldRewardOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchHomeworks(characterId).then(({ paradise }) => {
+      if (!cancelled) setParadiseData(paradise)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [characterId])
+
+  if (!paradiseData) {
+    return <div className={PARADISE_LOADING_PLACEHOLDER_CLASSNAME}>불러오는 중...</div>
+  }
+
+  return (
+    <>
+      <ParadiseWidget
+        data={paradiseData}
+        onDecrementTicket={() => {
+          consumeParadiseTicket(characterId)
+            .then(setParadiseData)
+            .catch((err) => console.error('낙원 티켓 사용 실패', err))
+        }}
+        onDecrementKey={() => {
+          consumeParadiseKey(characterId)
+            .then(setParadiseData)
+            .catch((err) => console.error('낙원 열쇠 사용 실패', err))
+        }}
+        onOpenGoldReward={() => setIsGoldRewardOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+      <ParadiseSettingsModal
+        open={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        characterName={characterNameForModal}
+        data={paradiseData}
+        onSave={(next) => {
+          setParadiseData(next)
+          updateParadiseSettings(characterId, next)
+            .then(setParadiseData)
+            .catch((err) => console.error('낙원 설정 저장 실패', err))
+        }}
+      />
+      <ParadiseGoldRewardModal
+        open={isGoldRewardOpen}
+        onClose={() => setIsGoldRewardOpen(false)}
+        onSubmit={(amount, description) => {
+          recordParadiseGoldReward(characterId, amount, description).catch((err) =>
+            console.error('낙원 귀속골드 기록 실패', err),
+          )
         }}
       />
     </>
@@ -163,35 +406,70 @@ function KurzanFrontlineWidgetBound({
  * 아직 구현되지 않은 위젯은 크기 비율이 맞는 자리표시(placeholder)로 대체한다.
  * 배치/미리보기 용도(팔레트, 편집 그리드)에서는 interactive를 꺼서 내부 상호작용을 막는다.
  *
- * 백엔드 연동 전이라 각 위젯의 상태(체크 여부, 입력한 텍스트 등)는 이 컴포넌트 인스턴스의
- * 로컬 state로만 보관한다. mock 데이터를 그대로 controlled 값으로 물려주면 클릭해도
- * 즉시 원래 값으로 되돌아가므로, 실제로 상호작용이 가능하려면 이 state가 반드시 필요하다.
- * Default Value 위젯(가디언/쿠르잔 전선)은 추가로 characterName을 키로 삼아 mock 저장소에
- * 상태를 동기화한다 — 위젯을 지웠다 다시 놓아도 같은 이름이면 상태가 유지된다.
+ * Default Value 위젯(배너, 가디언, 쿠르잔 전선)은 카드에 귀속된 실제 캐릭터가 있을 때만 렌더링되며
+ * (아래 placeholder 분기 참고), 이 시점부터는 항상 실제 캐릭터 API로 상태를 읽고 쓴다.
+ * 텍스트 등 Additional Value 위젯은 아직 커스텀 위젯 API가 없어 이 컴포넌트 인스턴스의 로컬
+ * state로만 보관한다.
  */
-export function WidgetVisual({ kind, width, height, interactive = false, characterName, className }: WidgetVisualProps) {
+export function WidgetVisual({
+  kind,
+  width,
+  height,
+  interactive = false,
+  characterName,
+  customData,
+  onCustomDataChange,
+  onCheckboxToggle,
+  raid,
+  raidExcludedKeys,
+  onRaidGateToggle,
+  onRaidMoreRewardToggle,
+  onRaidTargetChange,
+  className,
+}: WidgetVisualProps) {
   const catalogItem = WIDGET_CATALOG.find((item) => item.kind === kind)
   const disabledClassName = !interactive && 'pointer-events-none'
 
   // characterName이 넘어오지 않으면(팔레트 미리보기 등) 특정 카드에 귀속되지 않은 것이므로
-  // 항상 예시 mock 데이터를 보여준다. 넘어왔다면 그 이름을 기준으로 조회한다.
+  // 항상 예시 mock 데이터를 보여준다. 넘어왔다면 실제 캐릭터 API 목록(CharacterDirectoryContext)에서
+  // 그 이름을 조회한다 — 등록된 실제 캐릭터일 때만 값이 있다.
+  const { findByName, refresh } = useCharacterDirectory()
   const isBoundToCard = characterName !== undefined
-  const record = characterName ? getMockCharacterRecord(characterName) : undefined
+  const record = characterName ? findByName(characterName) : undefined
 
   const [isRefreshing, setIsRefreshing] = useState(false)
   const handleRefresh = () => {
+    if (!record) {
+      // 카드에 귀속되지 않은 미리보기(예시 데이터)라 새로고침할 실제 캐릭터가 없다 — 스핀만 보여준다.
+      setIsRefreshing(true)
+      window.setTimeout(() => setIsRefreshing(false), 1200)
+      return
+    }
+
     setIsRefreshing(true)
-    window.setTimeout(() => setIsRefreshing(false), 1200)
+    refresh(record.id)
+      .catch((err) => console.error('캐릭터 정보 새로고침 실패', err))
+      .finally(() => setIsRefreshing(false))
   }
 
-  const [textValue, setTextValue] = useState('')
+  // Additional Value 위젯(text/textCheckbox)의 텍스트 입력. 입력 중엔 로컬 상태로만 부드럽게
+  // 반영하고, 포커스가 벗어날 때만 onCustomDataChange로 저장한다(키 입력마다 API를 부르지 않기 위함).
+  // customData?.text의 "값"만 의존성으로 둬서, 저장 후 돌아오는 동일한 값으로는 다시 리셋되지 않게 한다.
+  const [textDraft, setTextDraft] = useState((customData?.text as string) ?? '')
+  useEffect(() => {
+    setTextDraft((customData?.text as string) ?? '')
+  }, [customData?.text])
 
-  const [paradiseData, setParadiseData] = useState(mockParadise)
-  const [isParadiseSettingsOpen, setIsParadiseSettingsOpen] = useState(false)
+  const [isTextCheckboxSettingsOpen, setIsTextCheckboxSettingsOpen] = useState(false)
+  const [isLinkIconSettingsOpen, setIsLinkIconSettingsOpen] = useState(false)
+  const [isAbilityStoneOpen, setIsAbilityStoneOpen] = useState(false)
+
+  const [isRaidSettingsOpen, setIsRaidSettingsOpen] = useState(false)
 
   // 카드에는 배치됐지만 (1) 아직 캐릭터 이름이 설정되지 않았거나 (2) 설정한 이름이 조회되지
   // 않는 경우, Default Value 위젯은 실제 데이터 대신 안내만 보여준다 (docs/db_schema.typ:
   // Default Value는 캐릭터에 종속되므로 캐릭터를 특정할 수 없으면 노출할 데이터가 없다).
+  // 가디언/쿠르잔 전선 바운드 컴포넌트는 이 분기를 통과한 뒤에만 렌더링되므로 record가 항상 있다.
   if (isBoundToCard && !record && DEFAULT_VALUE_KINDS.includes(kind)) {
     return (
       <div
@@ -212,9 +490,7 @@ export function WidgetVisual({ kind, width, height, interactive = false, charact
     )
   }
 
-  const bannerCharacter = record?.character ?? mockCharacter
-  // 팔레트 미리보기처럼 카드에 귀속되지 않은 경우에도 remount 키가 흔들리지 않도록 고정값을 쓴다.
-  const boundKey = characterName ?? '__preview__'
+  const bannerCharacter = record ?? mockCharacter
 
   if (kind === 'banner') {
     return (
@@ -249,6 +525,7 @@ export function WidgetVisual({ kind, width, height, interactive = false, charact
   }
 
   if (kind === 'kurzanFrontline') {
+    // record는 위 placeholder 분기에서 이미 보장됨(guardian/kurzanFrontline은 DEFAULT_VALUE_KINDS에 포함).
     return (
       <ScaleToFit
         nativeWidth={KURZAN_FRONTLINE_NATIVE_WIDTH}
@@ -258,12 +535,9 @@ export function WidgetVisual({ kind, width, height, interactive = false, charact
         className={cn('select-none rounded-xl', disabledClassName, className)}
       >
         <KurzanFrontlineWidgetBound
-          key={boundKey}
-          initialKurzan={record?.kurzanFrontline ?? mockKurzanFrontline}
+          key={record!.id}
+          characterId={record!.id}
           characterNameForModal={bannerCharacter.characterName}
-          onPersist={(next) => {
-            if (characterName) updateMockKurzanFrontline(characterName, next)
-          }}
         />
       </ScaleToFit>
     )
@@ -279,41 +553,80 @@ export function WidgetVisual({ kind, width, height, interactive = false, charact
         className={cn('select-none rounded-xl', disabledClassName, className)}
       >
         <GuardianWidgetBound
-          key={boundKey}
-          initialGuardian={record?.guardian ?? mockGuardian}
+          key={record!.id}
+          characterId={record!.id}
           characterNameForModal={bannerCharacter.characterName}
           characterItemLevel={bannerCharacter.itemLevel}
-          onPersist={(next) => {
-            if (characterName) updateMockGuardian(characterName, next)
-          }}
         />
       </ScaleToFit>
     )
   }
 
   if (kind === 'paradise') {
+    // record는 위 placeholder 분기에서 이미 보장됨(paradise가 DEFAULT_VALUE_KINDS에 포함).
+    return (
+      <ScaleToFit
+        nativeWidth={PARADISE_NATIVE_WIDTH}
+        nativeHeight={PARADISE_NATIVE_HEIGHT}
+        width={width}
+        height={height}
+        className={cn('select-none rounded-xl', disabledClassName, className)}
+      >
+        <ParadiseWidgetBound
+          key={record!.id}
+          characterId={record!.id}
+          characterNameForModal={bannerCharacter.characterName}
+        />
+      </ScaleToFit>
+    )
+  }
+
+  if (kind === 'raid') {
+    // 특정 위젯 인스턴스에 묶이지 않은 미리보기(팔레트 등)는 raid가 전달되지 않으므로 예시 데이터를 쓴다.
+    const raidData = raid ?? MOCK_RAID_PREVIEW
+    const raidDefinition = RAID_CATALOG.find((candidate) => candidate.key === raidData.raidKey)
+    const difficultyDefinition = raidDefinition?.difficulties.find(
+      (candidate) => candidate.key === raidData.difficultyKey,
+    )
+    const gateViews: RaidGateView[] = raidData.gates.map((gate, index) => ({
+      cleared: gate.cleared,
+      moreRewardEnabled: gate.moreRewardEnabled,
+      goldReward: difficultyDefinition?.gates[index]?.goldReward ?? 0,
+      boundGoldReward: difficultyDefinition?.gates[index]?.boundGoldReward ?? 0,
+    }))
+    const hasClearedGate = raidData.gates.some((gate) => gate.cleared)
+
     return (
       <>
         <ScaleToFit
-          nativeWidth={PARADISE_NATIVE_WIDTH}
-          nativeHeight={PARADISE_NATIVE_HEIGHT}
+          nativeWidth={RAID_NATIVE_WIDTH}
+          nativeHeight={RAID_NATIVE_HEIGHT}
           width={width}
           height={height}
           className={cn('select-none rounded-xl', disabledClassName, className)}
         >
-          <ParadiseWidget
-            data={paradiseData}
-            onDecrementTicket={() => setParadiseData((prev) => decrementParadiseTicket(prev))}
-            onDecrementKey={() => setParadiseData((prev) => decrementParadiseKey(prev))}
-            onOpenSettings={() => setIsParadiseSettingsOpen(true)}
+          <RaidWidget
+            raidName={raidDefinition?.name ?? raidData.raidKey}
+            difficultyName={difficultyDefinition?.name ?? raidData.difficultyKey}
+            gates={gateViews}
+            onToggleGateCleared={onRaidGateToggle}
+            onToggleMoreReward={onRaidMoreRewardToggle}
+            onOpenSettings={() => setIsRaidSettingsOpen(true)}
           />
         </ScaleToFit>
-        <ParadiseSettingsModal
-          open={isParadiseSettingsOpen}
-          onClose={() => setIsParadiseSettingsOpen(false)}
-          characterName={bannerCharacter.characterName}
-          data={paradiseData}
-          onSave={setParadiseData}
+        <RaidTargetModal
+          open={isRaidSettingsOpen}
+          onClose={() => setIsRaidSettingsOpen(false)}
+          title="레이드 목표 변경"
+          characterItemLevel={bannerCharacter.itemLevel}
+          excludedRaidKeys={raidExcludedKeys}
+          initialRaidKey={raidData.raidKey}
+          initialDifficultyKey={raidData.difficultyKey}
+          locked={hasClearedGate}
+          onConfirm={(raidKey, difficultyKey) => {
+            onRaidTargetChange?.(raidKey, difficultyKey)
+            setIsRaidSettingsOpen(false)
+          }}
         />
       </>
     )
@@ -328,8 +641,104 @@ export function WidgetVisual({ kind, width, height, interactive = false, charact
         height={height}
         className={cn('select-none rounded-xl', disabledClassName, className)}
       >
-        <TextWidget value={textValue} onChange={setTextValue} />
+        <TextWidget
+          value={textDraft}
+          onChange={setTextDraft}
+          onBlur={() => onCustomDataChange?.({ text: textDraft })}
+        />
       </ScaleToFit>
+    )
+  }
+
+  if (kind === 'textCheckbox') {
+    const isChecked = Boolean(customData?.isChecked)
+    const text = (customData?.text as string | undefined) ?? ''
+    const resetDays = (customData?.resetDays as TextCheckboxResetDays | undefined) ?? RESET_DAYS_OFF
+    const remainingCount =
+      typeof customData?.remainingCount === 'number' ? (customData.remainingCount as number) : null
+    return (
+      <>
+        <ScaleToFit
+          nativeWidth={TEXT_CHECKBOX_NATIVE_WIDTH}
+          nativeHeight={TEXT_CHECKBOX_NATIVE_HEIGHT}
+          width={width}
+          height={height}
+          className={cn('select-none rounded-xl', disabledClassName, className)}
+        >
+          <TextCheckboxWidget
+            text={text}
+            isChecked={isChecked}
+            remainingCount={remainingCount}
+            onToggleChecked={onCheckboxToggle}
+            onOpenSettings={() => setIsTextCheckboxSettingsOpen(true)}
+          />
+        </ScaleToFit>
+        <TextCheckboxSettingsModal
+          open={isTextCheckboxSettingsOpen}
+          onClose={() => setIsTextCheckboxSettingsOpen(false)}
+          text={text}
+          resetDays={resetDays}
+          remainingCount={remainingCount}
+          onSave={(value) => onCustomDataChange?.({ ...customData, ...value })}
+        />
+      </>
+    )
+  }
+
+  if (kind === 'image') {
+    const url = (customData?.url as string | null) ?? null
+    return (
+      <ScaleToFit
+        nativeWidth={IMAGE_NATIVE_WIDTH}
+        nativeHeight={IMAGE_NATIVE_HEIGHT}
+        width={width}
+        height={height}
+        className={cn('select-none rounded-xl', disabledClassName, className)}
+      >
+        <ImageWidget url={url} onChangeUrl={(nextUrl) => onCustomDataChange?.({ url: nextUrl })} />
+      </ScaleToFit>
+    )
+  }
+
+  if (kind === 'linkIcon') {
+    const url = (customData?.url as string | null) ?? null
+    const label = (customData?.label as string | null) ?? null
+    return (
+      <>
+        <ScaleToFit
+          nativeWidth={LINK_ICON_NATIVE_WIDTH}
+          nativeHeight={LINK_ICON_NATIVE_HEIGHT}
+          width={width}
+          height={height}
+          className={cn('select-none rounded-xl', disabledClassName, className)}
+        >
+          <LinkIconWidget url={url} label={label} onOpenSettings={() => setIsLinkIconSettingsOpen(true)} />
+        </ScaleToFit>
+        <LinkIconSettingsModal
+          open={isLinkIconSettingsOpen}
+          onClose={() => setIsLinkIconSettingsOpen(false)}
+          url={url}
+          label={label}
+          onSave={(next) => onCustomDataChange?.(next)}
+        />
+      </>
+    )
+  }
+
+  if (kind === 'abilityStone') {
+    return (
+      <>
+        <ScaleToFit
+          nativeWidth={ABILITY_STONE_NATIVE_WIDTH}
+          nativeHeight={ABILITY_STONE_NATIVE_HEIGHT}
+          width={width}
+          height={height}
+          className={cn('select-none rounded-xl', disabledClassName, className)}
+        >
+          <AbilityStoneWidget onOpen={() => setIsAbilityStoneOpen(true)} />
+        </ScaleToFit>
+        <AbilityStoneModal open={isAbilityStoneOpen} onClose={() => setIsAbilityStoneOpen(false)} />
+      </>
     )
   }
 

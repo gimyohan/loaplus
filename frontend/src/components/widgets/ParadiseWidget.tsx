@@ -1,4 +1,4 @@
-import { Key, Settings, Ticket } from 'lucide-react'
+import { Banknote, Key, Settings, Ticket } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
@@ -13,6 +13,8 @@ export interface ParadiseWidgetProps {
   onDecrementTicket?: () => void
   /** 열쇠 영역 클릭(1개 소모) */
   onDecrementKey?: () => void
+  /** 귀속골드 획득 버튼 클릭 — 낙원은 귀속골드만 지급한다(docs/statistics.typ 참고) */
+  onOpenGoldReward?: () => void
   onOpenSettings?: () => void
   className?: string
 }
@@ -26,6 +28,7 @@ export function ParadiseWidget({
   data,
   onDecrementTicket,
   onDecrementKey,
+  onOpenGoldReward,
   onOpenSettings,
   className,
 }: ParadiseWidgetProps) {
@@ -90,8 +93,8 @@ export function ParadiseWidget({
         </button>
       </div>
 
-      {/* 하단: 티켓 / 열쇠 보유 현황. 각각 버튼으로, 클릭할 때마다 1개씩 소모한다 */}
-      <div className="grid flex-1 grid-cols-2 divide-x divide-border">
+      {/* 하단: 티켓 / 열쇠 보유 현황 / 귀속골드 획득 기록. 티켓 : 열쇠 : 골드 = 2 : 1 : 1 비율 */}
+      <div className="grid flex-1 grid-cols-[2fr_1fr_1fr] divide-x divide-border">
         <button
           type="button"
           aria-label="티켓 사용"
@@ -124,6 +127,16 @@ export function ParadiseWidget({
           >
             {keyCount}
           </span>
+        </button>
+
+        {/* 낙원은 귀속골드만 지급하므로(docs/statistics.typ) 여기서 기록하는 값도 귀속골드뿐이다. */}
+        <button
+          type="button"
+          aria-label="귀속골드 획득 기록"
+          onClick={onOpenGoldReward}
+          className="flex items-center justify-center bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Banknote className="h-6 w-6 shrink-0" />
         </button>
       </div>
     </div>

@@ -26,6 +26,15 @@ export default {
           DEFAULT: 'rgb(var(--muted) / <alpha-value>)',
           foreground: 'rgb(var(--muted-foreground) / <alpha-value>)',
         },
+        // 통계 차트 카테고리 색상 5슬롯(고정 순서) — docs/design.typ의 primary/secondary 제약은
+        // UI 요소 대상이고, 카테고리를 구분해야 하는 차트에는 적용되지 않는다.
+        chart: {
+          1: 'rgb(var(--chart-1) / <alpha-value>)',
+          2: 'rgb(var(--chart-2) / <alpha-value>)',
+          3: 'rgb(var(--chart-3) / <alpha-value>)',
+          4: 'rgb(var(--chart-4) / <alpha-value>)',
+          5: 'rgb(var(--chart-5) / <alpha-value>)',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

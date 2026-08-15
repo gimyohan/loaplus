@@ -2,9 +2,10 @@ import { useState, type DragEvent, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { WidgetVisual } from '@/components/dashboard/WidgetVisual'
+import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
+import { describeCharacterApiError } from '@/lib/characters'
 import { cn } from '@/lib/utils'
 import { CELL_SIZE, WIDGET_CATALOG, WIDGET_DRAG_MIME } from '@/lib/widgetCatalog'
-import { getMockCharacterRecord } from '@/mocks/characterRegistry'
 import type { WidgetCatalogItem } from '@/types/widget'
 
 function PaletteItem({ item, characterName }: { item: WidgetCatalogItem; characterName?: string }) {
@@ -47,15 +48,34 @@ export function WidgetPalette({
   characterName,
   onCharacterNameChange,
 }: WidgetPaletteProps) {
+  const { findByName, resolveByName } = useCharacterDirectory()
   const [characterNameInput, setCharacterNameInput] = useState(characterName)
-  const hasCharacterRecord = Boolean(characterName && getMockCharacterRecord(characterName))
+  const [isResolving, setIsResolving] = useState(false)
+  const [resolveError, setResolveError] = useState<string | null>(null)
+  const hasCharacterRecord = Boolean(characterName && findByName(characterName))
 
   const defaultWidgets = WIDGET_CATALOG.filter((item) => item.category === 'default')
   const additionalWidgets = WIDGET_CATALOG.filter((item) => item.category === 'additional')
 
-  const handleCharacterNameSave = (event: FormEvent) => {
+  const handleCharacterNameSave = async (event: FormEvent) => {
     event.preventDefault()
-    onCharacterNameChange(characterNameInput.trim())
+    const name = characterNameInput.trim()
+    if (!name) {
+      onCharacterNameChange('')
+      return
+    }
+
+    setIsResolving(true)
+    setResolveError(null)
+    try {
+      // 등록된 캐릭터면 그대로 조회하고, 아니면 Open API로 실존 여부를 확인해 새로 등록한 뒤 카드에 귀속시킨다.
+      await resolveByName(name)
+      onCharacterNameChange(name)
+    } catch (err) {
+      setResolveError(describeCharacterApiError(err))
+    } finally {
+      setIsResolving(false)
+    }
   }
 
   return (
@@ -80,9 +100,9 @@ export function WidgetPalette({
             Default Value
           </span>
 
-          {/* 이 카드가 어떤 캐릭터에 귀속되는지 여기서 지정한다. 등록된 캐릭터가 아니면
-              아래 Default Value 위젯 목록 자체를 노출하지 않는다 (docs/db_schema.typ:
-              Default Value는 위젯이 아니라 캐릭터에 종속) */}
+          {/* 이 카드가 어떤 캐릭터에 귀속되는지 여기서 지정한다. 입력한 이름이 이미 등록돼 있으면
+              그대로 조회하고, 아니면 Open API로 실존 여부를 확인해 새로 등록한 뒤 카드에 귀속시킨다
+              (docs/db_schema.typ: Default Value는 위젯이 아니라 캐릭터에 종속) */}
           <form
             onSubmit={handleCharacterNameSave}
             className="flex flex-col gap-2 rounded-lg border border-border bg-background/50 p-3"
@@ -97,14 +117,10 @@ export function WidgetPalette({
                 className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </label>
-            <Button type="submit" className="h-8 px-3 py-0 text-xs">
-              캐릭터 이름 적용
+            <Button type="submit" className="h-8 px-3 py-0 text-xs" disabled={isResolving}>
+              {isResolving ? '조회 중...' : '캐릭터 이름 적용'}
             </Button>
-            {characterName && !hasCharacterRecord && (
-              <p className="text-xs text-destructive">
-                등록되지 않은 캐릭터입니다. Default Value 위젯을 사용할 수 없습니다.
-              </p>
-            )}
+            {resolveError && <p className="text-xs text-destructive">{resolveError}</p>}
           </form>
 
           {hasCharacterRecord ? (

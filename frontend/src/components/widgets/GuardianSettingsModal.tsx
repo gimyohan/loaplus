@@ -131,7 +131,12 @@ export function GuardianSettingsModal({
                 <button
                   type="button"
                   aria-label="임계치 감소"
+                  title="오른쪽 클릭: 0%로"
                   onClick={() => setThreshold((prev) => clamp(prev - step, 0, data.restGaugeMax))}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    setThreshold(0)
+                  }}
                   className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                 >
                   <Minus className="h-3 w-3" />
@@ -142,7 +147,12 @@ export function GuardianSettingsModal({
                 <button
                   type="button"
                   aria-label="임계치 증가"
+                  title="오른쪽 클릭: 100%로"
                   onClick={() => setThreshold((prev) => clamp(prev + step, 0, data.restGaugeMax))}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    setThreshold(data.restGaugeMax)
+                  }}
                   className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                 >
                   <Plus className="h-3 w-3" />

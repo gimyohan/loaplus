@@ -1,0 +1,988 @@
+{
+  "raids": [
+    {
+      "key": "valtan",
+      "name": "발탄",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1415,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 500
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 700
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1415,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 500
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 700
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1445,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 700
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1100
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "vykas",
+      "name": "비아키스",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1430,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1000
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1430,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1000
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1460,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 900
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "kouku-saiton",
+      "name": "쿠크세이튼",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1475,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 900
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1500
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1475,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 900
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "abrelshud",
+      "name": "아브렐슈드",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1490,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1600
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1490,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1600
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1540,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1200
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1200
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1200
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "kayangel",
+      "name": "카양겔",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1540,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 750
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1100
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1450
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1540,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 750
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1100
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1450
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1580,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 900
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1400
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "iliakan",
+      "name": "일리아칸",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1580,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 850
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1550
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2300
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1580,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 850
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1550
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2300
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1600,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1200
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2800
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "ivory_tower",
+      "name": "혼돈의 상아탑",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1600,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1200
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2400
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1600,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1200
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2400
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1620,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1400
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 3800
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "thaemine",
+      "name": "카멘",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1610,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2800
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1610,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2800
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1630,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 2400
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 3600
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 5000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "echidna",
+      "name": "서막: 에키드나",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1620,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1900
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 4200
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1620,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 1900
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 4200
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1640,
+          "gates": [
+            {
+              "goldReward": 1100,
+              "boundGoldReward": 1100
+            },
+            {
+              "goldReward": 2500,
+              "boundGoldReward": 2500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "behemoth",
+      "name": "베히모스",
+      "difficulties": [
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1640,
+          "gates": [
+            {
+              "goldReward": 1100,
+              "boundGoldReward": 1100
+            },
+            {
+              "goldReward": 2500,
+              "boundGoldReward": 2500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "aegir",
+      "name": "1막 에기르",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1660,
+          "gates": [
+            {
+              "goldReward": 1750,
+              "boundGoldReward": 1750
+            },
+            {
+              "goldReward": 4000,
+              "boundGoldReward": 4000
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1660,
+          "gates": [
+            {
+              "goldReward": 1750,
+              "boundGoldReward": 1750
+            },
+            {
+              "goldReward": 4000,
+              "boundGoldReward": 4000
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1680,
+          "gates": [
+            {
+              "goldReward": 2750,
+              "boundGoldReward": 2750
+            },
+            {
+              "goldReward": 6250,
+              "boundGoldReward": 6250
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "abrelshud2",
+      "name": "2막: 아브렐슈드",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1670,
+          "gates": [
+            {
+              "goldReward": 2750,
+              "boundGoldReward": 2750
+            },
+            {
+              "goldReward": 5500,
+              "boundGoldReward": 5500
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1670,
+          "gates": [
+            {
+              "goldReward": 2750,
+              "boundGoldReward": 2750
+            },
+            {
+              "goldReward": 5500,
+              "boundGoldReward": 5500
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1690,
+          "gates": [
+            {
+              "goldReward": 3750,
+              "boundGoldReward": 3750
+            },
+            {
+              "goldReward": 7750,
+              "boundGoldReward": 7750
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "mordum",
+      "name": "3막: 모르둠",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1680,
+          "gates": [
+            {
+              "goldReward": 2000,
+              "boundGoldReward": 2000
+            },
+            {
+              "goldReward": 3500,
+              "boundGoldReward": 3500
+            },
+            {
+              "goldReward": 5000,
+              "boundGoldReward": 5000
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1680,
+          "gates": [
+            {
+              "goldReward": 2000,
+              "boundGoldReward": 2000
+            },
+            {
+              "goldReward": 3500,
+              "boundGoldReward": 3500
+            },
+            {
+              "goldReward": 5000,
+              "boundGoldReward": 5000
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1700,
+          "gates": [
+            {
+              "goldReward": 2500,
+              "boundGoldReward": 2500
+            },
+            {
+              "goldReward": 4000,
+              "boundGoldReward": 4000
+            },
+            {
+              "goldReward": 7000,
+              "boundGoldReward": 7000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "armoche",
+      "name": "4막:아르모체",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1700,
+          "gates": [
+            {
+              "goldReward": 5000,
+              "boundGoldReward": 5000
+            },
+            {
+              "goldReward": 8500,
+              "boundGoldReward": 8500
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1700,
+          "gates": [
+            {
+              "goldReward": 5000,
+              "boundGoldReward": 5000
+            },
+            {
+              "goldReward": 8500,
+              "boundGoldReward": 8500
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1720,
+          "gates": [
+            {
+              "goldReward": 13500,
+              "boundGoldReward": 0
+            },
+            {
+              "goldReward": 24500,
+              "boundGoldReward": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "kazeroth",
+      "name": "종막: 카제로스",
+      "difficulties": [
+        {
+          "key": "solo",
+          "name": "싱글",
+          "minItemLevel": 1710,
+          "gates": [
+            {
+              "goldReward": 5500,
+              "boundGoldReward": 5500
+            },
+            {
+              "goldReward": 10500,
+              "boundGoldReward": 10500
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1710,
+          "gates": [
+            {
+              "goldReward": 5500,
+              "boundGoldReward": 5500
+            },
+            {
+              "goldReward": 10500,
+              "boundGoldReward": 10500
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1730,
+          "gates": [
+            {
+              "goldReward": 16000,
+              "boundGoldReward": 0
+            },
+            {
+              "goldReward": 32000,
+              "boundGoldReward": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "horizon_cathedral",
+      "name": "지평의 성당",
+      "difficulties": [
+        {
+          "key": "step1",
+          "name": "1단계",
+          "minItemLevel": 1700,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 13500
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 16500
+            }
+          ]
+        },
+        {
+          "key": "step2",
+          "name": "2단계",
+          "minItemLevel": 1720,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 16000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 24000
+            }
+          ]
+        },
+        {
+          "key": "step3",
+          "name": "3단계",
+          "minItemLevel": 1750,
+          "gates": [
+            {
+              "goldReward": 0,
+              "boundGoldReward": 20000
+            },
+            {
+              "goldReward": 0,
+              "boundGoldReward": 30000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "serca",
+      "name": "세르카",
+      "difficulties": [
+        {
+          "key": "match",
+          "name": "매칭",
+          "minItemLevel": 1710,
+          "gates": [
+            {
+              "goldReward": 6500,
+              "boundGoldReward": 6500
+            },
+            {
+              "goldReward": 9500,
+              "boundGoldReward": 9500
+            }
+          ]
+        },
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1710,
+          "gates": [
+            {
+              "goldReward": 6500,
+              "boundGoldReward": 6500
+            },
+            {
+              "goldReward": 9500,
+              "boundGoldReward": 9500
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1730,
+          "gates": [
+            {
+              "goldReward": 17500,
+              "boundGoldReward": 0
+            },
+            {
+              "goldReward": 26500,
+              "boundGoldReward": 0
+            }
+          ]
+        },
+        {
+          "key": "nightmare",
+          "name": "나메",
+          "minItemLevel": 1740,
+          "gates": [
+            {
+              "goldReward": 21000,
+              "boundGoldReward": 0
+            },
+            {
+              "goldReward": 33000,
+              "boundGoldReward": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "belgardin",
+      "name": "벨가르딘",
+      "difficulties": [
+        {
+          "key": "normal",
+          "name": "노말",
+          "minItemLevel": 1750,
+          "gates": [
+            {
+              "goldReward": 20000,
+              "boundGoldReward": 0
+            },
+            {
+              "goldReward": 30000,
+              "boundGoldReward": 0
+            }
+          ]
+        },
+        {
+          "key": "hard",
+          "name": "하드",
+          "minItemLevel": 1770,
+          "gates": [
+            {
+              "goldReward": 25000,
+              "boundGoldReward": 0
+            },
+            {
+              "goldReward": 37000,
+              "boundGoldReward": 0
+            }
+          ]
+        },
+        {
+          "key": "nightmare",
+          "name": "나메",
+          "minItemLevel": 1780,
+          "gates": [
+            {
+              "goldReward": 30000,
+              "boundGoldReward": 0
+            },
+            {
+              "goldReward": 45000,
+              "boundGoldReward": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

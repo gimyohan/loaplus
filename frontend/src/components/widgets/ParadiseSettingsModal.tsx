@@ -17,7 +17,7 @@ export interface ParadiseSettingsModalProps {
 /**
  * 낙원 위젯의 톱니바퀴를 누르면 뜨는 설정 모달. 자동 충전 여부를 토글하고,
  * 티켓/열쇠 수량을 직접 입력해 고칠 수 있다. 자동 충전의 실제 동작(매주 초기화 시점에
- * 티켓 max(현재, 5), 열쇠 +3)은 lib/paradise.ts의 applyParadiseWeeklyRecharge가 담당하며,
+ * 티켓 max(현재, 5), 열쇠 +3)은 백엔드 lib/resetLogic.ts의 지연 초기화가 담당하며,
  * 여기서는 ?아이콘 툴팁으로 그 규칙을 설명만 한다.
  */
 export function ParadiseSettingsModal({

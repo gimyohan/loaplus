@@ -1,0 +1,37 @@
+{
+  "categories": [
+    {
+      "key": "boundGold",
+      "label": "귀속 골드",
+      "items": [
+        { "id": "azena-gold-pile-300000", "name": "300,000골드", "quantity": 1, "numericValue": 300000 },
+        { "id": "azena-gold-pile-200000", "name": "200,000골드", "quantity": 1, "numericValue": 200000 },
+        { "id": "azena-gold-box-100000", "name": "100,000골드", "quantity": 1, "numericValue": 100000 },
+        { "id": "azena-gold-box-50000", "name": "50,000골드", "quantity": 1, "numericValue": 50000 },
+        { "id": "azena-gold-box-20000", "name": "20,000골드", "quantity": 1, "numericValue": 20000 },
+        { "id": "azena-gold-bar-10000", "name": "10,000골드", "quantity": 1, "numericValue": 10000 }
+      ]
+    },
+    {
+      "key": "cardPack",
+      "label": "카드 팩",
+      "items": [
+        { "id": "azena-card-pack-advance-legendary-1", "name": "진격의 전설 카드 팩 I", "quantity": 1 },
+        { "id": "azena-card-pack-advance-legendary-2", "name": "진격의 전설 카드 팩 II", "quantity": 1 },
+        { "id": "azena-card-pack-vigor-legendary-1", "name": "기백의 전설 카드 팩 I", "quantity": 1 },
+        { "id": "azena-card-pack-vigor-legendary-2", "name": "기백의 전설 카드 팩 II", "quantity": 1 },
+        { "id": "azena-card-pack-wish-legendary", "name": "염원의 전설 카드 팩", "quantity": 1 },
+        { "id": "azena-card-pack-desire-legendary", "name": "열망의 전설 카드 팩", "quantity": 1 },
+        { "id": "azena-card-pack-leap-legendary-choice-3", "name": "도약의 전설 카드 선택 팩 III", "quantity": 1 }
+      ]
+    },
+    {
+      "key": "relicEngravingBook",
+      "label": "유물 각인서",
+      "items": [
+        { "id": "azena-relic-engraving-pouch-blessing-random", "name": "축복의 유물 각인서 주머니 (랜덤)", "quantity": 1 },
+        { "id": "azena-relic-engraving-pouch-blessing-choice", "name": "축복의 유물 각인서 주머니 (선택)", "quantity": 1 }
+      ]
+    }
+  ]
+}

@@ -1,8 +1,21 @@
-import { ImagePlus } from 'lucide-react'
+import { Banknote, Book, Coins, CreditCard, Gem, ImagePlus, Layers, Package, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Modal } from '@/components/ui/modal'
 import { cn } from '@/lib/utils'
+
+// 보상 카탈로그(kurzanShardRewards.json/kurzanAzenaBlessingRewards.json)의 categoryKey별 아이콘.
+// 개별 아이템 이미지(imageUrl)는 실제로 채워지는 곳이 없어 대신 카테고리 단위로 아이콘을 보여준다.
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  gold: Banknote,
+  boundGold: Banknote,
+  silver: Coins,
+  expCardPack: CreditCard,
+  cardPack: Layers,
+  honingMaterialBox: Package,
+  relicEngravingBook: Book,
+  gem: Gem,
+}
 
 export interface RewardItem {
   id: string
@@ -23,28 +36,28 @@ export interface RewardSelectionModalProps {
   onClose: () => void
   title: string
   categories: RewardCategory[]
+  /** 아이템을 클릭하면 바로 호출된다 — 별도 확인 단계 없이 즉시 보상을 확정한다. */
+  onSelectItem?: (item: RewardItem) => void
   className?: string
 }
 
 /**
  * 편린 / 아제나 축복 등을 눌렀을 때 뜨는 보상 선택 모달. 재화 종류(카테고리) 탭으로 목록을
- * 좁혀보고, 그중 하나를 선택할 수 있다. 실제 보상 확정/서버 연동은 아직 없고 지금은
- * 선택 상태만 시각적으로 보여준다.
+ * 좁혀보고, 아이템을 클릭하면 그 자리에서 바로 보상이 확정된다(onSelectItem 호출 후 모달 닫힘).
  */
 export function RewardSelectionModal({
   open,
   onClose,
   title,
   categories,
+  onSelectItem,
   className,
 }: RewardSelectionModalProps) {
   const [activeCategoryKey, setActiveCategoryKey] = useState(categories[0]?.key)
-  const [selectedItemId, setSelectedItemId] = useState(categories[0]?.items[0]?.id)
 
   useEffect(() => {
     if (open) {
       setActiveCategoryKey(categories[0]?.key)
-      setSelectedItemId(categories[0]?.items[0]?.id)
     }
   }, [open, categories])
 
@@ -56,17 +69,17 @@ export function RewardSelectionModal({
       onClose={onClose}
       title={title}
       align="start"
-      className={cn('max-w-2xl', className)}
+      className={cn('max-w-4xl', className)}
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border pb-2">
+      <div className="flex flex-col gap-5">
+        <div className="flex items-center gap-2 overflow-x-auto border-b border-border pb-3">
           {categories.map((category) => (
             <button
               key={category.key}
               type="button"
               onClick={() => setActiveCategoryKey(category.key)}
               className={cn(
-                'shrink-0 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-wide transition-colors',
+                'shrink-0 rounded-full px-4 py-1.5 font-mono text-sm uppercase tracking-wide transition-colors',
                 category.key === activeCategory?.key
                   ? 'bg-primary/10 font-bold text-primary'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -77,45 +90,27 @@ export function RewardSelectionModal({
           ))}
         </div>
 
-        <div className="grid max-h-[50vh] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
-          {activeCategory?.items.map(({ id, name, quantity, imageUrl }) => {
-            const isSelected = id === selectedItemId
+        <div className="grid max-h-[65vh] grid-cols-3 gap-3 overflow-y-auto pr-1 sm:grid-cols-4">
+          {activeCategory?.items.map((item) => {
+            const { id, name, quantity } = item
+            const CategoryIcon = (activeCategory && CATEGORY_ICONS[activeCategory.key]) ?? ImagePlus
             return (
               <button
                 key={id}
                 type="button"
-                aria-pressed={isSelected}
-                onClick={() => setSelectedItemId(id)}
-                className={cn(
-                  'flex h-full flex-col items-center justify-center gap-1 rounded-lg border p-3 text-center transition-colors',
-                  isSelected
-                    ? 'border-primary bg-muted shadow-[inset_0_0_10px_rgba(92,122,255,0.1)]'
-                    : 'border-border bg-card hover:border-muted-foreground/40 hover:bg-muted',
-                )}
+                onClick={() => {
+                  onSelectItem?.(item)
+                  onClose()
+                }}
+                className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-4 text-center transition-colors hover:border-primary hover:bg-muted"
               >
-                <span
-                  className={cn(
-                    'flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted',
-                    isSelected ? 'border-primary/30' : 'border-border',
-                  )}
-                >
-                  {imageUrl ? (
-                    <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
-                  ) : (
-                    <ImagePlus
-                      className={cn('h-5 w-5', isSelected ? 'text-primary' : 'text-muted-foreground')}
-                    />
-                  )}
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                  <CategoryIcon className="h-8 w-8 text-muted-foreground" />
                 </span>
-                <span className="font-mono text-[10px] uppercase leading-tight tracking-wide text-foreground">
+                <span className="font-mono text-sm uppercase leading-tight tracking-wide text-foreground">
                   {name}
                 </span>
-                <span
-                  className={cn(
-                    'font-mono text-[10px] font-bold',
-                    isSelected ? 'text-primary' : 'text-muted-foreground',
-                  )}
-                >
+                <span className="font-mono text-sm font-bold text-muted-foreground">
                   x{quantity.toLocaleString('ko-KR')}
                 </span>
               </button>

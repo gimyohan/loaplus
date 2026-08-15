@@ -12,16 +12,23 @@ datasource db {
 
 // == Users (계정 및 지연 평가 기준 시각) ====================================
 model User {
-  id            String    @id @default(uuid())
+  id            String    @id @default(uuid()) @db.Uuid
   googleSub     String    @unique @map("google_sub")
   nickname      String?
   /// 반드시 애플리케이션 레이어에서 암호화한 값만 저장한다 (평문 금지)
   lostarkApiKey String?   @map("lostark_api_key")
   lastVisitedAt DateTime? @map("last_visited_at")
+  /// 프리미엄 접근 권한이 유지되는 마지막 시각. null이면 프리미엄을 가져본 적이 없거나 완전히
+  /// 만료된 상태. "지금 프리미엄인가"는 별도 컬럼 없이 이 값과 현재 시각을 비교해 매번 계산한다
+  /// (docs/subscription.typ 참고).
+  premiumExpiresAt DateTime? @map("premium_expires_at")
+  /// 무통장입금 시 입금자명으로 표기해 계정을 식별하는 짧은 코드. 회원가입 시 자동 생성되며
+  /// 재발급하지 않는다. 비밀정보가 아니라 프론트에 그대로 노출한다 (docs/subscription.typ 참고).
+  depositCode   String    @unique @map("deposit_code")
   createdAt     DateTime  @default(now()) @map("created_at")
 
-  characters         Character[]
-  actionLogs         ActionLog[]
+  characters Character[]
+  actionLogs ActionLog[]
   dashboardTemplates DashboardTemplate[]
 
   @@map("users")
@@ -29,37 +36,47 @@ model User {
 
 // == Characters (캐릭터 프로필) ==============================================
 model Character {
-  id            String  @id @default(uuid())
-  userId        String  @map("user_id")
+  id            String  @id @default(uuid()) @db.Uuid
+  userId        String  @map("user_id") @db.Uuid
   serverName    String  @map("server_name")
   characterName String  @map("character_name")
   itemLevel     Float   @map("item_level")
   combatPower   Float   @map("combat_power")
   className     String  @map("class_name")
   imageUrl      String? @map("image_url")
+  /// 대시보드에서 카드가 나열되는 순서. PUT /api/dashboards로 갱신, 신규 등록 시 맨 뒤로 자동 배정.
+  displayOrder  Int     @default(0) @map("display_order")
+  /// 이 캐릭터 카드 내부 위젯 그리드(n x m)의 칸 수. GridSettingsModal에서 조정.
+  gridColumns   Int     @default(10) @map("grid_columns")
+  gridRows      Int     @default(16) @map("grid_rows")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  guardian         Guardian?
-  kurzanFrontline  KurzanFrontline?
-  paradise         Paradise?
-  goldStats        CharacterGoldStat?
+  guardian        Guardian?
+  kurzanFrontline KurzanFrontline?
+  paradise        Paradise?
+  raids           CharacterRaid[]
+  statistics      CharacterStatistic?
+  statisticsWeekly CharacterStatisticWeekly[]
+  itemRewardStats CharacterItemRewardStat[]
+  actionLogs      ActionLog[]
   dashboardWidgets DashboardWidget[]
-  actionLogs       ActionLog[]
-  rewardStats      CharacterRewardStat[]
 
   @@map("characters")
 }
 
 // == Guardians / Kurzan_Frontlines (캐릭터와 1:1, 컬럼 구조 동일하지만 별개 테이블) ==
 model Guardian {
-  characterId               String  @id @map("character_id")
-  targetName                String  @map("target_name")
-  restGauge                 Int     @map("rest_gauge")
-  restGaugeMax              Int     @map("rest_gauge_max")
-  restGaugeThreshold        Int     @map("rest_gauge_threshold")
+  characterId                String  @id @map("character_id") @db.Uuid
+  targetName                 String  @map("target_name")
+  restGauge                  Int     @map("rest_gauge")
+  restGaugeMax               Int     @map("rest_gauge_max")
+  restGaugeThreshold         Int     @map("rest_gauge_threshold")
   isHarvested                Boolean @default(false) @map("is_harvested")
   restGaugeConsumedByHarvest Boolean @default(false) @map("rest_gauge_consumed_by_harvest")
+  /// true인 동안 target_name은 캐릭터의 현재 아이템 레벨로 입장 가능한 최고 컨텐츠로
+  /// 자동 유지된다. 유저가 대상을 직접 지정하면 false로 전환된다.
+  targetAutoManaged          Boolean @default(true) @map("target_auto_managed")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
@@ -67,13 +84,15 @@ model Guardian {
 }
 
 model KurzanFrontline {
-  characterId               String  @id @map("character_id")
-  targetName                String  @map("target_name")
-  restGauge                 Int     @map("rest_gauge")
-  restGaugeMax              Int     @map("rest_gauge_max")
-  restGaugeThreshold        Int     @map("rest_gauge_threshold")
+  characterId                String  @id @map("character_id") @db.Uuid
+  targetName                 String  @map("target_name")
+  restGauge                  Int     @map("rest_gauge")
+  restGaugeMax               Int     @map("rest_gauge_max")
+  restGaugeThreshold         Int     @map("rest_gauge_threshold")
   isHarvested                Boolean @default(false) @map("is_harvested")
   restGaugeConsumedByHarvest Boolean @default(false) @map("rest_gauge_consumed_by_harvest")
+  /// Guardians와 동일한 의미. docs/db_schema.typ 참고.
+  targetAutoManaged          Boolean @default(true) @map("target_auto_managed")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
@@ -82,105 +101,260 @@ model KurzanFrontline {
 
 // == Paradises (낙원 상태, 캐릭터와 1:1) =====================================
 model Paradise {
-  characterId  String  @id @map("character_id")
-  ticketCount  Int     @default(0) @map("ticket_count")
-  keyCount     Int     @default(0) @map("key_count")
-  autoRecharge Boolean @default(false) @map("auto_recharge")
+  characterId  String  @id @map("character_id") @db.Uuid
+  ticketCount  Int     @map("ticket_count")
+  keyCount     Int     @map("key_count")
+  autoRecharge Boolean @default(true) @map("auto_recharge")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   @@map("paradises")
 }
 
-// == Character_Gold_Stats (골드 획득 누적 통계, 캐릭터와 1:1) ===================
-model CharacterGoldStat {
-  characterId     String @id @map("character_id")
-  totalGoldEarned BigInt @default(0) @map("total_gold_earned")
+// == Character_Raids (레이드 슬롯, 캐릭터와 1:N) =============================
+// 캐릭터당 여러 행을 가질 수 있는 유일한 컨텐츠 테이블 — 레이드 위젯이 캐릭터당 여러 개
+// 동시에 존재할 수 있기 때문(docs/widgets.typ "레이드" 참고). 행 하나 = 위젯 카드 하나.
+model CharacterRaid {
+  id          String @id @default(uuid()) @db.Uuid
+  characterId String @map("character_id") @db.Uuid
+  /// 위젯을 막 추가했을 때는 목표를 정하지 않은 빈 상태(둘 다 null)로 시작한다 — 위젯 설정에서
+  /// 사용자가 직접 레이드/난이도를 고르면 그때 채워진다.
+  raidKey       String? @map("raid_key")
+  difficultyKey String? @map("difficulty_key")
+  /// 관문별 진행 상태 배열: [{ cleared: boolean, moreRewardEnabled: boolean }, ...].
+  /// 배열 길이(관문 수)는 raid_key+difficulty_key로 정해진다 (docs/db_schema.typ 참고).
+  /// 목표가 비어있으면(raid_key가 null) 빈 배열이다.
+  gates Json
+
+  character       Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  dashboardWidget DashboardWidget?
+
+  @@map("character_raids")
+}
+
+// == Character_Statistics (통계 화면 전용 캐시 테이블, 캐릭터와 1:1, 전체 기간 누적) =======
+// 어떤 엔드포인트가 어떤 컬럼을 얼마나 바꾸는지는 docs/db_schema.typ의 Character_Statistics
+// 갱신표를 따른다 (content_type 같은 범용 키로 일반화하지 않고 컬럼마다 명시적으로 관리).
+// 골드 카테고리 5종 x (일반/귀속) 10컬럼 + 카운트 6컬럼은 Character_Statistics_Weekly와
+// 완전히 동일한 집합이다 (docs/statistics.typ 참고).
+model CharacterStatistic {
+  characterId                       String @id @map("character_id") @db.Uuid
+  raidGoldEarned                    Int    @default(0) @map("raid_gold_earned")
+  raidBoundGoldEarned               Int    @default(0) @map("raid_bound_gold_earned")
+  shardGoldEarned                   Int    @default(0) @map("shard_gold_earned")
+  shardBoundGoldEarned              Int    @default(0) @map("shard_bound_gold_earned")
+  azenaBlessingGoldEarned           Int    @default(0) @map("azena_blessing_gold_earned")
+  azenaBlessingBoundGoldEarned      Int    @default(0) @map("azena_blessing_bound_gold_earned")
+  /// PARADISE_GOLD_REWARD(POST .../paradise/gold-reward)로 채워진다. 낙원은 귀속골드만 지급하므로
+  /// paradiseGoldEarned은 현재 이 값을 채우는 행위가 없어 항상 0이다(docs/statistics.typ 참고).
+  paradiseGoldEarned                Int    @default(0) @map("paradise_gold_earned")
+  paradiseBoundGoldEarned           Int    @default(0) @map("paradise_bound_gold_earned")
+  /// POST .../other-income(OTHER_INCOME_MANUAL)로만 채워지는 유저 직접 입력 수입.
+  otherGoldEarned                   Int    @default(0) @map("other_gold_earned")
+  otherBoundGoldEarned              Int    @default(0) @map("other_bound_gold_earned")
+  guardianHarvestCount              Int    @default(0) @map("guardian_harvest_count")
+  kurzanHarvestCount                Int    @default(0) @map("kurzan_harvest_count")
+  guardianShardRewardCount          Int    @default(0) @map("guardian_shard_reward_count")
+  kurzanShardRewardCount            Int    @default(0) @map("kurzan_shard_reward_count")
+  guardianAzenaBlessingRewardCount  Int    @default(0) @map("guardian_azena_blessing_reward_count")
+  kurzanAzenaBlessingRewardCount    Int    @default(0) @map("kurzan_azena_blessing_reward_count")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
-  @@map("character_gold_stats")
+  @@map("character_statistics")
 }
 
-// == Dashboard_Widgets (위젯 배치 및 Additional Value 데이터) ==================
-enum WidgetType {
-  BANNER
+// == Character_Statistics_Weekly (통계 화면 전용 캐시 테이블, 주간, 3개월 리텐션) ==========
+// Character_Statistics와 동일한 컬럼 집합을 주 단위로 반복하는 롤업 테이블. 주간 경계와
+// upsert/트림 방식은 docs/statistics.typ, docs/db_schema.typ 참고.
+model CharacterStatisticWeekly {
+  characterId                       String   @map("character_id") @db.Uuid
+  weekStartDate                     DateTime @map("week_start_date") @db.Date
+  raidGoldEarned                    Int      @default(0) @map("raid_gold_earned")
+  raidBoundGoldEarned               Int      @default(0) @map("raid_bound_gold_earned")
+  shardGoldEarned                   Int      @default(0) @map("shard_gold_earned")
+  shardBoundGoldEarned              Int      @default(0) @map("shard_bound_gold_earned")
+  azenaBlessingGoldEarned           Int      @default(0) @map("azena_blessing_gold_earned")
+  azenaBlessingBoundGoldEarned      Int      @default(0) @map("azena_blessing_bound_gold_earned")
+  paradiseGoldEarned                Int      @default(0) @map("paradise_gold_earned")
+  paradiseBoundGoldEarned           Int      @default(0) @map("paradise_bound_gold_earned")
+  otherGoldEarned                   Int      @default(0) @map("other_gold_earned")
+  otherBoundGoldEarned              Int      @default(0) @map("other_bound_gold_earned")
+  guardianHarvestCount              Int      @default(0) @map("guardian_harvest_count")
+  kurzanHarvestCount                Int      @default(0) @map("kurzan_harvest_count")
+  guardianShardRewardCount          Int      @default(0) @map("guardian_shard_reward_count")
+  kurzanShardRewardCount            Int      @default(0) @map("kurzan_shard_reward_count")
+  guardianAzenaBlessingRewardCount  Int      @default(0) @map("guardian_azena_blessing_reward_count")
+  kurzanAzenaBlessingRewardCount    Int      @default(0) @map("kurzan_azena_blessing_reward_count")
+  updatedAt                         DateTime @updatedAt @map("updated_at")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, weekStartDate])
+  @@map("character_statistics_weekly")
+}
+
+// == Character_Item_Reward_Stats (편린 · 아제나 축복 아이템별 통계, 3개월 리텐션) ==========
+enum ItemRewardContentType {
   GUARDIAN
-  KURZAN_FRONTLINE
-  PARADISE
-  IMAGE
-  TEXT
-  TEXT_CHECKBOX
-  LINK_ICON
+  KURZAN
 }
 
-model DashboardWidget {
-  id          String     @id @default(uuid())
-  characterId String     @map("character_id")
-  widgetType  WidgetType @map("widget_type")
-  gridX       Int        @map("grid_x")
-  gridY       Int        @map("grid_y")
-  width       Int
-  height      Int
-  /// Additional Value 위젯일 때만 값이 들어감 (docs/db_schema.typ 예시 참고)
-  customData  Json?      @map("custom_data")
+enum ItemRewardKind {
+  SHARD
+  AZENA_BLESSING
+}
+
+model CharacterItemRewardStat {
+  characterId   String                @map("character_id") @db.Uuid
+  weekStartDate DateTime              @map("week_start_date") @db.Date
+  contentType   ItemRewardContentType @map("content_type")
+  rewardType    ItemRewardKind        @map("reward_type")
+  /// 보상 카탈로그(kurzanShardRewards.json/kurzanAzenaBlessingRewards.json) 항목 id.
+  itemId        String                @map("item_id")
+  /// 조회 편의를 위한 비정규화 컬럼. 보상 확정 시점 카탈로그 값을 그대로 복사한다.
+  categoryKey   String                @map("category_key")
+  itemName      String                @map("item_name")
+  count         Int                   @default(0)
+  updatedAt     DateTime              @updatedAt @map("updated_at")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
-  @@map("dashboard_widgets")
-}
-
-// == Dashboard_Templates (템플릿 테이블) =====================================
-model DashboardTemplate {
-  id           String  @id @default(uuid())
-  authorUserId String  @map("author_user_id")
-  title        String
-  description  String?
-  layoutSchema Json    @map("layout_schema")
-
-  author User @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
-
-  @@map("dashboard_templates")
+  @@id([characterId, weekStartDate, contentType, rewardType, itemId])
+  @@map("character_item_reward_stats")
 }
 
 // == Action_Logs (통계/롤백 대상 행위 로그) ===================================
 enum ActionType {
   HARVEST_GUARDIAN
   HARVEST_KURZAN
+  GUARDIAN_SHARD_REWARD
+  GUARDIAN_AZENA_BLESSING_REWARD
+  KURZAN_SHARD_REWARD
+  KURZAN_AZENA_BLESSING_REWARD
+  RAID_GATE_CLEAR
+  OTHER_INCOME_MANUAL
+  PARADISE_GOLD_REWARD
 }
 
 model ActionLog {
-  id           String     @id @default(uuid())
-  userId       String     @map("user_id")
-  characterId  String     @map("character_id")
-  actionType   ActionType @map("action_type")
-  /// 이 행위를 되돌리는 데 필요한 최소 정보 (action_type별로 서버 로직이 정해져 있음)
-  revertParams Json       @map("revert_params")
-  /// 획득한 보상 카탈로그 항목 참조. { categoryKey, itemId, itemName, quantity }
-  reward       Json?
-  createdAt    DateTime   @default(now()) @map("created_at")
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @map("user_id") @db.Uuid
+  characterId  String      @map("character_id") @db.Uuid
+  actionType   ActionType? @map("action_type")
+  /// action_type별 되돌리기 로직의 인자. 예 (HARVEST_KURZAN): { "restGaugeConsumed": 40 }
+  revertParams Json?       @map("revert_params")
+  /// 이 행위로 얻은 보상 배열. { categoryKey, itemId?, itemName, amount }[]
+  rewards      Json?
+  /// 표시용 설명 문구. action_type별 채움 규칙은 docs/db_schema.typ의 Action_Logs 참고
+  /// (예: RAID_GATE_CLEAR는 "{레이드명} {난이도명} {N}관문", OTHER_INCOME_MANUAL은 유저 입력 사유).
+  description  String?
+  createdAt    DateTime    @default(now()) @map("created_at")
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
+  /// 유저당 보관 개수 캡(200) 트림 쿼리 + GET /api/logs의 user_id 필터+created_at 정렬을 위한
+  /// 인덱스 (docs/db_schema.typ "유저당 보관 개수 캡" 참고).
+  @@index([userId, createdAt])
   @@map("action_logs")
 }
 
-// == Character_Reward_Stats (보상 획득 횟수 통계) =============================
-enum ContentType {
+// == Dashboard_Widgets (위젯 배치 및 Additional Value 데이터) ==================
+enum WidgetType {
+  BANNER
+  BANNER_COMPACT
   GUARDIAN
-  KURZAN
+  KURZAN_FRONTLINE
   PARADISE
+  RAID
+  TEXT
+  TEXT_CHECKBOX
+  LINK_ICON
+  IMAGE
 }
 
-model CharacterRewardStat {
-  characterId  String      @map("character_id")
-  contentType  ContentType @map("content_type")
-  rewardItemId String      @map("reward_item_id")
-  count        Int         @default(0)
+model DashboardWidget {
+  id          String     @id @default(uuid()) @db.Uuid
+  characterId String     @map("character_id") @db.Uuid
+  widgetType  WidgetType @map("widget_type")
+  gridX       Int        @map("grid_x")
+  gridY       Int        @map("grid_y")
+  width       Int
+  height      Int
+  /// widget_type이 RAID일 때만 값이 채워지는 참조. 이 행이 어느 레이드 슬롯을 가리키는지
+  /// 명시하며(RAID는 캐릭터당 여러 슬롯을 가질 수 있어 character_id만으로 유일하지 않음),
+  /// Character_Raids 행이 삭제되면 이 행도 함께 삭제된다(onDelete: Cascade).
+  raidId      String?    @unique @map("raid_id") @db.Uuid
+  /// Additional Value 위젯(TEXT/TEXT_CHECKBOX/LINK_ICON/IMAGE)에만 값이 들어간다. Default Value
+  /// 위젯은 항상 null (실제 상태는 각자의 전용 테이블에 있음).
+  customData  Json?      @map("custom_data")
 
-  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  character Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  raid      CharacterRaid? @relation(fields: [raidId], references: [id], onDelete: Cascade)
 
-  @@id([characterId, contentType, rewardItemId])
-  @@map("character_reward_stats")
+  @@map("dashboard_widgets")
+}
+
+// == Market_Item_Daily_Stats / Market_Item_Recent_Prices (거래소 시세, 전 유저 공용 캐시) ====
+// 캐릭터/유저에 종속되지 않는다 — docs/market_price.typ, docs/db_schema.typ 참고.
+model MarketItemDailyStat {
+  itemId    Int      @map("item_id")
+  date      DateTime @db.Date
+  itemName  String   @map("item_name")
+  avgPrice  Float    @map("avg_price")
+  tradeCount Int     @map("trade_count")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([itemId, date])
+  @@map("market_item_daily_stats")
+}
+
+model MarketItemRecentPrice {
+  itemId       Int      @id @map("item_id")
+  itemName     String   @map("item_name")
+  /// Open API에 itemId 단독 조회가 없어(RecentPrice는 검색 응답에만 존재), 파이프라인 B가
+  /// 이 값+item_name으로 재검색해 갱신한다 (docs/market_price.typ 파이프라인 B 참고).
+  categoryCode Int      @map("category_code")
+  recentPrice  Int      @map("recent_price")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("market_item_recent_prices")
+}
+
+// == Ability_Stone_Dp_States (어빌리티 스톤 세공 최적 전략 참조 테이블, 전 유저 공용) ========
+// docs/ability_stone.typ에서 설계한 DP 계산 결과를 그대로 옮긴 읽기 전용 정적 참조 테이블.
+// 유저/캐릭터에 종속되지 않으며, src/scripts/migrateAbilityStoneDump.ts로만 채워진다.
+model AbilityStoneDpState {
+  /// 7차원 상태 벡터를 11진수 자릿수처럼 누적 압축한 정수 인덱스 (docs/ability_stone.typ
+  /// "상태 → 정수 인덱스 인코딩" 참고). 조회는 항상 이 컬럼 하나로 이루어진다.
+  stateKey           Int @id @map("state_key")
+  majorFailCnt       Int @map("major_fail_cnt") @db.SmallInt
+  minorFailCnt       Int @map("minor_fail_cnt") @db.SmallInt
+  debuffSuccCnt      Int @map("debuff_succ_cnt") @db.SmallInt
+  majorRemCnt        Int @map("major_rem_cnt") @db.SmallInt
+  minorRemCnt        Int @map("minor_rem_cnt") @db.SmallInt
+  debuffRemCnt       Int @map("debuff_rem_cnt") @db.SmallInt
+  currProbabilityIdx Int @map("curr_probability_idx") @db.SmallInt
+  /// [{ majorLevel, minorLevel, debuffLevel, probability, bestAction }] × 100
+  /// (docs/db_schema.typ 참고). 100개 컬럼으로 펼치지 않고 배열로 그대로 둔다.
+  outcomes           Json
+
+  @@map("ability_stone_dp_states")
+}
+
+// == Dashboard_Templates (위젯 배치 템플릿, 전 유저 공유) ====================
+model DashboardTemplate {
+  id           String   @id @default(uuid()) @db.Uuid
+  authorUserId String   @map("author_user_id") @db.Uuid
+  title        String
+  description  String?
+  /// { columns, rows, widgets: [{ kind, x, y, w, h }] }. 위젯의 종류와 위치만 담고
+  /// custom_data/레이드 목표 같은 상태는 담지 않는다 (docs/db_schema.typ 참고).
+  layoutSchema Json     @map("layout_schema")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  author User @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@map("dashboard_templates")
 }

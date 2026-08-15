@@ -1,15 +1,18 @@
-// docs/widgets.typ 기준 위젯 종류. 'banner'/'bannerCompact'/'guardian'/'kurzanFrontline'/'paradise'/
-// 'text'만 실제 컴포넌트로 구현되어 있고, 나머지는 그리드 배치 동작을 보여주기 위한
-// 자리표시(placeholder) 위젯이다.
+import type { RaidTargetSummary } from '@/types/raid'
+
+// docs/widgets.typ 기준 위젯 종류.
 export type WidgetKind =
   | 'banner'
   | 'bannerCompact'
   | 'guardian'
   | 'kurzanFrontline'
   | 'paradise'
+  | 'raid'
   | 'text'
   | 'textCheckbox'
   | 'image'
+  | 'linkIcon'
+  | 'abilityStone'
 
 export interface WidgetCatalogItem {
   kind: WidgetKind
@@ -29,4 +32,9 @@ export interface PlacedWidget {
   y: number
   w: number
   h: number
+  /** Additional Value 위젯(text/textCheckbox/image/linkIcon)의 위젯별 데이터. Default Value 위젯은 null. */
+  customData?: Record<string, unknown> | null
+  /** kind === 'raid'일 때만 값이 있다(Character_Raids 참조, docs/api.typ 참고). */
+  raidId?: string | null
+  raid?: RaidTargetSummary | null
 }

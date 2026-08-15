@@ -6,6 +6,7 @@ import type { CharacterSummary } from '@/types/character'
 // imageUrl <- CharacterImage / server <- ServerName / characterName <- CharacterName
 // job <- CharacterClassName / itemLevel <- ItemAvgLevel / combatPower <- CombatPower
 export const mockCharacter: CharacterSummary = {
+  id: 'mock-주먹밥괴물냥차차차',
   imageUrl:
     'https://img.lostark.co.kr/armory/4/6B99C805DCFAF98B70983122E305811AD82FEDE47F2F563FA158E7DBA7B69E8D.jpg?v=20260806062119',
   server: '카단',

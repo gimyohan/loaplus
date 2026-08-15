@@ -7,9 +7,12 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
   { kind: 'guardian', label: '가디언', category: 'default', w: 5, h: 3 },
   { kind: 'kurzanFrontline', label: '쿠르잔 전선', category: 'default', w: 5, h: 3 },
   { kind: 'paradise', label: '낙원', category: 'default', w: 5, h: 2 },
+  { kind: 'raid', label: '레이드', category: 'default', w: 5, h: 3 },
   { kind: 'text', label: '텍스트', category: 'additional', w: 5, h: 1 },
-  { kind: 'textCheckbox', label: '텍스트 · 체크박스', category: 'additional', w: 4, h: 2 },
+  { kind: 'textCheckbox', label: '텍스트 · 체크박스', category: 'additional', w: 5, h: 1 },
   { kind: 'image', label: '이미지', category: 'additional', w: 4, h: 4 },
+  { kind: 'linkIcon', label: '링크 & 아이콘', category: 'additional', w: 1, h: 1 },
+  { kind: 'abilityStone', label: '어빌리티 스톤', category: 'additional', w: 1, h: 1 },
 ]
 
 export const WIDGET_DRAG_MIME = 'application/x-loaplus-widget'
@@ -37,6 +40,26 @@ export const GUARDIAN_NATIVE_HEIGHT = 210
 export const PARADISE_NATIVE_WIDTH = 350
 export const PARADISE_NATIVE_HEIGHT = 140
 
+/** 레이드(5x3)의 디자인 원본 크기. 가디언/쿠르잔 전선과 레이아웃이 동일하다. */
+export const RAID_NATIVE_WIDTH = 350
+export const RAID_NATIVE_HEIGHT = 210
+
 /** 텍스트(5x1)의 디자인 원본 크기. */
 export const TEXT_NATIVE_WIDTH = 500
 export const TEXT_NATIVE_HEIGHT = 100
+
+/** 텍스트 · 체크박스(5x1)의 디자인 원본 크기. */
+export const TEXT_CHECKBOX_NATIVE_WIDTH = 500
+export const TEXT_CHECKBOX_NATIVE_HEIGHT = 100
+
+/** 이미지(4x4)의 디자인 원본 크기. */
+export const IMAGE_NATIVE_WIDTH = 400
+export const IMAGE_NATIVE_HEIGHT = 400
+
+/** 링크 & 아이콘(1x1)의 디자인 원본 크기. */
+export const LINK_ICON_NATIVE_WIDTH = 100
+export const LINK_ICON_NATIVE_HEIGHT = 100
+
+/** 어빌리티 스톤(1x1)의 디자인 원본 크기 — 아이콘 하나뿐이고 실제 상호작용은 모달에서 이루어진다. */
+export const ABILITY_STONE_NATIVE_WIDTH = 100
+export const ABILITY_STONE_NATIVE_HEIGHT = 100

@@ -1,0 +1,84 @@
+import type { PrismaClient } from '@prisma/client'
+
+import { GUARDIAN_RAID_TARGETS, KURZAN_FRONTLINE_STAGES, pickHighestEligibleTarget } from './contentTargets.js'
+
+export const GUARDIAN_REST_GAUGE_MAX = 100
+export const GUARDIAN_REST_GAUGE_COST = 20
+export const KURZAN_REST_GAUGE_MAX = 200
+export const KURZAN_REST_GAUGE_COST = 40
+export const PARADISE_TICKET_DEFAULT = 5
+export const PARADISE_KEY_DEFAULT = 3
+
+export async function getOrCreateGuardian(prisma: PrismaClient, characterId: string, itemLevel: number) {
+  return prisma.guardian.upsert({
+    where: { characterId },
+    update: {},
+    create: {
+      characterId,
+      targetName: pickHighestEligibleTarget(GUARDIAN_RAID_TARGETS, itemLevel),
+      restGauge: 0,
+      restGaugeMax: GUARDIAN_REST_GAUGE_MAX,
+      restGaugeThreshold: 0,
+    },
+  })
+}
+
+export async function getOrCreateKurzanFrontline(
+  prisma: PrismaClient,
+  characterId: string,
+  itemLevel: number,
+) {
+  return prisma.kurzanFrontline.upsert({
+    where: { characterId },
+    update: {},
+    create: {
+      characterId,
+      targetName: pickHighestEligibleTarget(KURZAN_FRONTLINE_STAGES, itemLevel),
+      restGauge: 0,
+      restGaugeMax: KURZAN_REST_GAUGE_MAX,
+      restGaugeThreshold: 0,
+    },
+  })
+}
+
+export async function getOrCreateParadise(prisma: PrismaClient, characterId: string) {
+  return prisma.paradise.upsert({
+    where: { characterId },
+    update: {},
+    create: {
+      characterId,
+      ticketCount: PARADISE_TICKET_DEFAULT,
+      keyCount: PARADISE_KEY_DEFAULT,
+    },
+  })
+}
+
+/**
+ * 캐릭터 새로고침(아이템 레벨 갱신) 뒤에 호출한다. target_auto_managed가 true인 콘텐츠만
+ * 새 아이템 레벨 기준 최고 목표로 다시 맞추고, 유저가 직접 고른(false) 콘텐츠는 건드리지 않는다.
+ * 가디언/쿠르잔 행이 아직 없는 캐릭터(위젯을 한 번도 안 연 경우)는 새로고침만으로 만들지 않는다.
+ */
+export async function syncAutoManagedTargets(
+  prisma: PrismaClient,
+  characterId: string,
+  itemLevel: number,
+) {
+  const [guardian, kurzan] = await Promise.all([
+    prisma.guardian.findUnique({ where: { characterId } }),
+    prisma.kurzanFrontline.findUnique({ where: { characterId } }),
+  ])
+
+  if (guardian?.targetAutoManaged) {
+    const targetName = pickHighestEligibleTarget(GUARDIAN_RAID_TARGETS, itemLevel)
+    if (targetName !== guardian.targetName) {
+      await prisma.guardian.update({ where: { characterId }, data: { targetName } })
+    }
+  }
+
+  if (kurzan?.targetAutoManaged) {
+    const targetName = pickHighestEligibleTarget(KURZAN_FRONTLINE_STAGES, itemLevel)
+    if (targetName !== kurzan.targetName) {
+      await prisma.kurzanFrontline.update({ where: { characterId }, data: { targetName } })
+    }
+  }
+}
