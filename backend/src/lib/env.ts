@@ -4,6 +4,14 @@ import { z } from 'zod'
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(4000),
+  // 프론트가 쿠키를 실어 호출할 수 있게 허용하는 origin들, 콤마로 구분(공백 허용). 로컬 dev
+  // 서버 값을 기본값으로 두어 이 값을 아예 안 채워도 지금까지의 dev 워크플로우가 그대로
+  // 동작한다 — 배포 환경에서는 실제 도메인(예: https://javago.my)으로 덮어쓴다.
+  CORS_ORIGINS: z
+    .string()
+    .min(1)
+    .default('http://localhost:5173')
+    .transform((value) => value.split(',').map((origin) => origin.trim()).filter(Boolean)),
   GOOGLE_CLIENT_ID: z.string().min(1),
   SESSION_SECRET: z.string().min(1),
   LOSTARK_KEY_ENCRYPTION_SECRET: z.string().min(1),
