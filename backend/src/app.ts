@@ -24,7 +24,10 @@ import { templateRoutes } from './routes/templates.js'
 import { userRoutes } from './routes/user.js'
 
 export async function buildApp() {
-  const app = Fastify({ logger: true })
+  // nginx(같은 호스트, 127.0.0.1)가 리버스 프록시로 앞단에 있는 배포 환경에서, 이게 없으면
+  // request.ip가 항상 nginx의 IP로 잡혀서 IP 기준 rate limiting이 전체 유저를 하나로 묶어버린다
+  // (docs/rate_limiting.typ 참고). X-Forwarded-For를 신뢰해 실제 클라이언트 IP를 쓰도록 한다.
+  const app = Fastify({ logger: true, trustProxy: true })
 
   // 세션 쿠키를 실어 호출할 수 있게 허용하는 origin 목록을 CORS_ORIGINS 환경변수로 받는다
   // (기본값은 로컬 dev 서버 하나 — env.ts 참고). 배포 환경에서는 실제 도메인으로 덮어쓰며,
