@@ -24,6 +24,17 @@ services:
     # 직접 백엔드를 두드릴 수 있게 되므로 막아둔다.
     ports:
       - "127.0.0.1:4000:4000"
+    # Docker의 awslogs 로깅 드라이버로 stdout/stderr를 CloudWatch Logs에 직접 전송한다 —
+    # EC2에 별도 에이전트를 안 띄워도 되고, 컨테이너가 재생성돼도(랜덤 컨테이너 ID) 로그 파일
+    # 경로를 신경 쓸 필요가 없다. EC2에 붙인 IAM Role이 logs:PutLogEvents 등 권한을 갖고
+    # 있어야 한다(별도 자격증명 불필요).
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-northeast-2
+        awslogs-group: /loaplus/backend
+        awslogs-create-group: "true"
+        awslogs-stream: backend
 
 volumes:
   loaplus_pgdata_prod:
