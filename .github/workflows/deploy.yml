@@ -1,0 +1,113 @@
+name: Deploy to EC2
+
+# 처음엔 수동 트리거로 안전하게 검증하고, 몇 번 문제없이 돌면 push 트리거로 바꾼다
+# (docs 없음 — 이 워크플로우 자체가 배포 절차의 단일 소스).
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write # AWS OIDC로 임시 자격증명을 받기 위해 필요
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Backend install, typecheck, test
+        working-directory: backend
+        run: |
+          npm ci
+          npx tsc -p tsconfig.json --noEmit
+          npm test
+
+      - name: Frontend install & build
+        working-directory: frontend
+        env:
+          # Client ID는 시크릿이 아니라 공개돼도 되는 값이라 그대로 하드코딩한다.
+          VITE_API_BASE_URL: https://javago.my
+          VITE_GOOGLE_CLIENT_ID: 803917966229-j11poe8m6060l3mrtuntcd70nqi0o7cd.apps.googleusercontent.com
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Configure AWS credentials (OIDC, 장기 액세스 키 없음)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: 이 러너의 퍼블릭 IP 조회
+        id: ip
+        run: echo "ip=$(curl -s https://api.ipify.org)" >> "$GITHUB_OUTPUT"
+
+      - name: 이 러너의 IP에만 SSH(22) 임시 허용
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id ${{ secrets.SG_ID }} \
+            --protocol tcp --port 22 \
+            --cidr ${{ steps.ip.outputs.ip }}/32
+
+      - name: SSH 키 준비
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 백엔드 소스 + 프론트 빌드 결과물을 EC2로 동기화
+        # EC2는 git을 전혀 쓰지 않는다 — GitHub 저장소 인증을 EC2에 별도로 둘 필요가 없어진다.
+        # .env는 backend/.env(운영 시크릿, git에 없는 파일)라 --exclude로 반드시 보호한다 —
+        # 안 하면 rsync --delete가 EC2에만 있는 그 파일을 지워버린다.
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            --exclude 'node_modules' \
+            --exclude '.env' \
+            --exclude 'dist' \
+            backend/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/opt/loaplus/app/backend/
+
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            frontend/dist/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/frontend-dist/
+
+      - name: EC2에서 재배포
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
+            set -e
+            sudo cp -r /tmp/frontend-dist/. /usr/share/nginx/html/
+            sudo chown -R nginx:nginx /usr/share/nginx/html/
+            sudo chmod -R o+rX /usr/share/nginx/html/
+            rm -rf /tmp/frontend-dist
+            cd /opt/loaplus/app/backend
+            docker compose -f docker-compose.prod.yml up -d --build
+          '
+
+      - name: 임시로 열었던 SSH 접근 회수
+        if: always() # 위 스텝이 실패해도 반드시 닫는다 — 열어둔 채로 남으면 안 됨
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ secrets.SG_ID }} \
+            --protocol tcp --port 22 \
+            --cidr ${{ steps.ip.outputs.ip }}/32
