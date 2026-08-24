@@ -40,12 +40,16 @@ export async function buildApp() {
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   })
   await app.register(cookie, { secret: env.SESSION_SECRET })
-  // IP당 분당 300회 기본값. 로그인 전 요청(세션 조회 등)도 걸려야 해서 세션/유저 기준이 아닌
-  // IP 기준으로 건다. 개별 라우트는 route 옵션의 config.rateLimit으로 이 값을 override할 수
-  // 있다(docs/rate_limiting.typ 참고 — 예: 로그인 라우트는 훨씬 좁은 값을 쓴다).
+  // IP당 분당 1500회 기본값. global: true는 라우트마다 독립적으로 300회가 아니라, 이 IP가
+  // 어떤 API를 부르든 "합쳐서" 하나의 카운터를 공유한다 — 대시보드가 캐릭터·위젯마다 각각
+  // API를 부르는 구조라, 원래 300으로는 새로고침 한 번(+dev의 React StrictMode 이펙트
+  // 이중 실행)만으로도 실제 유저가 걸려버렸다(2026-08-24 발견). 로그인 전 요청(세션 조회
+  // 등)도 걸려야 해서 세션/유저 기준이 아닌 IP 기준으로 건다. 개별 라우트는 route 옵션의
+  // config.rateLimit으로 이 값을 override할 수 있다(docs/rate_limiting.typ 참고 — 예:
+  // 로그인 라우트는 훨씬 좁은 값을 쓴다).
   await app.register(rateLimit, {
     global: true,
-    max: 300,
+    max: 1500,
     timeWindow: '1 minute',
   })
   await app.register(prismaPlugin)
