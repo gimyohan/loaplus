@@ -45,7 +45,10 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
     return characters.map((character) => character.id)
   }
 
-  fastify.get('/api/dashboards', { preHandler: auth }, async (request, reply) => {
+  fastify.get(
+    '/api/dashboards',
+    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '캐릭터 카드 순서 조회' } },
+    async (request, reply) => {
     // 브라우저가 초기화 반영 전 응답을 캐싱해서 보여주는 걸 막는다 (docs/reset_logic.typ의
     // "API 데이터 HTTP Cache-Control 설정" 참고).
     reply.header('Cache-Control', 'no-store')
@@ -56,7 +59,10 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
     return reply.send(await getCardOrder(request.userId!))
   })
 
-  fastify.put('/api/dashboards', { preHandler: auth }, async (request, reply) => {
+  fastify.put(
+    '/api/dashboards',
+    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '카드 순서 저장(전체 교체)' } },
+    async (request, reply) => {
     const parsed = cardOrderSchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -87,7 +93,10 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
     return reply.send(inputIds)
   })
 
-  fastify.patch('/api/dashboards/swap', { preHandler: auth }, async (request, reply) => {
+  fastify.patch(
+    '/api/dashboards/swap',
+    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '카드 두 개의 순서 맞바꾸기' } },
+    async (request, reply) => {
     const parsed = cardSwapSchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -126,7 +135,7 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
 
   fastify.get<{ Params: { characterId: string } }>(
     '/api/dashboards/:characterId/widgets',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '캐릭터 내부 그리드 위젯 배치 조회' } },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store')
 
@@ -152,7 +161,7 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
 
   fastify.put<{ Params: { characterId: string } }>(
     '/api/dashboards/:characterId/widgets',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '그리드 크기 + 위젯 배치 전체 교체' } },
     async (request, reply) => {
       const character = await fastify.prisma.character.findFirst({
         where: { id: request.params.characterId, userId: request.userId! },

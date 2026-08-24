@@ -14,15 +14,17 @@ import {
   updateRaidTarget,
 } from '@/lib/raids'
 import { cn } from '@/lib/utils'
-import { CELL_SIZE, WIDGET_DRAG_MIME } from '@/lib/widgetCatalog'
+import { CELL_SIZE, WIDGET_CATALOG, WIDGET_DRAG_MIME } from '@/lib/widgetCatalog'
 import { collidesWithAny } from '@/lib/widgetLayout'
 import raidCatalogData from '@/data/raidCatalog.json'
 import { WidgetGrid } from '@/components/dashboard/WidgetGrid'
 import { WidgetPalette } from '@/components/dashboard/WidgetPalette'
+import { WidgetPlaceholder } from '@/components/dashboard/WidgetPlaceholder'
 import { TemplatePanel } from '@/components/dashboard/TemplatePanel'
 import { PlacedWidgetContent } from '@/components/dashboard/PlacedWidgetContent'
 import { GridSettingsButton } from '@/components/dashboard/GridSettingsButton'
 import { GridSettingsModal } from '@/components/dashboard/GridSettingsModal'
+import type { RaidTargetSummary } from '@/types/raid'
 import type { TemplateLayout } from '@/types/template'
 import type { PlacedWidget, WidgetCatalogItem, WidgetKind } from '@/types/widget'
 
@@ -222,11 +224,9 @@ export function WidgetDashboard({
     const widget = widgets.find((w) => w.id === widgetId)
     if (!widget?.raidId || !widget.raid || !widget.raid.raidKey || !widget.raid.difficultyKey || !boundCharacterId) return
     const raidId = widget.raidId
+    const raidKey = widget.raid.raidKey
+    const difficultyKey = widget.raid.difficultyKey
     const previousGates = widget.raid.gates
-    // 로그 목록에서 "무엇을 완료했는지" 바로 알 수 있도록 유저가 고른 목표를 설명에 남긴다
-    // (예: "세르카 매칭 1관문") — 연쇄로 여러 관문이 한꺼번에 완료돼도 이번에 클릭한 관문
-    // 번호 기준 하나만 넘기면 서버가 이번 요청에서 생기는 로그 전부에 동일하게 저장한다.
-    const description = `${describeRaidTarget(widget.raid.raidKey, widget.raid.difficultyKey)} ${gateIndex + 1}관문`
 
     const revertOptimisticUpdate = () => {
       setWidgets((prev) =>
@@ -242,15 +242,32 @@ export function WidgetDashboard({
             : w,
         ),
       )
-      clearRaidGate(boundCharacterId, raidId, gateIndex, description)
-        .then((raid) => {
-          if (!raid) return
-          setWidgets((prev) => prev.map((w) => (w.id === widgetId ? { ...w, raid } : w)))
-        })
-        .catch((err) => {
+      // 연쇄 완료(gateIndex보다 앞선 미완료 관문까지 함께 완료)는 서버가 아니라 FE가 계산한다 —
+      // 서버는 관문 하나만 처리하는 단순 연산이고(앞선 관문이 미완료면 409로 거부), 관문 순서대로
+      // 이 호출을 여러 번 반복해서 연쇄를 구현한다. 그래야 관문마다 Action_Logs가 자기 번호가
+      // 정확히 담긴 description으로 하나씩 남는다(docs/widgets.typ "레이드" 참고).
+      const pendingIndexes = previousGates
+        .map((gate, index) => ({ gate, index }))
+        .filter(({ gate, index }) => index <= gateIndex && !gate.cleared)
+        .map(({ index }) => index)
+
+      void (async () => {
+        try {
+          let latestRaid: RaidTargetSummary | undefined
+          for (const index of pendingIndexes) {
+            const description = `${describeRaidTarget(raidKey, difficultyKey)} ${index + 1}관문`
+            const raid = await clearRaidGate(boundCharacterId, raidId, index, description)
+            if (raid) latestRaid = raid
+          }
+          if (latestRaid) {
+            const finalRaid = latestRaid
+            setWidgets((prev) => prev.map((w) => (w.id === widgetId ? { ...w, raid: finalRaid } : w)))
+          }
+        } catch (err) {
           console.error('레이드 관문 완료 처리 실패', err)
           revertOptimisticUpdate()
-        })
+        }
+      })()
       return
     }
 
@@ -560,7 +577,14 @@ export function WidgetDashboard({
                     height: widget.h * CELL_SIZE,
                   }}
                 >
-                  <PlacedWidgetContent widget={widget} characterName={characterName} />
+                  {/* 편집 중엔 이미 놓인 위젯도 실제 데이터로 그리지 않는다 — 배치/이동에 필요한
+                      건 이름과 칸 크기뿐이라 위젯 목록(WidgetPalette)과 같은 자리표시자를 쓴다 */}
+                  <WidgetPlaceholder
+                    label={WIDGET_CATALOG.find((item) => item.kind === widget.kind)?.label ?? widget.kind}
+                    w={widget.w}
+                    h={widget.h}
+                    className="h-full w-full"
+                  />
                   <button
                     type="button"
                     data-widget-delete

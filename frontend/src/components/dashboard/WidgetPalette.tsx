@@ -1,33 +1,29 @@
 import { useState, type DragEvent, type FormEvent } from 'react'
 
+import { WidgetPlaceholder } from '@/components/dashboard/WidgetPlaceholder'
 import { Button } from '@/components/ui/button'
-import { WidgetVisual } from '@/components/dashboard/WidgetVisual'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { describeCharacterApiError } from '@/lib/characters'
 import { cn } from '@/lib/utils'
 import { CELL_SIZE, WIDGET_CATALOG, WIDGET_DRAG_MIME } from '@/lib/widgetCatalog'
 import type { WidgetCatalogItem } from '@/types/widget'
 
-function PaletteItem({ item, characterName }: { item: WidgetCatalogItem; characterName?: string }) {
+// 실제 위젯(캐릭터 데이터)을 그려서 보여주지 않는다 — 그리드에 실제로 놓일 때와 동일한
+// 픽셀 크기(CELL_SIZE)의 자리표시자 박스 위에 이름과 크기만 적는다.
+function PaletteItem({ item }: { item: WidgetCatalogItem }) {
   const handleDragStart = (event: DragEvent<HTMLDivElement>) => {
     event.dataTransfer.setData(WIDGET_DRAG_MIME, JSON.stringify(item))
     event.dataTransfer.effectAllowed = 'copy'
   }
 
   return (
-    <div
-      draggable
-      onDragStart={handleDragStart}
-      className="w-fit cursor-grab select-none transition-opacity hover:opacity-80 active:cursor-grabbing"
-    >
-      {/* 그리드에 실제로 놓일 때와 동일한 픽셀 크기(CELL_SIZE)로 그려서,
-          드래그하는 동안 크기 감각이 그대로 유지되도록 한다. Default Value 위젯은 characterName을
-          넘겨서 실제로 이 카드에 귀속된 캐릭터의 데이터로 미리보기를 그린다. */}
-      <WidgetVisual
-        kind={item.kind}
-        width={item.w * CELL_SIZE}
-        height={item.h * CELL_SIZE}
-        characterName={item.category === 'default' ? characterName : undefined}
+    <div draggable onDragStart={handleDragStart} className="shrink-0 cursor-grab select-none active:cursor-grabbing">
+      <WidgetPlaceholder
+        label={item.label}
+        w={item.w}
+        h={item.h}
+        style={{ width: item.w * CELL_SIZE, height: item.h * CELL_SIZE }}
+        className="transition-colors hover:bg-muted"
       />
     </div>
   )
@@ -124,9 +120,7 @@ export function WidgetPalette({
           </form>
 
           {hasCharacterRecord ? (
-            defaultWidgets.map((item) => (
-              <PaletteItem key={item.kind} item={item} characterName={characterName} />
-            ))
+            defaultWidgets.map((item) => <PaletteItem key={item.kind} item={item} />)
           ) : (
             <p className="text-xs text-muted-foreground">
               {characterName

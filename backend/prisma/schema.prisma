@@ -40,6 +40,15 @@ model Character {
   userId        String  @map("user_id") @db.Uuid
   serverName    String  @map("server_name")
   characterName String  @map("character_name")
+  /// DB에 CHECK (item_level >= 1640) 제약이 걸려 있다(마이그레이션
+  /// 20260822100000_add_characters_item_level_min_check, 20260823130000_readd_...로 재적용).
+  /// Prisma 스키마 DSL이 CHECK 제약을 표현하지 못해(previewFeatures 미사용) 여기서는 주석으로만
+  /// 남긴다. 등록 시점(POST /api/characters, 422)뿐 아니라 등록 이후에도 이 하한이 항상
+  /// 유지되어야 한다 — Open API가 알려주는 아이템 레벨이 일시적으로 1,640 밑으로 내려오는 경우가
+  /// 있는데(유저가 인게임에서 장비를 해제하는 등, 공식적인 레벨 하락이 아님), POST .../refresh는
+  /// 그 값을 그대로 덮어쓰지 않고 GREATEST(기존 저장값, 새로 받아온 값)으로 저장해 이 제약을
+  /// 항상 만족시키면서 "한 번 도달한 레벨 밑으로는 내려가지 않는다"는 불변식을 지킨다
+  /// (workspace/backend/src/routes/characters.ts 참고).
   itemLevel     Float   @map("item_level")
   combatPower   Float   @map("combat_power")
   className     String  @map("class_name")
@@ -50,11 +59,25 @@ model Character {
   gridColumns   Int     @default(10) @map("grid_columns")
   gridRows      Int     @default(16) @map("grid_rows")
 
+  /// 상세 배너(BANNER_DETAILED, 10x4)용 컬럼 4개. POST /api/characters·POST .../refresh 시점에 Open API
+  /// ArmoryEquipment 응답을 파싱해 한 번에 채운다(docs/api.typ "상세 배너 필드 매핑",
+  /// docs/db_schema.typ "Characters 상세 배너용 컬럼" 참고). Tooltip 원문은 저장하지 않는다.
+  /// 장비 6종(무기/투구/상의/하의/장갑/어깨) 각각의 재련 단계·상급 재련 단계·품질.
+  equipment    Json @map("equipment")
+  /// 장신구 5종(목걸이/귀걸이1·2/반지1·2) 각각의 연마 효과(텍스트+색상) 목록.
+  accessories  Json @map("accessories")
+  /// 어빌리티 스톤 전투 각인 2개(이름, 레벨). 디버프 각인은 관리하지 않는다.
+  abilityStone Json @map("ability_stone")
+  /// 팔찌 효과(텍스트+색상) 목록.
+  bracelet     Json @map("bracelet")
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   guardian        Guardian?
   kurzanFrontline KurzanFrontline?
   paradise        Paradise?
+  ebonyCube       EbonyCube?
+  halHourglass    HalHourglass?
   raids           CharacterRaid[]
   statistics      CharacterStatistic?
   statisticsWeekly CharacterStatisticWeekly[]
@@ -111,6 +134,43 @@ model Paradise {
   @@map("paradises")
 }
 
+// == Ebony_Cubes (에브니 큐브 상태 + 등급별 티켓 보유량, 캐릭터와 1:1) ========
+// 티켓 등급이 현재 4개로 고정돼 있어(docs/ebony_cube_hal_hourglass.typ 참고), 등급마다 이름을
+// 직접 붙인 컬럼 4개로 관리한다 — guardian_harvest_count/kurzan_harvest_count와 같은 원칙.
+// 실제 등급명·target_name 매핑이 아직 확정되지 않아 tier1~tier4는 자리표시 이름이다.
+model EbonyCube {
+  characterId        String  @id @map("character_id") @db.Uuid
+  /// 좌우 화살표로 선택된, 지금 소모 대상인 티켓 등급 키(unlock1~unlock4). 보유 티켓이 전부 0이면 null.
+  selectedTicketType String? @map("selected_ticket_type")
+  /// "제 1 해금"~"제 4 해금". 큐브 등급은 전적으로 쿠르잔 전선 목표로 결정되며, 그 매핑표는
+  /// contentStages.json의 kurzanFrontline.stages[].ticketType에 있다(docs/ebony_cube_hal_hourglass.typ 참고).
+  ticketCountUnlock1 Int     @default(0) @map("ticket_count_unlock_1")
+  ticketCountUnlock2 Int     @default(0) @map("ticket_count_unlock_2")
+  ticketCountUnlock3 Int     @default(0) @map("ticket_count_unlock_3")
+  ticketCountUnlock4 Int     @default(0) @map("ticket_count_unlock_4")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("ebony_cubes")
+}
+
+// == Hal_Hourglasses (할의 모래시계 상태, 캐릭터와 1:1) ======================
+model HalHourglass {
+  characterId String  @id @map("character_id") @db.Uuid
+  /// 캐릭터 아이템 레벨로 자동 산정되는 목표 레벨. 가디언/쿠르잔 전선과 달리 유저가 직접 고르는
+  /// override가 없어 target_auto_managed 컬럼이 없다(docs/ebony_cube_hal_hourglass.typ 참고).
+  level       String
+  /// 시련의 모래 스택 (0~5). 완료 처리 시 (스택+1)배 보상을 지급하고 0으로 리셋된다. 주간
+  /// 경계와 무관하게 완료 시에만 초기화된다(docs/db_schema.typ 참고).
+  sandStack   Int     @default(0) @map("sand_stack") @db.SmallInt
+  /// 이번 주 완료 여부. 매주 수요일 06:00 KST에 초기화된다.
+  isCompleted Boolean @default(false) @map("is_completed")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("hal_hourglasses")
+}
+
 // == Character_Raids (레이드 슬롯, 캐릭터와 1:N) =============================
 // 캐릭터당 여러 행을 가질 수 있는 유일한 컨텐츠 테이블 — 레이드 위젯이 캐릭터당 여러 개
 // 동시에 존재할 수 있기 때문(docs/widgets.typ "레이드" 참고). 행 하나 = 위젯 카드 하나.
@@ -158,6 +218,9 @@ model CharacterStatistic {
   kurzanShardRewardCount            Int    @default(0) @map("kurzan_shard_reward_count")
   guardianAzenaBlessingRewardCount  Int    @default(0) @map("guardian_azena_blessing_reward_count")
   kurzanAzenaBlessingRewardCount    Int    @default(0) @map("kurzan_azena_blessing_reward_count")
+  /// 에브니 큐브 클리어(EBONY_CUBE_CLEAR)로 누적 획득한 4티어 보석 수량. 골드/귀속골드가 아닌
+  /// 별도 재화라 위 골드 카테고리 컬럼들에는 포함되지 않는다(docs/ebony_cube_hal_hourglass.typ 참고).
+  cubeGemEarned                     Int    @default(0) @map("cube_gem_earned")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
@@ -186,6 +249,7 @@ model CharacterStatisticWeekly {
   kurzanShardRewardCount            Int      @default(0) @map("kurzan_shard_reward_count")
   guardianAzenaBlessingRewardCount  Int      @default(0) @map("guardian_azena_blessing_reward_count")
   kurzanAzenaBlessingRewardCount    Int      @default(0) @map("kurzan_azena_blessing_reward_count")
+  cubeGemEarned                     Int      @default(0) @map("cube_gem_earned")
   updatedAt                         DateTime @updatedAt @map("updated_at")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
@@ -235,6 +299,8 @@ enum ActionType {
   RAID_GATE_CLEAR
   OTHER_INCOME_MANUAL
   PARADISE_GOLD_REWARD
+  EBONY_CUBE_CLEAR
+  HAL_HOURGLASS_COMPLETE
 }
 
 model ActionLog {
@@ -264,10 +330,13 @@ model ActionLog {
 enum WidgetType {
   BANNER
   BANNER_COMPACT
+  BANNER_DETAILED
   GUARDIAN
   KURZAN_FRONTLINE
   PARADISE
   RAID
+  EBONY_CUBE
+  HAL_HOURGLASS
   TEXT
   TEXT_CHECKBOX
   LINK_ICON
@@ -310,16 +379,24 @@ model MarketItemDailyStat {
   @@map("market_item_daily_stats")
 }
 
-model MarketItemRecentPrice {
+// docs/db_schema.typ의 Market_Item_Current_Prices 참고 — 과거 Market_Item_Recent_Prices
+// (RecentPrice)에서 CurrentMinPrice 기준으로 교체하며 테이블·컬럼명도 함께 바꿨다.
+// grade/icon을 더해 이 테이블 자체가 아이템 검색 카탈로그를 겸한다(별도 카탈로그 테이블 없음).
+model MarketItemCurrentPrice {
   itemId       Int      @id @map("item_id")
   itemName     String   @map("item_name")
-  /// Open API에 itemId 단독 조회가 없어(RecentPrice는 검색 응답에만 존재), 파이프라인 B가
+  /// Open API에 itemId 단독 조회가 없어(CurrentMinPrice는 검색 응답에만 존재), 파이프라인 B가
   /// 이 값+item_name으로 재검색해 갱신한다 (docs/market_price.typ 파이프라인 B 참고).
-  categoryCode Int      @map("category_code")
-  recentPrice  Int      @map("recent_price")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  categoryCode    Int      @map("category_code")
+  /// 등급 표시용(Open API Grade 그대로). 가격과 같은 응답에서 함께 오므로 갱신 시 덤으로 채워진다
+  /// — 이 컬럼을 새로 추가한 기존 행은 다음 갱신 전까지 비어 있을 수 있어 nullable.
+  grade           String?
+  /// 아이콘 이미지 URL(Open API Icon 그대로). grade와 동일한 이유로 nullable.
+  icon            String?
+  currentMinPrice Int      @map("current_min_price")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  @@map("market_item_recent_prices")
+  @@map("market_item_current_prices")
 }
 
 // == Ability_Stone_Dp_States (어빌리티 스톤 세공 최적 전략 참조 테이블, 전 유저 공용) ========

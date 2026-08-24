@@ -56,7 +56,9 @@ export function flattenLeafCategoryCodes(categories: MarketCategory[]): number[]
 export interface MarketSearchItem {
   itemId: number
   itemName: string
-  recentPrice: number | null
+  grade: string
+  icon: string
+  currentMinPrice: number | null
 }
 
 export interface MarketSearchPage {
@@ -70,7 +72,7 @@ interface RawMarketSearchResponse {
   PageNo: number
   PageSize: number
   TotalCount: number
-  Items: Array<{ Id: number; Name: string; RecentPrice: number | null }> | null
+  Items: Array<{ Id: number; Name: string; Grade: string; Icon: string; CurrentMinPrice: number | null }> | null
 }
 
 async function postMarketItemSearch(
@@ -92,7 +94,9 @@ async function postMarketItemSearch(
     items: (raw.Items ?? []).map((item) => ({
       itemId: item.Id,
       itemName: item.Name,
-      recentPrice: item.RecentPrice,
+      grade: item.Grade,
+      icon: item.Icon,
+      currentMinPrice: item.CurrentMinPrice,
     })),
   }
 }
@@ -111,8 +115,8 @@ export async function searchMarketItems(
 }
 
 /**
- * Open API에 itemId 단독 조회가 없어(RecentPrice는 검색 응답에만 있음), categoryCode+itemName으로
- * 좁혀 재검색해 단일 아이템의 최근 거래가를 갱신하는 용도. CategoryCode는 필수 파라미터로 확인됨(0/생략 시 400).
+ * Open API에 itemId 단독 조회가 없어(CurrentMinPrice는 검색 응답에만 있음), categoryCode+itemName으로
+ * 좁혀 재검색해 단일 아이템의 현재 최소 판매가를 갱신하는 용도. CategoryCode는 필수 파라미터로 확인됨(0/생략 시 400).
  */
 export async function findMarketItemByNameInCategory(
   apiKey: string,

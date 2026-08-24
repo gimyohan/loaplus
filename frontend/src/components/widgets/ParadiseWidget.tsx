@@ -76,7 +76,7 @@ export function ParadiseWidget({
       )}
     >
       {/* 상단: 위젯 이름 / 옵션. 체크박스가 없는 대신 빈 스페이서로 제목을 가운데 맞춘다 */}
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-2.5">
         <div className="h-6 w-6 shrink-0" aria-hidden="true" />
 
         <h3 className="min-w-0 flex-1 truncate text-center text-lg font-semibold text-foreground">

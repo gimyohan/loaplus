@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client'
 import type { ActionLog, ActionType, PrismaClient } from '@prisma/client'
 
+import { ticketColumnField } from './ebonyCubeCatalog.js'
+import type { TicketType } from './ebonyCubeCatalog.js'
 import { retentionCutoffDate, weekStartDateKey } from './resetLogic.js'
 
 export interface RewardEntry {
@@ -32,6 +34,7 @@ type StatisticDelta = Partial<{
   kurzanShardRewardCount: number
   guardianAzenaBlessingRewardCount: number
   kurzanAzenaBlessingRewardCount: number
+  cubeGemEarned: number
 }>
 
 interface ItemRewardDelta {
@@ -136,6 +139,19 @@ function computeStatisticDelta(actionType: ActionType, rewards: RewardEntry[], s
         itemRewardDelta: null,
       }
     }
+    case 'EBONY_CUBE_CLEAR': {
+      const gemstoneAmount = rewards.find((reward) => reward.categoryKey === 'gemstone')?.amount ?? 0
+      return {
+        statDelta: gemstoneAmount !== 0 ? { cubeGemEarned: sign * gemstoneAmount } : {},
+        itemRewardDelta: null,
+      }
+    }
+    // 할의 모래시계 완료는 Character_Statistics 갱신표(docs/db_schema.typ)에 대상 컬럼이 없다 —
+    // 보상은 로그에만 기록되고 누적 통계에는 반영되지 않는다(확정). 스택 수동 조절
+    // (PATCH .../hal-hourglass/sand)은 보상을 지급하지 않는 단순 상태 조정이라 애초에 로그를
+    // 남기지 않으므로 이 스위치에 해당 case가 없다.
+    case 'HAL_HOURGLASS_COMPLETE':
+      return { statDelta: {}, itemRewardDelta: null }
   }
 }
 
@@ -323,6 +339,25 @@ export async function revertActionLog(prisma: PrismaClient, log: ActionLog): Pro
             restGauge: { increment: params.restGaugeConsumed },
           },
         })
+      } else if (log.actionType === 'EBONY_CUBE_CLEAR') {
+        // 소모한 등급의 티켓 수량만 되돌린다 — 선택 상태(selected_ticket_type)는 건드리지
+        // 않는다(docs/ebony_cube_hal_hourglass.typ 참고, 문서에 명시된 롤백 범위는 수량뿐).
+        const params = log.revertParams as { ticketType: string; consumedCount: number }
+        const column = ticketColumnField(params.ticketType as TicketType)
+        await tx.ebonyCube.update({
+          where: { characterId: log.characterId },
+          data: { [column]: { increment: params.consumedCount } },
+        })
+      } else if (log.actionType === 'HAL_HOURGLASS_COMPLETE') {
+        const params = log.revertParams as { sandStackConsumed: number }
+        const current = await tx.halHourglass.findUniqueOrThrow({ where: { characterId: log.characterId } })
+        await tx.halHourglass.update({
+          where: { characterId: log.characterId },
+          data: {
+            isCompleted: false,
+            sandStack: Math.min(5, Math.max(0, current.sandStack + params.sandStackConsumed)),
+          },
+        })
       } else if (log.actionType === 'RAID_GATE_CLEAR') {
         // 관문 하나만 콕 집어 미완료로 되돌린다 — 그 뒤(더 늦은 순서) 관문을 함께 되돌리는 건
         // FE가 관문별로 분리된 로그를 여러 번 호출해서 처리한다(docs/api.typ "관문 미완료 처리" 참고).
@@ -417,60 +452,140 @@ export async function createRewardLog(
 }
 
 /**
- * 레이드 관문 완료(POST .../raids/{raidId}/gates/{gateIndex}/clear)는 연쇄 규칙 때문에 관문
- * 여러 개가 한 요청에서 한꺼번에 완료될 수 있고, 관문마다 별도의 Action_Logs 행이 필요하다
- * (docs/db_schema.typ의 Character_Raids "Action_Logs 연동" 참고). 그래서 createRewardLog와 달리
- * 관문 인덱스 배열을 받아 로그를 여러 건 만들고, Character_Raids.gates 갱신까지 한 트랜잭션에서
- * 처리한다. 한 요청 안의 모든 관문은 같은 시각(now)으로 기록되고 같은 주 버킷에 적립되며,
- * `description`을 넘기면(호출부가 요청 바디로 받은 값) 이번 요청으로 새로 생성되는 로그
- * 전부에 동일하게 저장된다.
+ * 레이드 관문 하나를 완료 처리한다(POST .../raids/{raidId}/gates/{gateIndex}/clear). 연쇄 완료
+ * (앞선 미완료 관문까지 함께 완료)는 이 함수의 책임이 아니다 — 그 계산은 FE가 하고, 필요하면
+ * 이 엔드포인트를 관문 순서대로 여러 번 호출한다(docs/widgets.typ "레이드" 참고). 그래야 관문마다
+ * Action_Logs 행이 하나씩, 각자의 description으로 정확히 남는다. `description`은 호출부(라우트)가
+ * 요청 바디로 받은 값을 그대로 넘기며, 여기서 다시 계산하지 않는다(createRewardLog와 동일한 원칙).
  */
-export async function createRaidGateClearLogs(
+export async function createRaidGateClearLog(
   prisma: PrismaClient,
   params: {
     userId: string
     characterId: string
     raidId: string
     gates: RaidGateState[]
-    clears: { gateIndex: number; rewards: RewardEntry[] }[]
+    gateIndex: number
+    rewards: RewardEntry[]
     description?: string
   },
 ) {
   return prisma.$transaction(async (tx) => {
     const now = new Date()
     const gates = params.gates.map((gate) => ({ ...gate }))
+    gates[params.gateIndex] = { ...gates[params.gateIndex], cleared: true }
 
-    for (const clear of params.clears) {
-      gates[clear.gateIndex] = { ...gates[clear.gateIndex], cleared: true }
+    await tx.actionLog.create({
+      data: {
+        userId: params.userId,
+        characterId: params.characterId,
+        actionType: 'RAID_GATE_CLEAR',
+        revertParams: { raidId: params.raidId, gateIndex: params.gateIndex },
+        rewards:
+          params.rewards.length > 0
+            ? (toDisplayRewards(params.rewards) as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+        description: params.description ?? null,
+        createdAt: now,
+      } satisfies ActionLogCreateInput,
+    })
 
-      await tx.actionLog.create({
-        data: {
-          userId: params.userId,
-          characterId: params.characterId,
-          actionType: 'RAID_GATE_CLEAR',
-          revertParams: { raidId: params.raidId, gateIndex: clear.gateIndex },
-          rewards:
-            clear.rewards.length > 0
-              ? (toDisplayRewards(clear.rewards) as unknown as Prisma.InputJsonValue)
-              : Prisma.JsonNull,
-          description: params.description ?? null,
-          createdAt: now,
-        } satisfies ActionLogCreateInput,
-      })
-
-      const { statDelta } = computeStatisticDelta('RAID_GATE_CLEAR', clear.rewards, 1)
-      await applyStatisticDelta(tx, params.characterId, statDelta, now)
-    }
+    const { statDelta } = computeStatisticDelta('RAID_GATE_CLEAR', params.rewards, 1)
+    await applyStatisticDelta(tx, params.characterId, statDelta, now)
 
     const updatedRaid = await tx.characterRaid.update({
       where: { id: params.raidId },
       data: { gates: gates as unknown as Prisma.InputJsonValue },
     })
 
-    // 관문 연쇄 완료로 로그가 여러 건 생겼을 수 있지만, 트림은 그 개수와 무관하게 한 번만
-    // 호출하면 된다 (enforceActionLogCap 주석 참고).
     await enforceActionLogCap(tx, params.userId)
 
     return updatedRaid
+  })
+}
+
+/**
+ * 에브니 큐브 클리어(POST .../ebony-cube/clear). 선택된 등급의 티켓을 consumedCount만큼
+ * 차감하고 4티어 보석 보상을 지급한다 — 호출부(라우트)가 이미 보유 수량 검증(consumedCount
+ * 이하인지)을 마쳤다고 가정한다(docs/ebony_cube_hal_hourglass.typ 참고).
+ */
+export async function createEbonyCubeClearLog(
+  prisma: PrismaClient,
+  params: {
+    userId: string
+    characterId: string
+    ticketType: TicketType
+    consumedCount: number
+    rewards: RewardEntry[]
+    description?: string
+  },
+) {
+  return prisma.$transaction(async (tx) => {
+    const now = new Date()
+    const column = ticketColumnField(params.ticketType)
+
+    const updatedEbonyCube = await tx.ebonyCube.update({
+      where: { characterId: params.characterId },
+      data: { [column]: { decrement: params.consumedCount } },
+    })
+
+    await tx.actionLog.create({
+      data: {
+        userId: params.userId,
+        characterId: params.characterId,
+        actionType: 'EBONY_CUBE_CLEAR',
+        revertParams: { ticketType: params.ticketType, consumedCount: params.consumedCount },
+        rewards: toDisplayRewards(params.rewards) as unknown as Prisma.InputJsonValue,
+        description: params.description ?? null,
+        createdAt: now,
+      } satisfies ActionLogCreateInput,
+    })
+
+    const { statDelta } = computeStatisticDelta('EBONY_CUBE_CLEAR', params.rewards, 1)
+    await applyStatisticDelta(tx, params.characterId, statDelta, now)
+    await enforceActionLogCap(tx, params.userId)
+
+    return updatedEbonyCube
+  })
+}
+
+/**
+ * 할의 모래시계 주간 완료(POST .../hal-hourglass/complete). 현재 스택(N)으로 (N+1)배 보상을
+ * 계산해 지급하고, is_completed를 true로, sand_stack을 0으로 만든다(스택 소진 — 확정).
+ */
+export async function createHalHourglassCompleteLog(
+  prisma: PrismaClient,
+  params: {
+    userId: string
+    characterId: string
+    sandStackConsumed: number
+    rewards: RewardEntry[]
+    description?: string
+  },
+) {
+  return prisma.$transaction(async (tx) => {
+    const now = new Date()
+
+    const updatedHourglass = await tx.halHourglass.update({
+      where: { characterId: params.characterId },
+      data: { isCompleted: true, sandStack: 0 },
+    })
+
+    await tx.actionLog.create({
+      data: {
+        userId: params.userId,
+        characterId: params.characterId,
+        actionType: 'HAL_HOURGLASS_COMPLETE',
+        revertParams: { sandStackConsumed: params.sandStackConsumed },
+        rewards: toDisplayRewards(params.rewards) as unknown as Prisma.InputJsonValue,
+        description: params.description ?? null,
+        createdAt: now,
+      } satisfies ActionLogCreateInput,
+    })
+
+    // HAL_HOURGLASS_COMPLETE는 Character_Statistics 갱신표에 대상 컬럼이 없다 — 로그에만 남는다.
+    await enforceActionLogCap(tx, params.userId)
+
+    return updatedHourglass
   })
 }

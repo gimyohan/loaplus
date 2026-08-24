@@ -57,9 +57,11 @@ export async function updateRaidTarget(
 }
 
 /**
- * gateIndex 관문을 완료 처리한다. 그보다 앞선 미완료 관문도 서버가 함께 완료 처리한다(연쇄).
- * description을 넘기면 이번 요청으로 새로 생기는 로그 전부(연쇄로 완료되는 앞선 관문 포함)에
- * 동일하게 저장된다(docs/api.typ "관문 완료 처리" 참고).
+ * gateIndex 관문 하나만 완료 처리한다 — 연쇄(그보다 앞선 미완료 관문까지 함께 완료)는 이
+ * 함수의 책임이 아니다. gateIndex보다 앞선 관문이 아직 미완료면 서버가 409로 거부하므로,
+ * 연쇄가 필요하면 호출부(WidgetDashboard의 toggleRaidGateCleared)가 관문 순서대로 이 함수를
+ * 여러 번 호출한다 — 그래야 관문마다 description도 각자 정확한 값으로 남는다
+ * (docs/api.typ "관문 완료 처리" 참고).
  */
 export async function clearRaidGate(
   characterId: string,

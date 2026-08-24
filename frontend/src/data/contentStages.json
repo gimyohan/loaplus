@@ -2,32 +2,32 @@
   "chaosDungeon": {
     "label": "카오스 던전",
     "stages": [
-      { "name": "공명 1 (베른 북부)", "minItemLevel": 500, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "환영 1 (로헨델)", "minItemLevel": 635, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "대지 1 (욘)", "minItemLevel": 805, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "그림자 1 (페이튼)", "minItemLevel": 960, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "별 1 (파푸니카)", "minItemLevel": 1250, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "타락 1 (베른 남부)", "minItemLevel": 1415, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "천공 1 (엘가시아)", "minItemLevel": 1580, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "계몽 1 (볼다이크)", "minItemLevel": 1600, "rewards": { "shard": [], "azenaBlessing": [] } }
+      { "name": "공명 1 (베른 북부)", "minItemLevel": 500 },
+      { "name": "환영 1 (로헨델)", "minItemLevel": 635 },
+      { "name": "대지 1 (욘)", "minItemLevel": 805 },
+      { "name": "그림자 1 (페이튼)", "minItemLevel": 960 },
+      { "name": "별 1 (파푸니카)", "minItemLevel": 1250 },
+      { "name": "타락 1 (베른 남부)", "minItemLevel": 1415 },
+      { "name": "천공 1 (엘가시아)", "minItemLevel": 1580 },
+      { "name": "계몽 1 (볼다이크)", "minItemLevel": 1600 }
     ]
   },
   "kurzanFrontline": {
     "label": "쿠르잔 전선",
     "stages": [
-      { "name": "아비도스 1 작전", "minItemLevel": 1640, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "아비도스 2작전", "minItemLevel": 1660, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "아비도스 3작전", "minItemLevel": 1680, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "네프타 1 작전", "minItemLevel": 1700, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "네프타 2 작전", "minItemLevel": 1720, "rewards": { "shard": [], "azenaBlessing": [] } }
+      { "name": "아비도스 1 작전", "minItemLevel": 1640, "ticketType": "unlock1" },
+      { "name": "아비도스 2작전", "minItemLevel": 1660, "ticketType": "unlock1" },
+      { "name": "아비도스 3작전", "minItemLevel": 1680, "ticketType": "unlock2" },
+      { "name": "네프타 1 작전", "minItemLevel": 1700, "ticketType": "unlock3" },
+      { "name": "네프타 2 작전", "minItemLevel": 1720, "ticketType": "unlock4" }
     ]
   },
   "chaosRift": {
     "label": "혼돈의 균열",
     "stages": [
-      { "name": "심연의 역류 1", "minItemLevel": 1730, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "심연의 역류 2", "minItemLevel": 1750, "rewards": { "shard": [], "azenaBlessing": [] } },
-      { "name": "심연의 역류 3", "minItemLevel": 1770, "rewards": { "shard": [], "azenaBlessing": [] } }
+      { "name": "심연의 역류 1", "minItemLevel": 1730 },
+      { "name": "심연의 역류 2", "minItemLevel": 1750 },
+      { "name": "심연의 역류 3", "minItemLevel": 1770 }
     ]
   }
 }

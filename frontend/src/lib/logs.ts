@@ -10,6 +10,8 @@ export type ActionType =
   | 'RAID_GATE_CLEAR'
   | 'OTHER_INCOME_MANUAL'
   | 'PARADISE_GOLD_REWARD'
+  | 'EBONY_CUBE_CLEAR'
+  | 'HAL_HOURGLASS_COMPLETE'
 
 export interface RewardEntry {
   categoryKey: string

@@ -1,29 +1,37 @@
-import type { MarketItemRecentPrice } from '@prisma/client'
+import type { MarketItemCurrentPrice } from '@prisma/client'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { LostarkApiError } from '../lib/lostarkApi.js'
 import { checkSharedKeyThrottle, resolveLostarkApiKey } from '../lib/lostarkKeyResolution.js'
-import { findMarketItemByNameInCategory } from '../lib/marketApi.js'
+import { findMarketItemByNameInCategory, searchMarketItems } from '../lib/marketApi.js'
 import { requireAuth } from '../lib/session.js'
 
 // docs/market_price.typ 파이프라인 B: 30분을 넘기면 조회 시점에 암묵적 갱신을 트리거한다.
 const STALE_THRESHOLD_MS = 30 * 60 * 1000
+
+// docs/market_price.typ "묶음(세트) 갱신 최적화" 참고.
+const MAX_BATCH_ITEM_IDS = 50
+const CATEGORY_PAGE_WALK_CAP = 20
 
 const historyQuerySchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 })
 
+const refreshBatchSchema = z.object({
+  itemIds: z.array(z.number().int()).min(1).max(MAX_BATCH_ITEM_IDS),
+})
+
 // 여러 유저가 거의 동시에 같은 아이템을 조회해 암묵적 갱신을 각자 트리거하는 것을 막는
 // 프로세스 메모리 내 가드. docs/market_price.typ "동시 갱신 경합" 참고.
 const implicitRefreshInFlight = new Set<number>()
 
-function toRecentPriceResponse(row: MarketItemRecentPrice) {
+function toCurrentPriceResponse(row: MarketItemCurrentPrice) {
   return {
     itemId: row.itemId,
     itemName: row.itemName,
-    recentPrice: row.recentPrice,
+    currentMinPrice: row.currentMinPrice,
     updatedAt: row.updatedAt,
   }
 }
@@ -65,14 +73,14 @@ export async function marketRoutes(fastify: FastifyInstance) {
   }
 
   /**
-   * category_code+item_name으로 재검색해 recent_price를 갱신한다(Open API에 itemId 단독 조회가
-   * 없음 — docs/market_price.typ 파이프라인 B 참고). 캐시 행 자체가 없으면 null.
+   * category_code+item_name으로 재검색해 current_min_price를 갱신한다(Open API에 itemId 단독
+   * 조회가 없음 — docs/market_price.typ 파이프라인 B 참고). 캐시 행 자체가 없으면 null.
    */
-  async function refreshRecentPrice(
+  async function refreshCurrentMinPrice(
     itemId: number,
     apiKey: string,
-  ): Promise<MarketItemRecentPrice | null> {
-    const cached = await fastify.prisma.marketItemRecentPrice.findUnique({ where: { itemId } })
+  ): Promise<MarketItemCurrentPrice | null> {
+    const cached = await fastify.prisma.marketItemCurrentPrice.findUnique({ where: { itemId } })
     if (!cached) return null
 
     const found = await findMarketItemByNameInCategory(apiKey, {
@@ -80,27 +88,32 @@ export async function marketRoutes(fastify: FastifyInstance) {
       itemName: cached.itemName,
       itemId,
     })
-    if (!found || found.recentPrice === null) {
-      // 검색으로 다시 찾지 못했거나 최근 거래가가 없다면(거래 이력 없음 등) 기존 캐시를 그대로 둔다.
+    if (!found || found.currentMinPrice === null) {
+      // 검색으로 다시 찾지 못했거나 현재 최소 판매가가 없다면(매물 없음 등) 기존 캐시를 그대로 둔다.
       return cached
     }
 
-    return fastify.prisma.marketItemRecentPrice.update({
+    return fastify.prisma.marketItemCurrentPrice.update({
       where: { itemId },
-      data: { recentPrice: found.recentPrice, itemName: found.itemName },
+      data: {
+        currentMinPrice: found.currentMinPrice,
+        itemName: found.itemName,
+        grade: found.grade,
+        icon: found.icon,
+      },
     })
   }
 
   fastify.get<{ Params: { itemId: string } }>(
     '/api/market/items/:itemId',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Market'], summary: '거래소 현재 최소 판매가 조회 (30분 경과 시 암묵적 갱신)' } },
     async (request, reply) => {
       const itemId = Number.parseInt(request.params.itemId, 10)
       if (!Number.isInteger(itemId)) {
         return reply.code(400).send({ error: 'invalid_request' })
       }
 
-      let row = await fastify.prisma.marketItemRecentPrice.findUnique({ where: { itemId } })
+      let row = await fastify.prisma.marketItemCurrentPrice.findUnique({ where: { itemId } })
       if (!row) {
         return reply.code(404).send({ error: 'item_not_found' })
       }
@@ -112,7 +125,7 @@ export async function marketRoutes(fastify: FastifyInstance) {
         if (apiKey) {
           implicitRefreshInFlight.add(itemId)
           try {
-            const refreshed = await refreshRecentPrice(itemId, apiKey)
+            const refreshed = await refreshCurrentMinPrice(itemId, apiKey)
             if (refreshed) row = refreshed
           } catch (err) {
             // 암묵적 갱신 실패는 조회 자체를 막지 않는다 — 캐시된 값을 그대로 반환한다.
@@ -123,13 +136,13 @@ export async function marketRoutes(fastify: FastifyInstance) {
         }
       }
 
-      return reply.send(toRecentPriceResponse(row))
+      return reply.send(toCurrentPriceResponse(row))
     },
   )
 
   fastify.get<{ Params: { itemId: string }; Querystring: { from?: string; to?: string } }>(
     '/api/market/items/:itemId/history',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Market'], summary: '거래소 일자별 시세 히스토리 조회' } },
     async (request, reply) => {
       const itemId = Number.parseInt(request.params.itemId, 10)
       if (!Number.isInteger(itemId)) {
@@ -161,7 +174,7 @@ export async function marketRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { itemId: string } }>(
     '/api/market/items/:itemId/refresh',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Market'], summary: '거래소 시세 명시적 새로고침' } },
     async (request, reply) => {
       const itemId = Number.parseInt(request.params.itemId, 10)
       if (!Number.isInteger(itemId)) {
@@ -172,11 +185,11 @@ export async function marketRoutes(fastify: FastifyInstance) {
       if (!apiKey) return
 
       try {
-        const refreshed = await refreshRecentPrice(itemId, apiKey)
+        const refreshed = await refreshCurrentMinPrice(itemId, apiKey)
         if (!refreshed) {
           return reply.code(404).send({ error: 'item_not_found' })
         }
-        return reply.send(toRecentPriceResponse(refreshed))
+        return reply.send(toCurrentPriceResponse(refreshed))
       } catch (err) {
         if (err instanceof LostarkApiError) {
           if (err.kind === 'rate_limited') {
@@ -189,6 +202,98 @@ export async function marketRoutes(fastify: FastifyInstance) {
         request.log.error({ err, itemId }, 'lostark api request failed')
         return reply.code(502).send({ error: 'lostark_api_unavailable' })
       }
+    },
+  )
+
+  fastify.post<{ Body: { itemIds: number[] } }>(
+    '/api/market/items/refresh-batch',
+    { preHandler: auth, schema: { tags: ['Market'], summary: '거래소 시세 명시적 새로고침 (묶음, 최대 50개)' } },
+    async (request, reply) => {
+      const parsed = refreshBatchSchema.safeParse(request.body)
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'invalid_request' })
+      }
+
+      const apiKey = await resolveApiKeyOrRespondError(request, reply)
+      if (!apiKey) return
+
+      // 캐시 행이 없는 itemId는 category_code를 몰라 검색 자체가 불가능하다 — 결과에서 제외한다
+      // (docs/market_price.typ "묶음(세트) 갱신 최적화" 참고).
+      const uniqueItemIds = Array.from(new Set(parsed.data.itemIds))
+      const cachedRows = await fastify.prisma.marketItemCurrentPrice.findMany({
+        where: { itemId: { in: uniqueItemIds } },
+      })
+      const categoryCodeByItemId = new Map(cachedRows.map((row) => [row.itemId, row.categoryCode]))
+
+      const itemIdsByCategory = new Map<number, Set<number>>()
+      for (const itemId of uniqueItemIds) {
+        const categoryCode = categoryCodeByItemId.get(itemId)
+        if (categoryCode === undefined) continue
+        if (!itemIdsByCategory.has(categoryCode)) itemIdsByCategory.set(categoryCode, new Set())
+        itemIdsByCategory.get(categoryCode)!.add(itemId)
+      }
+
+      const refreshedItemIds = new Set<number>()
+
+      try {
+        for (const [categoryCode, wantedItemIds] of itemIdsByCategory) {
+          for (let pageNo = 0; pageNo < CATEGORY_PAGE_WALK_CAP; pageNo++) {
+            const page = await searchMarketItems(apiKey, { categoryCode, pageNo })
+
+            // 요청받지 않은 아이템도 같은 페이지에 왔으니 opportunistic하게 함께 갱신한다 — 카테고리
+            // 검색 한 번을 이미 API 호출 예산으로 지불했으므로 공짜다(docs/market_price.typ 참고).
+            for (const item of page.items) {
+              if (item.currentMinPrice === null) continue
+              await fastify.prisma.marketItemCurrentPrice.upsert({
+                where: { itemId: item.itemId },
+                create: {
+                  itemId: item.itemId,
+                  itemName: item.itemName,
+                  categoryCode,
+                  grade: item.grade,
+                  icon: item.icon,
+                  currentMinPrice: item.currentMinPrice,
+                },
+                update: {
+                  itemName: item.itemName,
+                  categoryCode,
+                  grade: item.grade,
+                  icon: item.icon,
+                  currentMinPrice: item.currentMinPrice,
+                },
+              })
+              if (wantedItemIds.has(item.itemId)) refreshedItemIds.add(item.itemId)
+            }
+
+            const allWantedFound = [...wantedItemIds].every((itemId) => refreshedItemIds.has(itemId))
+            const totalPages = Math.ceil(page.totalCount / (page.pageSize || 10))
+            if (allWantedFound || pageNo + 1 >= totalPages || page.items.length === 0) break
+          }
+        }
+      } catch (err) {
+        if (err instanceof LostarkApiError) {
+          if (err.kind === 'rate_limited') {
+            return reply.code(429).send({ error: 'lostark_api_rate_limited' })
+          }
+          if (err.kind === 'unauthorized') {
+            return reply.code(400).send({ error: 'lostark_key_invalid' })
+          }
+        }
+        request.log.error({ err }, 'lostark api request failed')
+        return reply.code(502).send({ error: 'lostark_api_unavailable' })
+      }
+
+      if (refreshedItemIds.size === 0) {
+        return reply.send([])
+      }
+
+      const refreshedRows = await fastify.prisma.marketItemCurrentPrice.findMany({
+        where: { itemId: { in: [...refreshedItemIds] } },
+      })
+      const requestOrder = new Map(parsed.data.itemIds.map((itemId, index) => [itemId, index]))
+      refreshedRows.sort((a, b) => (requestOrder.get(a.itemId) ?? 0) - (requestOrder.get(b.itemId) ?? 0))
+
+      return reply.send(refreshedRows.map(toCurrentPriceResponse))
     },
   )
 }

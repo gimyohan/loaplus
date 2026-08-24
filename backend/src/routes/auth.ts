@@ -37,7 +37,15 @@ async function findOrCreateUser(prisma: PrismaClient, googleSub: string) {
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
-  fastify.post('/api/auth/google', async (request, reply) => {
+  fastify.post(
+    '/api/auth/google',
+    {
+      schema: { tags: ['Auth'], summary: 'Google ID 토큰 검증 및 로그인/회원가입' },
+      // 전역 기본값(분당 300회)보다 훨씬 좁게 건다 — 무차별 로그인 시도·대량 계정 생성 방지
+      // (docs/rate_limiting.typ "로그인 라우트: 엄격 제한" 참고).
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const parsed = googleLoginSchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -58,7 +66,10 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.send({ userId: user.id, nickname: user.nickname })
   })
 
-  fastify.get('/api/auth/session', async (request, reply) => {
+  fastify.get(
+    '/api/auth/session',
+    { schema: { tags: ['Auth'], summary: '로그인 여부 및 최소 사용자 식별 정보 조회' } },
+    async (request, reply) => {
     const userId = getSessionUserId(request)
     if (!userId) {
       return reply.send({ authenticated: false })
@@ -73,7 +84,10 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.send({ authenticated: true, userId: user.id, nickname: user.nickname })
   })
 
-  fastify.post('/api/auth/logout', async (request, reply) => {
+  fastify.post(
+    '/api/auth/logout',
+    { schema: { tags: ['Auth'], summary: '로그아웃 (세션 무효화)' } },
+    async (request, reply) => {
     reply.clearCookie(SESSION_COOKIE_NAME, { path: '/' })
     return reply.code(204).send()
   })

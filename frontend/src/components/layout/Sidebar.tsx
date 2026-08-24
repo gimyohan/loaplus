@@ -6,6 +6,7 @@ import {
   Plus,
   ScrollText,
   Settings,
+  TrendingUp,
   Users,
 } from 'lucide-react'
 
@@ -17,6 +18,7 @@ const NAV_ITEMS: { view: NavView; label: string; icon: typeof LayoutDashboard }[
   { view: 'roster', label: 'Roster', icon: Users },
   { view: 'logs', label: 'Logs', icon: ScrollText },
   { view: 'statistics', label: 'Statistics', icon: BarChart3 },
+  { view: 'market', label: 'Market', icon: TrendingUp },
   { view: 'settings', label: 'Settings', icon: Settings },
 ]
 

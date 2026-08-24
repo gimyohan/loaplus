@@ -5,10 +5,13 @@ import type { WidgetType } from '@prisma/client'
 export const KIND_TO_WIDGET_TYPE = {
   banner: 'BANNER',
   bannerCompact: 'BANNER_COMPACT',
+  bannerDetailed: 'BANNER_DETAILED',
   guardian: 'GUARDIAN',
   kurzanFrontline: 'KURZAN_FRONTLINE',
   paradise: 'PARADISE',
   raid: 'RAID',
+  ebonyCube: 'EBONY_CUBE',
+  halHourglass: 'HAL_HOURGLASS',
   text: 'TEXT',
   textCheckbox: 'TEXT_CHECKBOX',
   linkIcon: 'LINK_ICON',

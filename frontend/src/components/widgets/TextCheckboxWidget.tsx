@@ -26,12 +26,24 @@ export function TextCheckboxWidget({
 }: TextCheckboxWidgetProps) {
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onToggleChecked?.(!isChecked)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onToggleChecked?.(!isChecked)
+        }
+      }}
       className={cn(
-        'flex aspect-[5/1] items-center gap-3 rounded-xl border border-border bg-card px-5 shadow-lg',
+        'flex aspect-[5/1] cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-5 shadow-lg transition-colors hover:bg-muted/50',
         className,
       )}
     >
-      <label className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center">
+      <label
+        className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center"
+        onClick={(event) => event.stopPropagation()}
+      >
         <input
           type="checkbox"
           checked={isChecked}
@@ -60,8 +72,11 @@ export function TextCheckboxWidget({
 
       <button
         type="button"
-        aria-label="텍스트 · 체크박스 설정"
-        onClick={onOpenSettings}
+        aria-label="루틴 설정"
+        onClick={(event) => {
+          event.stopPropagation()
+          onOpenSettings?.()
+        }}
         className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Settings className="h-7 w-7" />

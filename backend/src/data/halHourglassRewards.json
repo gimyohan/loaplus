@@ -1,0 +1,19 @@
+{
+  "levels": [
+    {
+      "name": "심연의 역류 1 (자리표시)",
+      "minItemLevel": 1730,
+      "baseRewards": [{ "categoryKey": "gold", "itemName": "골드", "amount": 1000 }]
+    },
+    {
+      "name": "심연의 역류 2 (자리표시)",
+      "minItemLevel": 1750,
+      "baseRewards": [{ "categoryKey": "gold", "itemName": "골드", "amount": 1500 }]
+    },
+    {
+      "name": "심연의 역류 3 (자리표시)",
+      "minItemLevel": 1770,
+      "baseRewards": [{ "categoryKey": "gold", "itemName": "골드", "amount": 2000 }]
+    }
+  ]
+}

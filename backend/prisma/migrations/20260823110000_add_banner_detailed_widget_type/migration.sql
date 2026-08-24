@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "WidgetType" ADD VALUE 'BANNER_DETAILED';

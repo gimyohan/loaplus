@@ -1,6 +1,8 @@
 import { apiFetch } from '@/lib/api'
 import { fetchLogs, rollbackLog } from '@/lib/logs'
+import type { EbonyCubeSummary, TicketType } from '@/types/ebonyCube'
 import type { GuardianSummary } from '@/types/guardian'
+import type { HalHourglassSummary } from '@/types/halHourglass'
 import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
 import type { ParadiseSummary } from '@/types/paradise'
 
@@ -33,6 +35,8 @@ export interface Homeworks {
   guardian: GuardianSummary
   kurzan: KurzanFrontlineSummary
   paradise: ParadiseSummary
+  ebonyCube: EbonyCubeSummary
+  halHourglass: HalHourglassSummary
 }
 
 export async function fetchHomeworks(characterId: string): Promise<Homeworks> {
@@ -40,8 +44,16 @@ export async function fetchHomeworks(characterId: string): Promise<Homeworks> {
     guardian: HomeworkSummaryDto
     kurzan: HomeworkSummaryDto
     paradise: ParadiseSummary
+    ebonyCube: EbonyCubeSummary
+    halHourglass: HalHourglassSummary
   }>(`/api/characters/${characterId}/homeworks`)
-  return { guardian: toSummary(data.guardian), kurzan: toSummary(data.kurzan), paradise: data.paradise }
+  return {
+    guardian: toSummary(data.guardian),
+    kurzan: toSummary(data.kurzan),
+    paradise: data.paradise,
+    ebonyCube: data.ebonyCube,
+    halHourglass: data.halHourglass,
+  }
 }
 
 export async function consumeParadiseTicket(characterId: string): Promise<ParadiseSummary> {
@@ -86,19 +98,19 @@ export async function harvestGuardian(characterId: string, description?: string)
 // 프론트 UI가 없다. 백엔드엔 쿠르잔과의 구조적 대칭을 위해 남아있지만, 여기선 wrapper를 두지 않는다.
 
 /**
- * '오늘 수확' 체크박스 해제. 전용 엔드포인트 대신 로그 롤백(`DELETE /api/logs/{logId}`)을
- * 재사용한다 — 지금 체크된 상태를 만든 가장 최근 HARVEST_* 로그를 찾아 그대로 되돌린다
- * (게이지 원복 + 로그 삭제). 공명의 비약과 달리 "없던 일"로 만드는 동작이다 (docs/api.typ 참고).
- * 되돌릴 로그를 못 찾으면(예: 로그 보관 한도 초과로 이미 삭제됨) 에러를 던진다.
+ * 체크박스 해제(가디언/쿠르잔 '오늘 수확', 할의 모래시계 '주간 완료'). 전용 엔드포인트 대신
+ * 로그 롤백(`DELETE /api/logs/{logId}`)을 재사용한다 — 지금 체크된 상태를 만든 가장 최근 로그를
+ * 찾아 그대로 되돌린다(게이지/스택 원복 + 로그 삭제, docs/api.typ 참고). 되돌릴 로그를 못 찾으면
+ * (예: 로그 보관 한도 초과로 이미 삭제됨) 에러를 던진다.
  */
 async function undoLatestHarvest(
   characterId: string,
-  actionType: 'HARVEST_GUARDIAN' | 'HARVEST_KURZAN',
+  actionType: 'HARVEST_GUARDIAN' | 'HARVEST_KURZAN' | 'HAL_HOURGLASS_COMPLETE',
 ): Promise<void> {
   const logs = await fetchLogs({ characterId, limit: LOG_LOOKUP_LIMIT })
   const target = logs.find((log) => log.actionType === actionType)
   if (!target) {
-    throw new Error('되돌릴 수확 기록을 찾을 수 없습니다')
+    throw new Error('되돌릴 완료 기록을 찾을 수 없습니다')
   }
   await rollbackLog(target.id)
 }
@@ -109,6 +121,10 @@ export async function undoGuardianHarvest(characterId: string): Promise<void> {
 
 export async function undoKurzanHarvest(characterId: string): Promise<void> {
   await undoLatestHarvest(characterId, 'HARVEST_KURZAN')
+}
+
+export async function undoHalHourglassComplete(characterId: string): Promise<void> {
+  await undoLatestHarvest(characterId, 'HAL_HOURGLASS_COMPLETE')
 }
 
 export async function updateGuardianTarget(
@@ -179,4 +195,77 @@ export async function updateKurzanTarget(
     body: JSON.stringify(input),
   })
   return toSummary(data)
+}
+
+/**
+ * 쿠르잔 전선 위젯의 입장권 표시 영역 클릭. 현재 target_name에 대응하는 에브니 큐브 등급의 보유
+ * 수량이 1 늘어난다 — '오늘 수확' 여부와 무관하게 언제든 누를 수 있고 로그를 남기지 않는다
+ * (docs/ebony_cube_hal_hourglass.typ 참고). 목표가 카오스 던전/혼돈의 균열 단계라 매핑표에 없으면
+ * 서버가 409 ticket_not_available_for_target을 던진다.
+ */
+export async function collectKurzanTicket(characterId: string): Promise<EbonyCubeSummary> {
+  return apiFetch<EbonyCubeSummary>(`/api/characters/${characterId}/kurzan/ticket/collect`, {
+    method: 'POST',
+  })
+}
+
+/** 좌우 화살표로 큐브 목표 등급을 순환 선택한다(수량이 남은 등급만 대상). */
+export async function cycleEbonyCubeTarget(
+  characterId: string,
+  direction: 'prev' | 'next',
+): Promise<EbonyCubeSummary> {
+  return apiFetch<EbonyCubeSummary>(`/api/characters/${characterId}/ebony-cube/target`, {
+    method: 'PATCH',
+    body: JSON.stringify({ direction }),
+  })
+}
+
+/** '1회 클리어'/'3회 클리어' 버튼. 선택된 등급의 입장권을 times개 소모하고 4티어 보석 보상을 지급한다. */
+export async function clearEbonyCube(
+  characterId: string,
+  times: 1 | 3,
+  description?: string,
+): Promise<EbonyCubeSummary> {
+  return apiFetch<EbonyCubeSummary>(`/api/characters/${characterId}/ebony-cube/clear`, {
+    method: 'POST',
+    body: JSON.stringify({ times, description }),
+  })
+}
+
+/** 설정 모달의 등급별 입장권 수량 조절(delta). 보상 없는 단순 상태 조정이라 로그를 남기지 않는다. */
+export async function adjustEbonyCubeTicket(
+  characterId: string,
+  ticketType: TicketType,
+  delta: number,
+): Promise<EbonyCubeSummary> {
+  return apiFetch<EbonyCubeSummary>(`/api/characters/${characterId}/ebony-cube/tickets/${ticketType}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ delta }),
+  })
+}
+
+/** 시련의 모래 획득 클릭. 스택 +1(최대 5, 이미 5면 그대로). 로그를 남기지 않는다. */
+export async function collectHalHourglassSand(characterId: string): Promise<HalHourglassSummary> {
+  return apiFetch<HalHourglassSummary>(`/api/characters/${characterId}/hal-hourglass/sand/collect`, {
+    method: 'POST',
+  })
+}
+
+/** 주간 완료 체크박스. 현재 스택 N에 따라 (N+1)배 보상을 지급하고 스택을 0으로 소진한다. */
+export async function completeHalHourglass(
+  characterId: string,
+  description?: string,
+): Promise<HalHourglassSummary> {
+  return apiFetch<HalHourglassSummary>(`/api/characters/${characterId}/hal-hourglass/complete`, {
+    method: 'POST',
+    body: JSON.stringify({ description }),
+  })
+}
+
+/** 설정 모달의 시련의 모래 스택 수동 조절(delta). 보상 없는 단순 상태 조정이라 로그를 남기지 않는다. */
+export async function adjustHalHourglassSand(characterId: string, delta: number): Promise<HalHourglassSummary> {
+  return apiFetch<HalHourglassSummary>(`/api/characters/${characterId}/hal-hourglass/sand`, {
+    method: 'PATCH',
+    body: JSON.stringify({ delta }),
+  })
 }

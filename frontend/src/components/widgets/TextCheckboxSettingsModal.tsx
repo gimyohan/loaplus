@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
-import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
 // 백엔드/문서 계약과 값을 그대로 맞춘다 — docs/db_schema.typ의 Dashboard_Widgets
@@ -58,6 +57,8 @@ export interface TextCheckboxSettingsValue {
 export interface TextCheckboxSettingsModalProps {
   open: boolean
   onClose: () => void
+  /** 이 위젯이 놓인 카드에 귀속된 캐릭터 이름(다른 Default Value 위젯 설정 모달과 동일한 규칙) */
+  characterName: string
   text: string
   resetDays: TextCheckboxResetDays
   remainingCount: number | null
@@ -65,19 +66,19 @@ export interface TextCheckboxSettingsModalProps {
 }
 
 /**
- * 텍스트 · 체크박스 위젯의 설정 모달 — 할 일 텍스트, 반복(체크박스 자동 초기화) 요일, 반복 횟수
+ * 루틴 위젯의 설정 모달 — 할 일 텍스트, 반복(체크박스 자동 초기화) 요일, 반복 횟수
  * 카운터를 여기서 한 번에 편집한다(docs/widgets.typ 참고). 텍스트는 더 이상 카드에서 직접 입력하지
  * 않고 이 모달에서만 편집한다.
  */
 export function TextCheckboxSettingsModal({
   open,
   onClose,
+  characterName,
   text,
   resetDays,
   remainingCount,
   onSave,
 }: TextCheckboxSettingsModalProps) {
-  const { user } = useAuth()
   const [textValue, setTextValue] = useState(text)
   const [days, setDays] = useState(resetDays)
   const [isCounterEnabled, setIsCounterEnabled] = useState(remainingCount !== null)
@@ -111,7 +112,7 @@ export function TextCheckboxSettingsModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`${user?.nickname ?? '사용자'}의 텍스트 체크박스 설정`}
+      title={`${characterName}의 루틴 설정`}
       className="max-w-sm"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

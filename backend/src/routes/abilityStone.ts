@@ -40,7 +40,10 @@ function computeStateKey(values: {
 export async function abilityStoneRoutes(fastify: FastifyInstance) {
   const auth = requireAuth(fastify)
 
-  fastify.get('/api/ability-stone/strategy', { preHandler: auth }, async (request, reply) => {
+  fastify.get(
+    '/api/ability-stone/strategy',
+    { preHandler: auth, schema: { tags: ['AbilityStone'], summary: '어빌리티 스톤 최적 전략(DP) 조회' } },
+    async (request, reply) => {
     const parsed = strategyQuerySchema.safeParse(request.query)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })

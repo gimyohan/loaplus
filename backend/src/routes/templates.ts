@@ -58,7 +58,10 @@ function toTemplateSummary(template: {
 export async function templateRoutes(fastify: FastifyInstance) {
   const auth = requireAuth(fastify)
 
-  fastify.post('/api/templates', { preHandler: auth }, async (request, reply) => {
+  fastify.post(
+    '/api/templates',
+    { preHandler: auth, schema: { tags: ['Templates'], summary: '현재 위젯 배치를 템플릿으로 저장' } },
+    async (request, reply) => {
     const parsed = createTemplateSchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -101,7 +104,10 @@ export async function templateRoutes(fastify: FastifyInstance) {
     return reply.code(201).send(toTemplateSummary(template))
   })
 
-  fastify.get('/api/templates', { preHandler: auth }, async (request, reply) => {
+  fastify.get(
+    '/api/templates',
+    { preHandler: auth, schema: { tags: ['Templates'], summary: '공유된 위젯 템플릿 목록 조회' } },
+    async (request, reply) => {
     const parsed = listQuerySchema.safeParse(request.query)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -120,7 +126,7 @@ export async function templateRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { templateId: string } }>(
     '/api/templates/:templateId/apply',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Templates'], summary: '템플릿을 내 캐릭터에 적용' } },
     async (request, reply) => {
       const parsed = applyTemplateSchema.safeParse(request.body)
       if (!parsed.success) {

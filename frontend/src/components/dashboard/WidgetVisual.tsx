@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react'
 
 import { CharacterBanner } from '@/components/character/CharacterBanner'
 import { CharacterBannerCompact } from '@/components/character/CharacterBannerCompact'
+import { CharacterBannerDetailed } from '@/components/character/CharacterBannerDetailed'
 import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { AbilityStoneModal } from '@/components/widgets/AbilityStoneModal'
 import { AbilityStoneWidget } from '@/components/widgets/AbilityStoneWidget'
+import { EbonyCubeSettingsModal } from '@/components/widgets/EbonyCubeSettingsModal'
+import { EbonyCubeWidget } from '@/components/widgets/EbonyCubeWidget'
 import { GuardianSettingsModal } from '@/components/widgets/GuardianSettingsModal'
 import { GuardianWidget } from '@/components/widgets/GuardianWidget'
+import { HalHourglassSettingsModal } from '@/components/widgets/HalHourglassSettingsModal'
+import { HalHourglassWidget } from '@/components/widgets/HalHourglassWidget'
 import { ImageWidget } from '@/components/widgets/ImageWidget'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
@@ -26,18 +31,26 @@ import { TextCheckboxWidget } from '@/components/widgets/TextCheckboxWidget'
 import { TextWidget } from '@/components/widgets/TextWidget'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import {
+  adjustEbonyCubeTicket,
+  adjustHalHourglassSand,
   claimGuardianAzenaBlessingReward,
   claimGuardianShardReward,
   claimKurzanAzenaBlessingReward,
   claimKurzanShardReward,
+  clearEbonyCube,
+  collectHalHourglassSand,
+  collectKurzanTicket,
+  completeHalHourglass,
   consumeParadiseKey,
   consumeParadiseTicket,
+  cycleEbonyCubeTarget,
   fetchHomeworks,
   harvestGuardian,
   harvestKurzan,
   recordParadiseGoldReward,
   resetKurzan,
   undoGuardianHarvest,
+  undoHalHourglassComplete,
   undoKurzanHarvest,
   updateGuardianTarget,
   updateKurzanTarget,
@@ -51,10 +64,16 @@ import {
   ABILITY_STONE_NATIVE_WIDTH,
   BANNER_COMPACT_NATIVE_HEIGHT,
   BANNER_COMPACT_NATIVE_WIDTH,
+  BANNER_DETAILED_NATIVE_HEIGHT,
+  BANNER_DETAILED_NATIVE_WIDTH,
   BANNER_NATIVE_HEIGHT,
   BANNER_NATIVE_WIDTH,
+  EBONY_CUBE_NATIVE_HEIGHT,
+  EBONY_CUBE_NATIVE_WIDTH,
   GUARDIAN_NATIVE_HEIGHT,
   GUARDIAN_NATIVE_WIDTH,
+  HAL_HOURGLASS_NATIVE_HEIGHT,
+  HAL_HOURGLASS_NATIVE_WIDTH,
   IMAGE_NATIVE_HEIGHT,
   IMAGE_NATIVE_WIDTH,
   KURZAN_FRONTLINE_NATIVE_HEIGHT,
@@ -72,7 +91,9 @@ import {
   WIDGET_CATALOG,
 } from '@/lib/widgetCatalog'
 import { mockCharacter } from '@/mocks/character'
+import type { EbonyCubeSummary, TicketType } from '@/types/ebonyCube'
 import type { GuardianSummary } from '@/types/guardian'
+import type { HalHourglassSummary } from '@/types/halHourglass'
 import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
 import type { ParadiseSummary } from '@/types/paradise'
 import type { RaidTargetSummary } from '@/types/raid'
@@ -124,10 +145,13 @@ export interface WidgetVisualProps {
 const DEFAULT_VALUE_KINDS: WidgetKind[] = [
   'banner',
   'bannerCompact',
+  'bannerDetailed',
   'guardian',
   'kurzanFrontline',
   'paradise',
   'raid',
+  'ebonyCube',
+  'halHourglass',
 ]
 
 const LOADING_PLACEHOLDER_CLASSNAME =
@@ -299,6 +323,15 @@ function KurzanFrontlineWidgetBound({
             })
             .catch((err) => console.error('공명비약 사용 실패', err))
         }}
+        onQuickAction={(key) => {
+          if (key !== 'ticket') return
+          // 현재 목표(target_name)에 대응하는 에브니 큐브 등급 수량이 +1 된다 — 이 위젯 자체
+          // 상태는 바뀌지 않고 에브니 큐브 쪽 상태만 바뀌므로, 그 위젯이 열려 있다면 다시
+          // 조회하도록 알린다(docs/ebony_cube_hal_hourglass.typ 참고).
+          collectKurzanTicket(characterId)
+            .then(() => notifyHomeworksChanged(characterId))
+            .catch((err) => console.error('쿠르잔 전선 입장권 획득 실패', err))
+        }}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onClaimShardReward={(item) => {
           claimKurzanShardReward(characterId, item.id, kurzanData.targetName).catch((err) =>
@@ -395,6 +428,159 @@ function ParadiseWidgetBound({ characterId, characterNameForModal }: ParadiseWid
           recordParadiseGoldReward(characterId, amount, description).catch((err) =>
             console.error('낙원 귀속골드 기록 실패', err),
           )
+        }}
+      />
+    </>
+  )
+}
+
+interface EbonyCubeWidgetBoundProps {
+  characterId: string
+  characterNameForModal: string
+}
+
+/**
+ * 에브니 큐브 버전의 {@link GuardianWidgetBound}. 쿠르잔 전선 위젯의 입장권 클릭이 이 위젯과
+ * 무관하게(다른 컴포넌트에서) 등급별 수량을 바꿀 수 있으므로, 가디언/쿠르잔과 동일하게
+ * subscribeHomeworksChanged를 구독해 그 알림이 오면 다시 조회한다.
+ */
+function EbonyCubeWidgetBound({ characterId, characterNameForModal }: EbonyCubeWidgetBoundProps) {
+  const [ebonyCubeData, setEbonyCubeData] = useState<EbonyCubeSummary | null>(null)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      fetchHomeworks(characterId).then(({ ebonyCube }) => {
+        if (!cancelled) setEbonyCubeData(ebonyCube)
+      })
+    }
+    load()
+    const unsubscribe = subscribeHomeworksChanged(characterId, load)
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [characterId])
+
+  if (!ebonyCubeData) {
+    return <div className={PARADISE_LOADING_PLACEHOLDER_CLASSNAME}>불러오는 중...</div>
+  }
+
+  return (
+    <>
+      <EbonyCubeWidget
+        data={ebonyCubeData}
+        onCycleTarget={(direction) => {
+          cycleEbonyCubeTarget(characterId, direction)
+            .then(setEbonyCubeData)
+            .catch((err) => console.error('큐브 목표 변경 실패', err))
+        }}
+        onClear={(times) => {
+          clearEbonyCube(characterId, times)
+            .then(setEbonyCubeData)
+            .catch((err) => console.error('에브니 큐브 클리어 실패', err))
+        }}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+      <EbonyCubeSettingsModal
+        open={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        characterName={characterNameForModal}
+        data={ebonyCubeData}
+        onSave={(deltas) => {
+          const entries = Object.entries(deltas) as [TicketType, number][]
+          // 등급마다 별도 PATCH를 보내는데, 서버가 매 요청마다 selected_ticket_type을 다시
+          // 계산해 쓸 수 있어(ensureValidSelection) 병렬로 보내면 나중 요청이 앞 요청의 판단을
+          // 덮어써 최종 상태가 어긋날 수 있다 — 순서대로 하나씩 기다려 마지막 응답만 반영한다.
+          void (async () => {
+            try {
+              let latest: EbonyCubeSummary | undefined
+              for (const [ticketType, delta] of entries) {
+                latest = await adjustEbonyCubeTicket(characterId, ticketType, delta)
+              }
+              if (latest) setEbonyCubeData(latest)
+            } catch (err) {
+              console.error('에브니 큐브 설정 저장 실패', err)
+            }
+          })()
+        }}
+      />
+    </>
+  )
+}
+
+interface HalHourglassWidgetBoundProps {
+  characterId: string
+  characterNameForModal: string
+}
+
+/** 할의 모래시계 버전의 {@link GuardianWidgetBound} — 같은 이유로 key={characterId}로 재마운트한다. */
+function HalHourglassWidgetBound({ characterId, characterNameForModal }: HalHourglassWidgetBoundProps) {
+  const [hourglassData, setHourglassData] = useState<HalHourglassSummary | null>(null)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      fetchHomeworks(characterId).then(({ halHourglass }) => {
+        if (!cancelled) setHourglassData(halHourglass)
+      })
+    }
+    load()
+    // Logs 탭에서 이 캐릭터의 HAL_HOURGLASS_COMPLETE 로그를 되돌리면 여기도 다시 조회해 반영한다.
+    const unsubscribe = subscribeHomeworksChanged(characterId, load)
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [characterId])
+
+  if (!hourglassData) {
+    return <div className={PARADISE_LOADING_PLACEHOLDER_CLASSNAME}>불러오는 중...</div>
+  }
+
+  return (
+    <>
+      <HalHourglassWidget
+        data={hourglassData}
+        onCollectSand={() => {
+          collectHalHourglassSand(characterId)
+            .then(setHourglassData)
+            .catch((err) => console.error('시련의 모래 획득 실패', err))
+        }}
+        onToggleCompleted={(checked) => {
+          if (checked) {
+            completeHalHourglass(characterId)
+              .then((next) => {
+                setHourglassData(next)
+                notifyHomeworksChanged(characterId)
+              })
+              .catch((err) => console.error('할의 모래시계 완료 처리 실패', err))
+            return
+          }
+
+          // 체크 해제 = 로그 롤백 재사용(스택/완료 여부 원복). 가디언/쿠르잔 '오늘 수확' 해제와
+          // 동일한 패턴이다(docs/api.typ "체크박스 해제" 참고).
+          undoHalHourglassComplete(characterId)
+            .then(() => fetchHomeworks(characterId))
+            .then(({ halHourglass }) => {
+              setHourglassData(halHourglass)
+              notifyHomeworksChanged(characterId)
+            })
+            .catch((err) => console.error('할의 모래시계 완료 되돌리기 실패', err))
+        }}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+      <HalHourglassSettingsModal
+        open={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        characterName={characterNameForModal}
+        data={hourglassData}
+        onSave={(delta) => {
+          adjustHalHourglassSand(characterId, delta)
+            .then(setHourglassData)
+            .catch((err) => console.error('할의 모래시계 설정 저장 실패', err))
         }}
       />
     </>
@@ -524,6 +710,20 @@ export function WidgetVisual({
     )
   }
 
+  if (kind === 'bannerDetailed') {
+    return (
+      <ScaleToFit
+        nativeWidth={BANNER_DETAILED_NATIVE_WIDTH}
+        nativeHeight={BANNER_DETAILED_NATIVE_HEIGHT}
+        width={width}
+        height={height}
+        className={cn('select-none rounded-xl', disabledClassName, className)}
+      >
+        <CharacterBannerDetailed character={bannerCharacter} isRefreshing={isRefreshing} onRefresh={handleRefresh} />
+      </ScaleToFit>
+    )
+  }
+
   if (kind === 'kurzanFrontline') {
     // record는 위 placeholder 분기에서 이미 보장됨(guardian/kurzanFrontline은 DEFAULT_VALUE_KINDS에 포함).
     return (
@@ -581,6 +781,44 @@ export function WidgetVisual({
     )
   }
 
+  if (kind === 'ebonyCube') {
+    // record는 위 placeholder 분기에서 이미 보장됨(ebonyCube가 DEFAULT_VALUE_KINDS에 포함).
+    return (
+      <ScaleToFit
+        nativeWidth={EBONY_CUBE_NATIVE_WIDTH}
+        nativeHeight={EBONY_CUBE_NATIVE_HEIGHT}
+        width={width}
+        height={height}
+        className={cn('select-none rounded-xl', disabledClassName, className)}
+      >
+        <EbonyCubeWidgetBound
+          key={record!.id}
+          characterId={record!.id}
+          characterNameForModal={bannerCharacter.characterName}
+        />
+      </ScaleToFit>
+    )
+  }
+
+  if (kind === 'halHourglass') {
+    // record는 위 placeholder 분기에서 이미 보장됨(halHourglass가 DEFAULT_VALUE_KINDS에 포함).
+    return (
+      <ScaleToFit
+        nativeWidth={HAL_HOURGLASS_NATIVE_WIDTH}
+        nativeHeight={HAL_HOURGLASS_NATIVE_HEIGHT}
+        width={width}
+        height={height}
+        className={cn('select-none rounded-xl', disabledClassName, className)}
+      >
+        <HalHourglassWidgetBound
+          key={record!.id}
+          characterId={record!.id}
+          characterNameForModal={bannerCharacter.characterName}
+        />
+      </ScaleToFit>
+    )
+  }
+
   if (kind === 'raid') {
     // 특정 위젯 인스턴스에 묶이지 않은 미리보기(팔레트 등)는 raid가 전달되지 않으므로 예시 데이터를 쓴다.
     const raidData = raid ?? MOCK_RAID_PREVIEW
@@ -617,7 +855,7 @@ export function WidgetVisual({
         <RaidTargetModal
           open={isRaidSettingsOpen}
           onClose={() => setIsRaidSettingsOpen(false)}
-          title="레이드 목표 변경"
+          title={`${bannerCharacter.characterName}의 레이드 설정`}
           characterItemLevel={bannerCharacter.itemLevel}
           excludedRaidKeys={raidExcludedKeys}
           initialRaidKey={raidData.raidKey}
@@ -676,6 +914,7 @@ export function WidgetVisual({
         <TextCheckboxSettingsModal
           open={isTextCheckboxSettingsOpen}
           onClose={() => setIsTextCheckboxSettingsOpen(false)}
+          characterName={bannerCharacter.characterName}
           text={text}
           resetDays={resetDays}
           remainingCount={remainingCount}

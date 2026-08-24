@@ -25,7 +25,7 @@ function todayKstDateString(): string {
 let isRunning = false
 
 /**
- * 파이프라인 A(야간 배치): 거래소 아이템 전체를 순회하며 최근 거래가(Market_Item_Recent_Prices)와
+ * 파이프라인 A(야간 배치): 거래소 아이템 전체를 순회하며 현재 최소 판매가(Market_Item_Current_Prices)와
  * 일별 시세 통계(Market_Item_Daily_Stats)를 채운다. docs/market_price.typ 참고.
  */
 export async function runMarketPriceBatch(
@@ -48,7 +48,7 @@ export async function runMarketPriceBatch(
     const leafCategoryCodes = flattenLeafCategoryCodes(categories)
 
     const itemIds = new Set<number>()
-    let recentPriceUpserts = 0
+    let currentPriceUpserts = 0
     let failedPages = 0
 
     for (const categoryCode of leafCategoryCodes) {
@@ -66,21 +66,29 @@ export async function runMarketPriceBatch(
 
         for (const item of page.items) {
           itemIds.add(item.itemId)
-          // 최근 거래가는 이 검색 응답에 이미 포함돼 있어 별도 호출 없이 바로 갱신한다
-          // (docs/market_price.typ "사용 Open API 엔드포인트" 참고). category_code도 함께 저장해
-          // 두어야 파이프라인 B가 나중에 이 아이템 하나만 콕 집어 재검색할 수 있다.
-          if (item.recentPrice !== null) {
-            await prisma.marketItemRecentPrice.upsert({
+          // 현재 최소 판매가·등급·아이콘은 이 검색 응답에 이미 포함돼 있어 별도 호출 없이 바로
+          // 갱신한다(docs/market_price.typ "사용 Open API 엔드포인트" 참고). category_code도 함께
+          // 저장해 두어야 파이프라인 B가 나중에 이 아이템 하나만 콕 집어 재검색할 수 있다.
+          if (item.currentMinPrice !== null) {
+            await prisma.marketItemCurrentPrice.upsert({
               where: { itemId: item.itemId },
               create: {
                 itemId: item.itemId,
                 itemName: item.itemName,
                 categoryCode,
-                recentPrice: item.recentPrice,
+                grade: item.grade,
+                icon: item.icon,
+                currentMinPrice: item.currentMinPrice,
               },
-              update: { itemName: item.itemName, categoryCode, recentPrice: item.recentPrice },
+              update: {
+                itemName: item.itemName,
+                categoryCode,
+                grade: item.grade,
+                icon: item.icon,
+                currentMinPrice: item.currentMinPrice,
+              },
             })
-            recentPriceUpserts += 1
+            currentPriceUpserts += 1
           }
         }
 
@@ -93,7 +101,7 @@ export async function runMarketPriceBatch(
     }
 
     logger.info(
-      { itemCount: itemIds.size, recentPriceUpserts, failedPages },
+      { itemCount: itemIds.size, currentPriceUpserts, failedPages },
       'market price batch: catalog enumeration done, starting daily stats collection',
     )
 

@@ -2,7 +2,9 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 
 import {
+  getOrCreateEbonyCube,
   getOrCreateGuardian,
+  getOrCreateHalHourglass,
   getOrCreateKurzanFrontline,
   getOrCreateParadise,
   GUARDIAN_REST_GAUGE_COST,
@@ -12,12 +14,15 @@ import {
 } from '../lib/homeworkDefaults.js'
 import type { ActionLogCreateInput } from '../lib/actionLogs.js'
 import { applyHarvestStatistics, createRewardLog, enforceActionLogCap, toLogEntry } from '../lib/actionLogs.js'
+import type { TicketType } from '../lib/ebonyCubeCatalog.js'
+import { ensureValidSelection, ticketColumnField, ticketCountByType, ticketTypeForKurzanTarget } from '../lib/ebonyCubeCatalog.js'
 import {
   AZENA_BLESSING_REWARD_CATALOG,
   findRewardCatalogItem,
   SHARD_REWARD_CATALOG,
 } from '../lib/rewardCatalog.js'
 import { requireAuth } from '../lib/session.js'
+import { toEbonyCubeSummary, toHalHourglassSummary } from '../lib/widgetSummaries.js'
 
 const targetUpdateSchema = z.object({
   targetName: z.string().trim().min(1),
@@ -112,7 +117,10 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.get<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/homeworks',
-    { preHandler: auth },
+    {
+      preHandler: auth,
+      schema: { tags: ['Homework'], summary: '가디언/쿠르잔 전선/낙원/에브니 큐브/할의 모래시계 상태 조회' },
+    },
     async (request, reply) => {
       // 브라우저가 초기화 반영 전 응답을 캐싱해서 보여주는 걸 막는다 (docs/reset_logic.typ의
       // "API 데이터 HTTP Cache-Control 설정" 참고).
@@ -125,23 +133,27 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
       )
       if (!character) return
 
-      const [guardian, kurzan, paradise] = await Promise.all([
+      const [guardian, kurzan, paradise, ebonyCube, halHourglass] = await Promise.all([
         getOrCreateGuardian(fastify.prisma, character.id, character.itemLevel),
         getOrCreateKurzanFrontline(fastify.prisma, character.id, character.itemLevel),
         getOrCreateParadise(fastify.prisma, character.id),
+        getOrCreateEbonyCube(fastify.prisma, character.id),
+        getOrCreateHalHourglass(fastify.prisma, character.id, character.itemLevel),
       ])
 
       return reply.send({
         guardian: toHomeworkSummary(guardian),
         kurzan: toHomeworkSummary(kurzan),
         paradise: toParadiseSummary(paradise),
+        ebonyCube: toEbonyCubeSummary(ebonyCube),
+        halHourglass: toHalHourglassSummary(halHourglass),
       })
     },
   )
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/guardian/harvest',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Guardian'], summary: "가디언 토벌 '오늘 수확' 처리" } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -194,7 +206,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/guardian/reset',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Guardian'], summary: "'오늘 수확' 완료 상태 초기화 (미사용)" } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -219,7 +231,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/guardian/target',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Guardian'], summary: '대상 가디언 변경' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -258,7 +270,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/guardian/shard-reward',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Guardian'], summary: "'편린' 퀵액션 보상 확정" } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -291,7 +303,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/guardian/azena-blessing-reward',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Guardian'], summary: "'아제나 축복' 퀵액션 보상 확정" } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -324,7 +336,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/kurzan/harvest',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Kurzan'], summary: "쿠르잔 전선 '오늘 수확' 처리" } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -377,7 +389,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/kurzan/reset',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Kurzan'], summary: '공명의 비약 사용 (수확 상태 초기화 + 입장권 충전)' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -402,7 +414,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/kurzan/target',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Kurzan'], summary: '대상 컨텐츠 변경' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -435,9 +447,55 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
     },
   )
 
+  // 쿠르잔 전선 위젯의 티켓 표시 영역 클릭. 현재 target_name에 대응하는 큐브 티켓 등급을 찾아
+  // Ebony_Cubes의 그 등급 컬럼을 +1 한다 — '오늘 수확' 여부와 무관하게 언제든 누를 수 있고,
+  // 로그를 남기지 않는 단순 적립이다(docs/ebony_cube_hal_hourglass.typ 참고).
+  fastify.post<{ Params: { characterId: string } }>(
+    '/api/characters/:characterId/kurzan/ticket/collect',
+    { preHandler: auth, schema: { tags: ['Kurzan'], summary: '쿠르잔 전선 티켓 획득 클릭 (에브니 큐브 등급별 +1)' } },
+    async (request, reply) => {
+      const character = await requireOwnedCharacter(
+        request.params.characterId,
+        request.userId!,
+        reply,
+      )
+      if (!character) return
+
+      const kurzan = await getOrCreateKurzanFrontline(fastify.prisma, character.id, character.itemLevel)
+      await getOrCreateEbonyCube(fastify.prisma, character.id)
+
+      // 이 서비스는 아직 카오스 던전 위젯이 없어 target_name이 카오스 던전·혼돈의 균열
+      // 스테이지일 수도 있다 — 그런 경우 큐브 등급 매핑표에 없으므로 거부한다
+      // (docs/ebony_cube_hal_hourglass.typ "쿠르잔 전선 위젯 변경" 참고).
+      const ticketType = ticketTypeForKurzanTarget(kurzan.targetName)
+      if (!ticketType) {
+        return reply.code(409).send({ error: 'ticket_not_available_for_target' })
+      }
+      const column = ticketColumnField(ticketType)
+      const incremented = await fastify.prisma.ebonyCube.update({
+        where: { characterId: character.id },
+        data: { [column]: { increment: 1 } },
+      })
+      const selectedTicketType = ensureValidSelection(
+        ticketCountByType(incremented),
+        incremented.selectedTicketType as TicketType | null,
+        ticketType,
+      )
+      const updated =
+        selectedTicketType === incremented.selectedTicketType
+          ? incremented
+          : await fastify.prisma.ebonyCube.update({
+              where: { characterId: character.id },
+              data: { selectedTicketType },
+            })
+
+      return reply.send(toEbonyCubeSummary(updated))
+    },
+  )
+
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/kurzan/shard-reward',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Kurzan'], summary: "'편린' 퀵액션 보상 확정" } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -470,7 +528,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/kurzan/azena-blessing-reward',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Kurzan'], summary: "'아제나 축복' 퀵액션 보상 확정" } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -503,7 +561,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/paradise/ticket/consume',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Paradise'], summary: '천상 스택(티켓) 1개 소모' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -524,7 +582,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/paradise/key/consume',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Paradise'], summary: '지옥 열쇠 1개 소모' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -545,7 +603,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/paradise/settings',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Paradise'], summary: '자동 충전 등 낙원 설정 변경' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -578,7 +636,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
   // (docs/statistics.typ "골드 획득 카테고리" 참고, 낙원 위젯 재설계의 일부).
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/paradise/gold-reward',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Paradise'], summary: '낙원 귀속골드 획득 기록' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -610,7 +668,7 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
   // 그대로 저장된다(docs/statistics.typ "기타 수입 수동 기록", docs/api.typ "기타 수입 수동 기록" 참고).
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/other-income',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Income'], summary: '기타 수입 수동 기록' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,

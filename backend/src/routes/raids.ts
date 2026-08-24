@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
-import { createRaidGateClearLogs } from '../lib/actionLogs.js'
+import { createRaidGateClearLog } from '../lib/actionLogs.js'
 import type { RaidGateState } from '../lib/actionLogs.js'
 import { buildRaidGateRewardEntries, findRaidDifficulty } from '../lib/raidCatalog.js'
 import { toWidgetResponse } from '../lib/widgetKind.js'
@@ -94,7 +94,7 @@ export async function raidRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/raids',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Raid'], summary: '레이드 위젯(슬롯) 생성' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
@@ -145,7 +145,7 @@ export async function raidRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { characterId: string; raidId: string } }>(
     '/api/characters/:characterId/raids/:raidId',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Raid'], summary: '레이드 위젯(슬롯) 삭제' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
@@ -176,7 +176,7 @@ export async function raidRoutes(fastify: FastifyInstance) {
   // 바꾸므로 목표(target) 변경과 달리 완료된 관문이 있어도 제한 없이 옮길 수 있다.
   fastify.patch<{ Params: { characterId: string; raidId: string } }>(
     '/api/characters/:characterId/raids/:raidId/position',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Raid'], summary: '레이드 위젯 그리드 위치/크기 변경' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
@@ -201,7 +201,7 @@ export async function raidRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { characterId: string; raidId: string } }>(
     '/api/characters/:characterId/raids/:raidId/target',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Raid'], summary: '목표 레이드/난이도 변경' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
@@ -239,7 +239,7 @@ export async function raidRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string; raidId: string; gateIndex: string } }>(
     '/api/characters/:characterId/raids/:raidId/gates/:gateIndex/clear',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Raid'], summary: '레이드 관문 완료 처리' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
@@ -260,6 +260,14 @@ export async function raidRoutes(fastify: FastifyInstance) {
         return reply.code(204).send()
       }
 
+      // 연쇄 완료는 이 엔드포인트가 처리하지 않는다 — gateIndex보다 앞선 관문이 아직 미완료면
+      // 그대로 거부한다. 여러 관문을 한꺼번에 완료해야 하면(예: 3관문을 눌렀는데 1·2관문이
+      // 아직 미완료) FE가 1관문부터 순서대로 이 엔드포인트를 여러 번 호출한다 — 그래야 관문마다
+      // description도 각자 정확한 값으로 남는다(docs/widgets.typ "레이드" 참고).
+      if (gateIndex > 0 && !gates[gateIndex - 1].cleared) {
+        return reply.code(409).send({ error: 'earlier_gate_not_cleared' })
+      }
+
       const parsed = gateClearSchema.safeParse(request.body)
       if (!parsed.success) {
         return reply.code(400).send({ error: 'invalid_request' })
@@ -272,23 +280,15 @@ export async function raidRoutes(fastify: FastifyInstance) {
         return reply.code(500).send({ error: 'raid_catalog_inconsistent' })
       }
 
-      // 연쇄 완료: gateIndex보다 앞선 미완료 관문도 함께 완료 처리한다 (docs/widgets.typ "레이드" 참고).
       // '더보기'는 관문 완료와 독립적인 별개 플래그라 보상 계산에 관여하지 않는다 — 관문을
       // 완료하면 '더보기' on/off와 무관하게 항상 표준 골드/귀속골드 보상을 그대로 로그에 남긴다.
-      const clears = gates
-        .map((gate, index) => ({ gate, index }))
-        .filter(({ gate, index }) => index <= gateIndex && !gate.cleared)
-        .map(({ index }) => ({
-          gateIndex: index,
-          rewards: buildRaidGateRewardEntries(difficulty.gates[index]),
-        }))
-
-      const updated = await createRaidGateClearLogs(fastify.prisma, {
+      const updated = await createRaidGateClearLog(fastify.prisma, {
         userId: request.userId!,
         characterId: character.id,
         raidId: raid.id,
         gates,
-        clears,
+        gateIndex,
+        rewards: buildRaidGateRewardEntries(difficulty.gates[gateIndex]),
         description: parsed.data?.description,
       })
 
@@ -298,7 +298,7 @@ export async function raidRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { characterId: string; raidId: string; gateIndex: string } }>(
     '/api/characters/:characterId/raids/:raidId/gates/:gateIndex/more-reward',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Raid'], summary: "관문 '더보기' 토글 변경" } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return

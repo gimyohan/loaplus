@@ -61,7 +61,7 @@ export function RaidWidget({
       )}
     >
       {/* 상단: 레이드 이름 / 난이도 / 설정 */}
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="truncate text-xl font-semibold text-foreground">{raidName ?? '레이드'}</h3>
           {difficultyName && (
@@ -77,7 +77,7 @@ export function RaidWidget({
           onClick={onOpenSettings}
           className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <Settings className="h-6 w-6" />
+          <Settings className="h-5 w-5" />
         </button>
       </div>
 

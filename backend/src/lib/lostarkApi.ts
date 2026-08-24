@@ -1,3 +1,6 @@
+import type { ArmoryDetail, RawArmoryEquipmentItem } from './armoryDetailParsing.js'
+import { parseArmoryEquipmentDetail } from './armoryDetailParsing.js'
+
 const LOSTARK_API_BASE_URL = 'https://developer-lostark.game.onstove.com'
 
 export class LostarkApiError extends Error {
@@ -15,10 +18,12 @@ interface ArmoryProfile {
   CharacterName: string
   CharacterClassName: string
   ItemAvgLevel: string
-  CombatPower: string
+  // 일부 캐릭터는 Open API가 이 값을 null로 내려준다(예: 데모닉 클래스 캐릭터에서 실제 확인됨,
+  // 원인 불명 — 전투력 계산이 안 된 상태로 추정). fetchCharacterBanner에서 0으로 취급한다.
+  CombatPower: string | null
 }
 
-export interface CharacterBanner {
+export interface CharacterBanner extends ArmoryDetail {
   imageUrl: string | null
   serverName: string
   characterName: string
@@ -43,8 +48,11 @@ export interface CharacterSibling {
   itemLevel: number
 }
 
-/** Open API의 콤마 포맷 숫자 문자열("1,662.50")을 숫자로 변환한다. */
-function parseCommaNumber(value: string): number {
+/** Open API의 콤마 포맷 숫자 문자열("1,662.50")을 숫자로 변환한다. null이면(일부 캐릭터의
+ * CombatPower가 실제로 null로 내려오는 사례 확인됨) 0으로 취급한다 — 값이 없다고 등록/새로고침
+ * 자체를 실패시키지 않는다. */
+function parseCommaNumber(value: string | null): number {
+  if (value === null) return 0
   return Number.parseFloat(value.replace(/,/g, ''))
 }
 
@@ -71,12 +79,18 @@ export async function fetchCharacterBanner(
   }
 
   // 존재하지 않는 캐릭터명이면 404가 아니라 200 + body `null`을 응답하는 것이 Open API의 실제 동작이다.
-  const body = (await response.json()) as { ArmoryProfile: ArmoryProfile | null } | null
+  const body = (await response.json()) as {
+    ArmoryProfile: ArmoryProfile | null
+    ArmoryEquipment: RawArmoryEquipmentItem[] | null
+  } | null
   if (!body?.ArmoryProfile) {
     throw new LostarkApiError('Character not found', 'not_found')
   }
 
   const profile = body.ArmoryProfile
+  // 상세 배너용 4개 필드(docs/db_schema.typ의 Characters "상세 배너용 컬럼" 참고)는 같은 응답의
+  // ArmoryEquipment를 파싱해 얻는다 — 별도 Open API 호출이 들지 않는다.
+  const armoryDetail = parseArmoryEquipmentDetail(body.ArmoryEquipment)
 
   return {
     imageUrl: profile.CharacterImage,
@@ -85,6 +99,7 @@ export async function fetchCharacterBanner(
     className: profile.CharacterClassName,
     itemLevel: parseCommaNumber(profile.ItemAvgLevel),
     combatPower: parseCommaNumber(profile.CombatPower),
+    ...armoryDetail,
   }
 }
 

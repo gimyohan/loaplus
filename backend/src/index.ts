@@ -23,7 +23,10 @@ if (env.LOSTARK_BATCH_API_KEY) {
 }
 
 try {
-  await app.listen({ port: env.PORT, host: '0.0.0.0' })
+  // '::'로 바인딩하면 대부분의 OS(Windows/Linux 기본 dual-stack)에서 IPv6와 IPv4를 동시에
+  // 수신한다. '0.0.0.0'만 사용하면 브라우저가 localhost를 ::1로 먼저 시도했다가 연결이
+  // 거부된 뒤 127.0.0.1로 재시도하는 Happy Eyeballs 폴백 지연(~300ms)이 매 요청마다 발생한다.
+  await app.listen({ port: env.PORT, host: '::' })
 } catch (err) {
   app.log.error(err)
   process.exit(1)

@@ -1,4 +1,5 @@
 import { ApiError, apiFetch } from '@/lib/api'
+import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail } from '@/types/armory'
 import type { CharacterSibling, CharacterSummary } from '@/types/character'
 
 const CHARACTER_ERROR_MESSAGES: Record<string, string> = {
@@ -7,6 +8,7 @@ const CHARACTER_ERROR_MESSAGES: Record<string, string> = {
   lostark_api_rate_limited: '로스트아크 API 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.',
   character_not_found: '해당 이름의 캐릭터를 찾을 수 없습니다.',
   lostark_api_unavailable: '로스트아크 API에 접속할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+  item_level_too_low: '아이템 레벨 1,640 미만인 캐릭터는 추가할 수 없습니다.',
 }
 
 /** 캐릭터 조회/등록 관련 ApiError를 사용자에게 보여줄 한글 메시지로 변환한다. */
@@ -25,6 +27,10 @@ interface CharacterResponse {
   combatPower: number
   className: string
   imageUrl: string | null
+  equipment: EquipmentDetail
+  accessories: AccessoryDetail
+  abilityStone: AbilityStoneDetail
+  bracelet: BraceletDetail
 }
 
 function toCharacterSummary(dto: CharacterResponse): CharacterSummary {
@@ -36,6 +42,10 @@ function toCharacterSummary(dto: CharacterResponse): CharacterSummary {
     itemLevel: dto.itemLevel,
     combatPower: dto.combatPower,
     imageUrl: dto.imageUrl ?? undefined,
+    equipment: dto.equipment,
+    accessories: dto.accessories,
+    abilityStone: dto.abilityStone,
+    bracelet: dto.bracelet,
   }
 }
 

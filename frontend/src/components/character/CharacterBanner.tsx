@@ -15,6 +15,10 @@ export interface CharacterBannerProps {
   onRefresh?: () => void
   isRefreshing?: boolean
   className?: string
+  /** true면 배경 이미지·그라디언트·카드 배경을 그리지 않고 이름/스탯 내용만 그린다 — 배너 상세
+   * (BANNER_DETAILED)처럼 바깥에서 더 큰 배경 이미지를 따로 깔고 그 위에 이 컴포넌트를 겹쳐 쓸 때
+   * 쓴다. 기본값 false로, 단독 배너(10x2) 위젯은 지금까지와 완전히 동일하게 그려진다. */
+  hideBackground?: boolean
 }
 
 export function CharacterBanner({
@@ -22,6 +26,7 @@ export function CharacterBanner({
   onRefresh,
   isRefreshing = false,
   className,
+  hideBackground = false,
 }: CharacterBannerProps) {
   const { imageUrl, server, characterName, job, itemLevel, combatPower } = character
   // 근본 클래스별로 초상화 안에서 얼굴 위치가 달라서, 클래스에 맞는 크롭 위치를 따로 쓴다
@@ -31,29 +36,33 @@ export function CharacterBanner({
   return (
     <div
       className={cn(
-        'flex aspect-[10/2] items-center overflow-hidden rounded-xl border border-border bg-card shadow-lg',
+        'flex aspect-[10/2] items-center overflow-hidden rounded-xl border border-border shadow-lg',
+        hideBackground ? 'bg-transparent' : 'bg-card',
         className,
       )}
     >
-      {/* 아이덴티티 영역: 배경 이미지 + 서버/캐릭터명/직업 */}
+      {/* 아이덴티티 영역: 배경 이미지 + 서버/캐릭터명/직업. hideBackground일 때는 바깥(배너 상세)이
+          이미 더 큰 배경 이미지를 깔아주므로 여기서는 그리지 않는다 */}
       <div className="relative h-full min-w-0 flex-1 overflow-hidden rounded-l-xl">
-        <div
-          className="absolute inset-0 z-0"
-          style={{ maskImage: 'linear-gradient(to right, black 40%, transparent 90%)' }}
-        >
-          {imageUrl && (
-            <div
-              className="h-full w-full opacity-65"
-              style={{
-                backgroundImage: `url(${imageUrl})`,
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: `${BANNER_ZOOM_PERCENT}% auto`,
-                backgroundPosition: `${bannerPosition.faceX}% ${bannerPosition.faceY}%`,
-              }}
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-r from-card/10 via-card/85 to-card" />
-        </div>
+        {!hideBackground && (
+          <div
+            className="absolute inset-0 z-0"
+            style={{ maskImage: 'linear-gradient(to right, black 40%, transparent 90%)' }}
+          >
+            {imageUrl && (
+              <div
+                className="h-full w-full opacity-65"
+                style={{
+                  backgroundImage: `url(${imageUrl})`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: `${BANNER_ZOOM_PERCENT}% auto`,
+                  backgroundPosition: `${bannerPosition.faceX}% ${bannerPosition.faceY}%`,
+                }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-r from-card/10 via-card/85 to-card" />
+          </div>
+        )}
 
         <div className="relative z-10 flex h-full w-full min-w-0 flex-col items-end justify-center p-4 lg:p-6">
           {/* 새로고침: 전용 칸 대신 서버/직업과 클릭 영역을 통째로 묶어서, 아이콘뿐 아니라

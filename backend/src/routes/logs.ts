@@ -19,7 +19,10 @@ const logsQuerySchema = z.object({
 export async function logRoutes(fastify: FastifyInstance) {
   const auth = requireAuth(fastify)
 
-  fastify.get('/api/logs', { preHandler: auth }, async (request, reply) => {
+  fastify.get(
+    '/api/logs',
+    { preHandler: auth, schema: { tags: ['Logs'], summary: '취소 가능한 최근 행위 이력 조회' } },
+    async (request, reply) => {
     const parsed = logsQuerySchema.safeParse(request.query)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -70,7 +73,7 @@ export async function logRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { logId: string } }>(
     '/api/logs/:logId',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Logs'], summary: '로그 롤백(역연산) 및 삭제' } },
     async (request, reply) => {
       const log = await fastify.prisma.actionLog.findFirst({
         where: { id: request.params.logId, userId: request.userId! },

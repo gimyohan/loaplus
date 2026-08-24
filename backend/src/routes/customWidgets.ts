@@ -46,7 +46,10 @@ export async function customWidgetRoutes(fastify: FastifyInstance) {
     return widget
   }
 
-  fastify.post('/api/widgets/custom', { preHandler: auth }, async (request, reply) => {
+  fastify.post(
+    '/api/widgets/custom',
+    { preHandler: auth, schema: { tags: ['CustomWidgets'], summary: '커스텀(Additional Value) 위젯 생성' } },
+    async (request, reply) => {
     const parsed = createWidgetSchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -76,7 +79,7 @@ export async function customWidgetRoutes(fastify: FastifyInstance) {
 
   fastify.put<{ Params: { widgetId: string } }>(
     '/api/widgets/custom/:widgetId',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['CustomWidgets'], summary: '커스텀 위젯 배치·데이터 수정(전체 교체)' } },
     async (request, reply) => {
       const widget = await requireOwnedWidget(request.params.widgetId, request.userId!, reply)
       if (!widget) return
@@ -103,7 +106,7 @@ export async function customWidgetRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { widgetId: string } }>(
     '/api/widgets/custom/:widgetId',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['CustomWidgets'], summary: '커스텀 위젯 삭제' } },
     async (request, reply) => {
       const widget = await requireOwnedWidget(request.params.widgetId, request.userId!, reply)
       if (!widget) return
@@ -116,7 +119,7 @@ export async function customWidgetRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { widgetId: string } }>(
     '/api/widgets/custom/:widgetId/check',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['CustomWidgets'], summary: '텍스트&체크박스 위젯 체크 상태 갱신' } },
     async (request, reply) => {
       const widget = await requireOwnedWidget(request.params.widgetId, request.userId!, reply)
       if (!widget) return

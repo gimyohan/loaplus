@@ -10,11 +10,16 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "migrate:ability-stone": "tsx src/scripts/migrateAbilityStoneDump.ts",
-    "grant-premium": "tsx src/scripts/grantPremium.ts"
+    "migrate:text-checkbox-width": "tsx src/scripts/migrateTextCheckboxWidth.ts",
+    "grant-premium": "tsx src/scripts/grantPremium.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.3.0",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
     "@prisma/client": "^6.4.1",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
@@ -27,6 +32,7 @@
     "@types/node": "^24.13.3",
     "prisma": "^6.4.1",
     "tsx": "^4.19.2",
-    "typescript": "~6.0.2"
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.11"
   }
 }

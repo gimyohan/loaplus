@@ -17,7 +17,7 @@ const QUICK_ACTIONS = [
   { key: 'resonancePotion', label: '공명비약', icon: ResonancePotionIcon },
   { key: 'shard', label: '편린', icon: ShardIcon },
   { key: 'azenaBlessing', label: '아제나 축복', icon: AzenaBlessingIcon },
-  { key: 'ticket', label: '티켓', icon: Ticket },
+  { key: 'ticket', label: '입장권', icon: Ticket },
 ] as const
 
 // 체크박스 경고 깜빡임 지속 시간(ms). tailwind.config.js의 flash-warning 애니메이션(0.4s * 3회)과 맞춘다
@@ -108,9 +108,31 @@ export function KurzanFrontlineWidget({
         className,
       )}
     >
-      {/* 상단: 오늘 수확 여부 체크박스 / 대상 콘텐츠 이름 / 설정 */}
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <label className="relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md">
+      {/* 상단: 오늘 수확 여부 체크박스 / 대상 콘텐츠 이름 / 설정. 체크박스 자체 외에 이 블럭
+          전체를 눌러도 토글되도록 해 매번 체크박스를 정확히 클릭해야 하는 번거로움을 줄인다 */}
+      <div
+        role="button"
+        tabIndex={isCheckboxDisabled ? -1 : 0}
+        aria-disabled={isCheckboxDisabled}
+        onClick={() => {
+          if (!isCheckboxDisabled) onToggleHarvested?.(!isHarvested)
+        }}
+        onKeyDown={(event) => {
+          if (isCheckboxDisabled) return
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onToggleHarvested?.(!isHarvested)
+          }
+        }}
+        className={cn(
+          'flex items-center justify-between gap-3 border-b border-border px-5 py-2.5',
+          !isCheckboxDisabled && 'cursor-pointer transition-colors hover:bg-muted/50',
+        )}
+      >
+        <label
+          className="relative flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md"
+          onClick={(event) => event.stopPropagation()}
+        >
           <input
             type="checkbox"
             checked={isHarvested}
@@ -118,11 +140,11 @@ export function KurzanFrontlineWidget({
             onChange={(event) => onToggleHarvested?.(event.target.checked)}
             aria-label="오늘 수확 여부"
             className={cn(
-              'peer h-7 w-7 shrink-0 cursor-pointer appearance-none rounded-md border border-border bg-background transition-colors checked:border-primary checked:bg-primary disabled:cursor-not-allowed',
+              'peer h-6 w-6 shrink-0 cursor-pointer appearance-none rounded-md border border-border bg-background transition-colors checked:border-primary checked:bg-primary disabled:cursor-not-allowed',
               isResonanceWarningActive && 'animate-flash-warning',
             )}
           />
-          <Check className="pointer-events-none absolute h-5 w-5 text-primary-foreground opacity-0 peer-checked:opacity-100" />
+          <Check className="pointer-events-none absolute h-4 w-4 text-primary-foreground opacity-0 peer-checked:opacity-100" />
         </label>
 
         <h3
@@ -138,18 +160,36 @@ export function KurzanFrontlineWidget({
         <button
           type="button"
           aria-label="쿠르잔 전선 설정"
-          onClick={onOpenSettings}
+          onClick={(event) => {
+            event.stopPropagation()
+            onOpenSettings?.()
+          }}
           className="relative z-20 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <Settings className="h-6 w-6" />
+          <Settings className="h-5 w-5" />
         </button>
       </div>
 
-      {/* 중단: 휴식 게이지. 오늘 수확을 완료하면 대상 콘텐츠 이름처럼 흐리게 표시한다 */}
+      {/* 중단: 휴식 게이지. 오늘 수확을 완료하면 대상 콘텐츠 이름처럼 흐리게 표시한다.
+          제목 블럭과 마찬가지로 여기를 눌러도 체크박스가 토글된다 */}
       <div
+        role="button"
+        tabIndex={isCheckboxDisabled ? -1 : 0}
+        aria-disabled={isCheckboxDisabled}
+        onClick={() => {
+          if (!isCheckboxDisabled) onToggleHarvested?.(!isHarvested)
+        }}
+        onKeyDown={(event) => {
+          if (isCheckboxDisabled) return
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onToggleHarvested?.(!isHarvested)
+          }
+        }}
         className={cn(
           'flex flex-1 flex-col justify-center gap-3 px-5 py-4 transition-opacity',
           isHarvested && 'opacity-50',
+          !isCheckboxDisabled && 'cursor-pointer transition-colors hover:bg-muted/50',
         )}
       >
         <div className="flex items-center justify-between">

@@ -86,12 +86,183 @@ interface TextCheckboxCustomData {
   resetDays: number
 }
 
+interface LazyResetContext {
+  prisma: PrismaClient
+  characterIds: string[]
+  /** 'daily' 대상만 쓴다. dailyCrossed가 false면 항상 0(대상 자체가 실행되지 않으므로 무의미). */
+  crossedDaysMask: number
+}
+
+interface LazyResetTarget {
+  /** docs/reset_logic.typ "지연 초기화 대상 레지스트리" 표의 행 이름과 반드시 일치시킨다. */
+  name: string
+  boundary: 'daily' | 'weekly'
+  collectOperations(ctx: LazyResetContext): Promise<Prisma.PrismaPromise<unknown>[]>
+}
+
+/**
+ * "지금 어떤 데이터가 지연 초기화 대상인가"를 이 배열 하나로 한눈에 볼 수 있게 한다 — 위젯마다
+ * 초기화 로직을 흩어두면 전체 목록을 알기 위해 라우트 파일들을 일일이 뒤져야 하는 문제를
+ * 해결하기 위한 구조다. 새 컨텐츠에 지연 초기화가 필요해지면 이 배열에 항목을 추가하고
+ * docs/reset_logic.typ의 표도 함께 갱신한다. applyLazyReset 본체는 이 목록을 순회할 뿐 각
+ * 대상이 무엇을 하는지 알지 못한다.
+ */
+const LAZY_RESET_TARGETS: LazyResetTarget[] = [
+  {
+    name: 'guardian_harvest',
+    boundary: 'daily',
+    // '오늘 수확'이 켜져 있었으면 플래그만 되돌리고, 꺼져 있었으면(그날 쉬었으면) 대신
+    // rest_gauge를 rest_gauge_max의 10%만큼 채운다(캡 있음) — 두 처리는 상호 배타적이다
+    // (docs/db_schema.typ의 Users "초기화 적용 범위" 참고). rest_gauge_max가 행마다 다를 수 있어
+    // updateMany로 일괄 계산할 수 없으므로 개별 조회 후 갱신한다.
+    async collectOperations({ prisma, characterIds }) {
+      const operations: Prisma.PrismaPromise<unknown>[] = []
+      const guardians = await prisma.guardian.findMany({ where: { characterId: { in: characterIds } } })
+      for (const guardian of guardians) {
+        if (guardian.isHarvested) {
+          operations.push(
+            prisma.guardian.update({
+              where: { characterId: guardian.characterId },
+              data: { isHarvested: false, restGaugeConsumedByHarvest: false },
+            }),
+          )
+        } else {
+          const restGauge = Math.min(
+            guardian.restGauge + Math.round(guardian.restGaugeMax * 0.1),
+            guardian.restGaugeMax,
+          )
+          if (restGauge !== guardian.restGauge) {
+            operations.push(
+              prisma.guardian.update({ where: { characterId: guardian.characterId }, data: { restGauge } }),
+            )
+          }
+        }
+      }
+      return operations
+    },
+  },
+  {
+    name: 'kurzan_harvest',
+    boundary: 'daily',
+    // guardian_harvest와 완전히 동일한 규칙을 별도 테이블(Kurzan_Frontlines)에 적용한다.
+    async collectOperations({ prisma, characterIds }) {
+      const operations: Prisma.PrismaPromise<unknown>[] = []
+      const kurzans = await prisma.kurzanFrontline.findMany({ where: { characterId: { in: characterIds } } })
+      for (const kurzan of kurzans) {
+        if (kurzan.isHarvested) {
+          operations.push(
+            prisma.kurzanFrontline.update({
+              where: { characterId: kurzan.characterId },
+              data: { isHarvested: false, restGaugeConsumedByHarvest: false },
+            }),
+          )
+        } else {
+          const restGauge = Math.min(kurzan.restGauge + Math.round(kurzan.restGaugeMax * 0.1), kurzan.restGaugeMax)
+          if (restGauge !== kurzan.restGauge) {
+            operations.push(
+              prisma.kurzanFrontline.update({ where: { characterId: kurzan.characterId }, data: { restGauge } }),
+            )
+          }
+        }
+      }
+      return operations
+    },
+  },
+  {
+    name: 'text_checkbox_widgets',
+    boundary: 'daily',
+    // 지나간 요일들 중 하나라도 resetDays에 켜져 있으면 isChecked를 되돌린다. remainingCount는
+    // 건드리지 않는다 — customData를 그대로 스프레드하므로 다른 필드(text, remainingCount 등)는
+    // 자연히 보존된다(docs/db_schema.typ 참고).
+    async collectOperations({ prisma, characterIds, crossedDaysMask }) {
+      const operations: Prisma.PrismaPromise<unknown>[] = []
+      const checkboxWidgets = await prisma.dashboardWidget.findMany({
+        where: { characterId: { in: characterIds }, widgetType: 'TEXT_CHECKBOX' },
+      })
+      for (const widget of checkboxWidgets) {
+        const customData = widget.customData as TextCheckboxCustomData | null
+        if (!customData?.isChecked) continue
+        if ((customData.resetDays & crossedDaysMask) === 0) continue
+        operations.push(
+          prisma.dashboardWidget.update({
+            where: { id: widget.id },
+            data: { customData: { ...customData, isChecked: false } as unknown as Prisma.InputJsonValue },
+          }),
+        )
+      }
+      return operations
+    },
+  },
+  {
+    name: 'paradise_auto_recharge',
+    boundary: 'weekly',
+    // 캐릭터마다 티켓/열쇠 값이 달라 updateMany로 일괄 계산할 수 없다
+    // (workspace/frontend/src/lib/paradise.ts의 applyParadiseWeeklyRecharge와 동일한 공식).
+    async collectOperations({ prisma, characterIds }) {
+      const operations: Prisma.PrismaPromise<unknown>[] = []
+      const paradises = await prisma.paradise.findMany({
+        where: { characterId: { in: characterIds }, autoRecharge: true },
+      })
+      for (const paradise of paradises) {
+        operations.push(
+          prisma.paradise.update({
+            where: { characterId: paradise.characterId },
+            data: { ticketCount: Math.max(paradise.ticketCount, 5), keyCount: paradise.keyCount + 3 },
+          }),
+        )
+      }
+      return operations
+    },
+  },
+  {
+    name: 'raid_gates',
+    boundary: 'weekly',
+    // 관문 완료 여부와 '더보기' 설정을 함께 초기화한다 — '더보기'는 그 주에 추가 보상을
+    // 구매했는지 표시하는 용도라 완료 여부와 같은 주기로 초기화되는 것이 자연스럽다
+    // (docs/widgets.typ "레이드" 참고). gates 배열 자체를 다시 만들어야 해서 개별 조회 후 갱신한다.
+    async collectOperations({ prisma, characterIds }) {
+      const operations: Prisma.PrismaPromise<unknown>[] = []
+      const raids = await prisma.characterRaid.findMany({ where: { characterId: { in: characterIds } } })
+      for (const raid of raids) {
+        const gates = (raid.gates as unknown as RaidGateState[]).map((gate) => ({
+          ...gate,
+          cleared: false,
+          moreRewardEnabled: false,
+        }))
+        operations.push(
+          prisma.characterRaid.update({
+            where: { id: raid.id },
+            data: { gates: gates as unknown as Prisma.InputJsonValue },
+          }),
+        )
+      }
+      return operations
+    },
+  },
+  {
+    name: 'hal_hourglass_completion',
+    boundary: 'weekly',
+    // 완료 체크박스만 초기화한다. sand_stack은 완료 처리 시에만 소진되며 주간 경계와 무관하다
+    // (docs/ebony_cube_hal_hourglass.typ 참고).
+    async collectOperations({ prisma, characterIds }) {
+      return [
+        prisma.halHourglass.updateMany({
+          where: { characterId: { in: characterIds }, isCompleted: true },
+          data: { isCompleted: false },
+        }),
+      ]
+    },
+  },
+]
+
 /**
  * docs/reset_logic.typ의 지연 평가 초기화. GET /api/dashboards 요청마다 호출되며,
  * User.last_visited_at과 현재 시각 사이에 일일(06:00 KST)/주간(수요일 06:00 KST) 경계가
  * 끼어 있었는지 검사해 해당 유저 소유 모든 캐릭터의 상태를 초기화한다
  * (docs/db_schema.typ의 Users "초기화 적용 범위" 참고). 두 경계 모두 지나지 않았으면 아무것도
  * 하지 않고 반환한다 — last_visited_at은 실제로 초기화가 일어났을 때만 갱신한다(문서 그대로).
+ * 어떤 데이터가 초기화 대상인지는 위 LAZY_RESET_TARGETS를 참고 — 이 함수는 그 목록을 순회할 뿐
+ * 개별 대상의 세부 로직을 알지 못한다.
  */
 export async function applyLazyReset(prisma: PrismaClient, userId: string): Promise<void> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
@@ -109,97 +280,17 @@ export async function applyLazyReset(prisma: PrismaClient, userId: string): Prom
 
   const operations: Prisma.PrismaPromise<unknown>[] = []
 
-  if (characterIds.length > 0 && dailyCrossed) {
-    // '오늘 수확'이 켜져 있었으면 플래그만 되돌리고, 꺼져 있었으면(그날 쉬었으면) 대신
-    // rest_gauge를 rest_gauge_max의 10%만큼 채운다(캡 있음) — 두 처리는 상호 배타적이다
-    // (docs/db_schema.typ의 Users "초기화 적용 범위" 참고). rest_gauge_max가 행마다 다를 수 있어
-    // updateMany로 일괄 계산할 수 없으므로 개별 조회 후 갱신한다.
-    const guardians = await prisma.guardian.findMany({ where: { characterId: { in: characterIds } } })
-    for (const guardian of guardians) {
-      if (guardian.isHarvested) {
-        operations.push(
-          prisma.guardian.update({
-            where: { characterId: guardian.characterId },
-            data: { isHarvested: false, restGaugeConsumedByHarvest: false },
-          }),
-        )
-      } else {
-        const restGauge = Math.min(
-          guardian.restGauge + Math.round(guardian.restGaugeMax * 0.1),
-          guardian.restGaugeMax,
-        )
-        if (restGauge !== guardian.restGauge) {
-          operations.push(prisma.guardian.update({ where: { characterId: guardian.characterId }, data: { restGauge } }))
-        }
-      }
+  if (characterIds.length > 0) {
+    const ctx: LazyResetContext = {
+      prisma,
+      characterIds,
+      crossedDaysMask: dailyCrossed ? crossedDailyBoundaryDaysMask(lastVisitedAtMs, now) : 0,
     }
 
-    const kurzans = await prisma.kurzanFrontline.findMany({ where: { characterId: { in: characterIds } } })
-    for (const kurzan of kurzans) {
-      if (kurzan.isHarvested) {
-        operations.push(
-          prisma.kurzanFrontline.update({
-            where: { characterId: kurzan.characterId },
-            data: { isHarvested: false, restGaugeConsumedByHarvest: false },
-          }),
-        )
-      } else {
-        const restGauge = Math.min(kurzan.restGauge + Math.round(kurzan.restGaugeMax * 0.1), kurzan.restGaugeMax)
-        if (restGauge !== kurzan.restGauge) {
-          operations.push(
-            prisma.kurzanFrontline.update({ where: { characterId: kurzan.characterId }, data: { restGauge } }),
-          )
-        }
-      }
-    }
-  }
-
-  if (characterIds.length > 0 && weeklyCrossed) {
-    // 낙원 자동 충전: 캐릭터마다 티켓/열쇠 값이 달라 updateMany로 일괄 계산할 수 없다
-    // (workspace/frontend/src/lib/paradise.ts의 applyParadiseWeeklyRecharge와 동일한 공식).
-    const paradises = await prisma.paradise.findMany({
-      where: { characterId: { in: characterIds }, autoRecharge: true },
-    })
-    for (const paradise of paradises) {
-      operations.push(
-        prisma.paradise.update({
-          where: { characterId: paradise.characterId },
-          data: { ticketCount: Math.max(paradise.ticketCount, 5), keyCount: paradise.keyCount + 3 },
-        }),
-      )
-    }
-
-    // 레이드 관문 초기화: gates 배열 자체를 다시 만들어야 해서 개별 조회 후 갱신한다.
-    const raids = await prisma.characterRaid.findMany({ where: { characterId: { in: characterIds } } })
-    for (const raid of raids) {
-      const gates = (raid.gates as unknown as RaidGateState[]).map((gate) => ({ ...gate, cleared: false }))
-      operations.push(
-        prisma.characterRaid.update({
-          where: { id: raid.id },
-          data: { gates: gates as unknown as Prisma.InputJsonValue },
-        }),
-      )
-    }
-  }
-
-  if (characterIds.length > 0 && dailyCrossed) {
-    // 텍스트+체크박스 위젯: 지나간 요일들 중 하나라도 resetDays에 켜져 있으면 isChecked를
-    // 되돌린다. remainingCount는 건드리지 않는다 — customData를 그대로 스프레드하므로 다른
-    // 필드(text, remainingCount 등)는 자연히 보존된다 (docs/db_schema.typ 참고).
-    const crossedDaysMask = crossedDailyBoundaryDaysMask(lastVisitedAtMs, now)
-    const checkboxWidgets = await prisma.dashboardWidget.findMany({
-      where: { characterId: { in: characterIds }, widgetType: 'TEXT_CHECKBOX' },
-    })
-    for (const widget of checkboxWidgets) {
-      const customData = widget.customData as TextCheckboxCustomData | null
-      if (!customData?.isChecked) continue
-      if ((customData.resetDays & crossedDaysMask) === 0) continue
-      operations.push(
-        prisma.dashboardWidget.update({
-          where: { id: widget.id },
-          data: { customData: { ...customData, isChecked: false } as unknown as Prisma.InputJsonValue },
-        }),
-      )
+    for (const target of LAZY_RESET_TARGETS) {
+      const crossed = target.boundary === 'daily' ? dailyCrossed : weeklyCrossed
+      if (!crossed) continue
+      operations.push(...(await target.collectOperations(ctx)))
     }
   }
 

@@ -5,6 +5,7 @@ import { DashboardView } from '@/components/dashboard/DashboardView'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopAppBar } from '@/components/layout/TopAppBar'
 import { LogsView } from '@/components/logs/LogsView'
+import { MarketView } from '@/components/market/MarketView'
 import { RosterView } from '@/components/roster/RosterView'
 import { SettingsView } from '@/components/settings/SettingsView'
 import { StatisticsView } from '@/components/statistics/StatisticsView'
@@ -21,6 +22,7 @@ const VIEW_TITLES: Record<NavView, string> = {
   roster: 'Roster',
   logs: 'Logs',
   statistics: 'Statistics',
+  market: 'Market',
   settings: 'Settings',
 }
 
@@ -167,6 +169,7 @@ function App() {
         {activeView === 'logs' && <LogsView />}
         {activeView === 'roster' && <RosterView onRosterChanged={refreshCardOrder} />}
         {activeView === 'statistics' && <StatisticsView />}
+        {activeView === 'market' && <MarketView />}
         {activeView === 'settings' && <SettingsView />}
       </main>
 

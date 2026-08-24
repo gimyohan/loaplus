@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -89,6 +90,10 @@ function toCharacterResponse(character: {
   combatPower: number
   className: string
   imageUrl: string | null
+  equipment: unknown
+  accessories: unknown
+  abilityStone: unknown
+  bracelet: unknown
 }) {
   return {
     id: character.id,
@@ -98,6 +103,12 @@ function toCharacterResponse(character: {
     combatPower: character.combatPower,
     className: character.className,
     imageUrl: character.imageUrl,
+    // 상세 배너(BANNER_DETAILED, 10x4)용 필드. banner/bannerCompact는 위 필드까지만 쓰고
+    // 이 4개는 무시한다 (docs/widgets.typ "배너" 참고).
+    equipment: character.equipment,
+    accessories: character.accessories,
+    abilityStone: character.abilityStone,
+    bracelet: character.bracelet,
   }
 }
 
@@ -125,16 +136,20 @@ export async function characterRoutes(fastify: FastifyInstance) {
     return resolved.apiKey
   }
 
-  fastify.get('/api/characters', { preHandler: auth }, async (request, reply) => {
-    const characters = await fastify.prisma.character.findMany({
-      where: { userId: request.userId! },
-    })
-    return reply.send(characters.map(toCharacterResponse))
-  })
+  fastify.get(
+    '/api/characters',
+    { preHandler: auth, schema: { tags: ['Characters'], summary: '내 계정에 등록된 캐릭터(배너) 목록 조회' } },
+    async (request, reply) => {
+      const characters = await fastify.prisma.character.findMany({
+        where: { userId: request.userId! },
+      })
+      return reply.send(characters.map(toCharacterResponse))
+    },
+  )
 
   fastify.get<{ Params: { characterId: string } }>(
     '/api/characters/:characterId',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Characters'], summary: '캐릭터 배너 정보 단건 조회' } },
     async (request, reply) => {
       const character = await fastify.prisma.character.findFirst({
         where: { id: request.params.characterId, userId: request.userId! },
@@ -146,7 +161,10 @@ export async function characterRoutes(fastify: FastifyInstance) {
     },
   )
 
-  fastify.post('/api/characters', { preHandler: auth }, async (request, reply) => {
+  fastify.post(
+    '/api/characters',
+    { preHandler: auth, schema: { tags: ['Characters'], summary: '캐릭터 신규 등록' } },
+    async (request, reply) => {
     const parsed = registerCharacterSchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -162,6 +180,15 @@ export async function characterRoutes(fastify: FastifyInstance) {
       apiKey,
     )
     if (!banner) return
+
+    // 가디언/쿠르잔 전선/낙원/레이드 등 이 서비스가 다루는 컨텐츠가 대부분 1,640 이상을 전제로
+    // 하므로, 그 아래 레벨은 등록 시점에 거부한다(docs/api.typ "캐릭터 등록 / 조회 / 삭제" 참고).
+    // 등록 이후에도 이 하한은 항상 유지된다 — POST .../refresh는 Open API가 알려주는 값을 그대로
+    // 덮어쓰지 않고 기존 저장값과의 GREATEST로 저장해, 인게임에서 장비를 일시적으로 해제하는 등
+    // 공식적인 하락이 아닌 이유로 1,640 밑으로 내려가는 걸 막는다(POST .../refresh 참고).
+    if (banner.itemLevel < 1640) {
+      return reply.code(422).send({ error: 'item_level_too_low' })
+    }
 
     // 새 카드는 대시보드 맨 뒤에 추가되도록, 이 유저의 현재 최대 display_order 다음 값을 배정한다.
     const { _max } = await fastify.prisma.character.aggregate({
@@ -180,6 +207,10 @@ export async function characterRoutes(fastify: FastifyInstance) {
         className: banner.className,
         imageUrl: banner.imageUrl,
         displayOrder,
+        equipment: banner.equipment as unknown as Prisma.InputJsonValue,
+        accessories: banner.accessories as unknown as Prisma.InputJsonValue,
+        abilityStone: banner.abilityStone as unknown as Prisma.InputJsonValue,
+        bracelet: banner.bracelet as unknown as Prisma.InputJsonValue,
       },
     })
 
@@ -188,7 +219,7 @@ export async function characterRoutes(fastify: FastifyInstance) {
 
   fastify.get<{ Params: { characterName: string } }>(
     '/api/characters/lookup/:characterName/siblings',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Characters'], summary: '원정대 캐릭터 일괄 조회' } },
     async (request, reply) => {
       const apiKey = await resolveApiKeyOrRespondError(request, reply)
       if (!apiKey) return
@@ -207,7 +238,7 @@ export async function characterRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/refresh',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Characters'], summary: '캐릭터 배너 정보 새로고침' } },
     async (request, reply) => {
       const character = await fastify.prisma.character.findFirst({
         where: { id: request.params.characterId, userId: request.userId! },
@@ -227,15 +258,26 @@ export async function characterRoutes(fastify: FastifyInstance) {
       )
       if (!banner) return
 
+      // 아이템 레벨이 1,640 밑으로 내려오는 건 시즌 개편 같은 공식적인 하락이 아니라 유저가
+      // 인게임에서 장비를 일시적으로 해제하는 등으로 생기는 일시적 현상이라, 여기서 받은 값을
+      // 그대로 덮어쓰지 않고 기존 저장값과 비교해 더 큰 쪽을 저장한다 — 한 번 도달한 레벨 밑으로는
+      // 내려가지 않아야 DB의 CHECK (item_level >= 1640) 제약(마이그레이션
+      // 20260823130000_readd_characters_item_level_min_check)도 항상 만족한다.
+      const itemLevel = Math.max(character.itemLevel, banner.itemLevel)
+
       const updated = await fastify.prisma.character.update({
         where: { id: character.id },
         data: {
           serverName: banner.serverName,
           characterName: banner.characterName,
-          itemLevel: banner.itemLevel,
+          itemLevel,
           combatPower: banner.combatPower,
           className: banner.className,
           imageUrl: banner.imageUrl,
+          equipment: banner.equipment as unknown as Prisma.InputJsonValue,
+          accessories: banner.accessories as unknown as Prisma.InputJsonValue,
+          abilityStone: banner.abilityStone as unknown as Prisma.InputJsonValue,
+          bracelet: banner.bracelet as unknown as Prisma.InputJsonValue,
         },
       })
 
@@ -249,7 +291,7 @@ export async function characterRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { characterId: string } }>(
     '/api/characters/:characterId',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Characters'], summary: '캐릭터 카드 삭제' } },
     async (request, reply) => {
       const { count } = await fastify.prisma.character.deleteMany({
         where: { id: request.params.characterId, userId: request.userId! },

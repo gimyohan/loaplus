@@ -44,6 +44,7 @@ function sumFields(characters: CharacterStatistics[]): StatFields {
       azenaBlessingRewardCount: 0,
       guardianAzenaBlessingRewardCount: 0,
       kurzanAzenaBlessingRewardCount: 0,
+      cubeGemEarned: 0,
     },
   )
 }

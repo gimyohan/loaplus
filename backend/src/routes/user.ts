@@ -50,12 +50,19 @@ function toProfileResponse(user: {
 export async function userRoutes(fastify: FastifyInstance) {
   const auth = requireAuth(fastify)
 
-  fastify.get('/api/user/profile', { preHandler: auth }, async (request, reply) => {
-    const user = await fastify.prisma.user.findUniqueOrThrow({ where: { id: request.userId! } })
-    return reply.send(toProfileResponse(user))
-  })
+  fastify.get(
+    '/api/user/profile',
+    { preHandler: auth, schema: { tags: ['User'], summary: '내 프로필 및 서비스 환경 설정 조회' } },
+    async (request, reply) => {
+      const user = await fastify.prisma.user.findUniqueOrThrow({ where: { id: request.userId! } })
+      return reply.send(toProfileResponse(user))
+    },
+  )
 
-  fastify.patch('/api/user/profile', { preHandler: auth }, async (request, reply) => {
+  fastify.patch(
+    '/api/user/profile',
+    { preHandler: auth, schema: { tags: ['User'], summary: '닉네임 등 프로필 설정 변경' } },
+    async (request, reply) => {
     const parsed = updateProfileSchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -69,13 +76,20 @@ export async function userRoutes(fastify: FastifyInstance) {
     return reply.send(toProfileResponse(user))
   })
 
-  fastify.delete('/api/user', { preHandler: auth }, async (request, reply) => {
-    await fastify.prisma.user.delete({ where: { id: request.userId! } })
-    reply.clearCookie(SESSION_COOKIE_NAME, { path: '/' })
-    return reply.code(204).send()
-  })
+  fastify.delete(
+    '/api/user',
+    { preHandler: auth, schema: { tags: ['User'], summary: '회원 탈퇴' } },
+    async (request, reply) => {
+      await fastify.prisma.user.delete({ where: { id: request.userId! } })
+      reply.clearCookie(SESSION_COOKIE_NAME, { path: '/' })
+      return reply.code(204).send()
+    },
+  )
 
-  fastify.patch('/api/user/lostark-key', { preHandler: auth }, async (request, reply) => {
+  fastify.patch(
+    '/api/user/lostark-key',
+    { preHandler: auth, schema: { tags: ['User'], summary: '로스트아크 Open API 키 등록/갱신' } },
+    async (request, reply) => {
     const parsed = updateLostarkKeySchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -91,12 +105,16 @@ export async function userRoutes(fastify: FastifyInstance) {
 
   // 이미 키가 없어도(중복 호출 등) 그대로 204 — 최종 상태(키 없음)가 같으므로 멱등하게
   // 처리하고 404로 구분하지 않는다 (docs/api.typ "외부 API 연동 세부사항" 참고).
-  fastify.delete('/api/user/lostark-key', { preHandler: auth }, async (request, reply) => {
-    await fastify.prisma.user.update({
-      where: { id: request.userId! },
-      data: { lostarkApiKey: null },
-    })
+  fastify.delete(
+    '/api/user/lostark-key',
+    { preHandler: auth, schema: { tags: ['User'], summary: '등록된 로스트아크 API 키 삭제' } },
+    async (request, reply) => {
+      await fastify.prisma.user.update({
+        where: { id: request.userId! },
+        data: { lostarkApiKey: null },
+      })
 
-    return reply.code(204).send()
-  })
+      return reply.code(204).send()
+    },
+  )
 }

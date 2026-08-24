@@ -74,7 +74,7 @@ export function GuardianSettingsModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`${characterName}의 위젯 설정`} className="max-w-md">
+    <Modal open={open} onClose={onClose} title={`${characterName}의 가디언 토벌 설정`} className="max-w-md">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <section className="flex flex-col gap-2">
           <div className="flex items-center justify-between">

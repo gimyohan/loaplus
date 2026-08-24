@@ -15,11 +15,11 @@
   "kurzanFrontline": {
     "label": "쿠르잔 전선",
     "stages": [
-      { "name": "아비도스 1 작전", "minItemLevel": 1640 },
-      { "name": "아비도스 2작전", "minItemLevel": 1660 },
-      { "name": "아비도스 3작전", "minItemLevel": 1680 },
-      { "name": "네프타 1 작전", "minItemLevel": 1700 },
-      { "name": "네프타 2 작전", "minItemLevel": 1720 }
+      { "name": "아비도스 1 작전", "minItemLevel": 1640, "ticketType": "unlock1" },
+      { "name": "아비도스 2작전", "minItemLevel": 1660, "ticketType": "unlock1" },
+      { "name": "아비도스 3작전", "minItemLevel": 1680, "ticketType": "unlock2" },
+      { "name": "네프타 1 작전", "minItemLevel": 1700, "ticketType": "unlock3" },
+      { "name": "네프타 2 작전", "minItemLevel": 1720, "ticketType": "unlock4" }
     ]
   },
   "chaosRift": {

@@ -20,6 +20,7 @@ interface StatColumns {
   kurzanShardRewardCount: number
   guardianAzenaBlessingRewardCount: number
   kurzanAzenaBlessingRewardCount: number
+  cubeGemEarned: number
 }
 
 const ZERO_COLUMNS: StatColumns = {
@@ -39,6 +40,7 @@ const ZERO_COLUMNS: StatColumns = {
   kurzanShardRewardCount: 0,
   guardianAzenaBlessingRewardCount: 0,
   kurzanAzenaBlessingRewardCount: 0,
+  cubeGemEarned: 0,
 }
 
 // Character_Statistics/Character_Statistics_Weekly 둘 다 이 컬럼 집합을 그대로 공유한다
@@ -68,6 +70,7 @@ function toStatFields(row: StatColumns | null) {
     azenaBlessingRewardCount: r.guardianAzenaBlessingRewardCount + r.kurzanAzenaBlessingRewardCount,
     guardianAzenaBlessingRewardCount: r.guardianAzenaBlessingRewardCount,
     kurzanAzenaBlessingRewardCount: r.kurzanAzenaBlessingRewardCount,
+    cubeGemEarned: r.cubeGemEarned,
   }
 }
 
@@ -104,7 +107,10 @@ export async function statisticsRoutes(fastify: FastifyInstance) {
   // 캐싱해두는 엔드포인트는 두지 않으며, "모든 캐릭터 합" 뷰는 프론트가 캐릭터별 응답을 직접
   // 더해서 계산한다 (docs/statistics.typ "캐릭터 단위 관리" 참고).
 
-  fastify.get('/api/statistics/characters', { preHandler: auth }, async (request, reply) => {
+  fastify.get(
+    '/api/statistics/characters',
+    { preHandler: auth, schema: { tags: ['Statistics'], summary: '캐릭터별 누적 통계 조회' } },
+    async (request, reply) => {
     const characters = await fastify.prisma.character.findMany({
       where: { userId: request.userId! },
       orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
@@ -122,7 +128,7 @@ export async function statisticsRoutes(fastify: FastifyInstance) {
 
   fastify.get<{ Params: { characterId: string } }>(
     '/api/statistics/characters/:characterId/weekly',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Statistics'], summary: '캐릭터의 주간 통계 조회' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
@@ -156,7 +162,10 @@ export async function statisticsRoutes(fastify: FastifyInstance) {
     },
   )
 
-  fastify.get('/api/statistics/weekly', { preHandler: auth }, async (request, reply) => {
+  fastify.get(
+    '/api/statistics/weekly',
+    { preHandler: auth, schema: { tags: ['Statistics'], summary: '내 계정 전체 캐릭터의 주간 통계 조회' } },
+    async (request, reply) => {
     const parsed = weeklyQuerySchema.safeParse(request.query)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
@@ -188,7 +197,7 @@ export async function statisticsRoutes(fastify: FastifyInstance) {
 
   fastify.get<{ Params: { characterId: string } }>(
     '/api/statistics/characters/:characterId/item-rewards',
-    { preHandler: auth },
+    { preHandler: auth, schema: { tags: ['Statistics'], summary: '아이템 단위 획득 비율/수량 통계 조회' } },
     async (request, reply) => {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
