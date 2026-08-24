@@ -112,7 +112,7 @@ export function LogsView() {
       <ComingSoonView
         icon={ScrollText}
         title="기록된 로그가 없습니다"
-        description="가디언/쿠르잔 전선 수확 등 통계에 반영되는 행위를 하면 여기에 기록됩니다."
+        description="가디언/쿠르잔 전선 수확 등 통계에 반영되는 행위를 하면 여기에 기록됩니다. (CD 테스트 마커 2026-08-25)"
       />
     )
   }
