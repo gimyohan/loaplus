@@ -16,7 +16,7 @@ services:
       context: .
     restart: unless-stopped
     env_file:
-      - /opt/loaplus/.env
+      - .env
     depends_on:
       - postgres
     # nginx(호스트)가 localhost:4000으로 리버스 프록시하도록, 루프백에만 바인딩한다 —
