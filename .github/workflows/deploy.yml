@@ -1,8 +1,13 @@
 name: Deploy to EC2
 
-# 처음엔 수동 트리거로 안전하게 검증하고, 몇 번 문제없이 돌면 push 트리거로 바꾼다
-# (docs 없음 — 이 워크플로우 자체가 배포 절차의 단일 소스).
+# 2026-08-25: workflow_dispatch(수동)으로 여러 번 검증 완료 후 push 트리거로 전환.
+# main에 push하면 자동으로 CI+배포까지 실행된다 — 그래서 main은 "항상 배포 가능한 상태"만
+# 유지하고, 한 번에 끝나지 않는 큰 구조 개선은 별도 feature 브랜치에서 진행한다.
+# workflow_dispatch는 재배포가 필요할 때(예: EC2만 재기동하고 싶을 때) 쓸 수 있게 남겨둔다.
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
