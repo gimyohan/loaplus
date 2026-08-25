@@ -2,7 +2,6 @@ import { useState } from 'react'
 
 import { DEFAULT_COLUMNS, DEFAULT_ROWS, WidgetDashboard } from '@/components/dashboard/WidgetDashboard'
 import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
-import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { CELL_SIZE } from '@/lib/widgetCatalog'
 import { cn } from '@/lib/utils'
 
@@ -41,7 +40,6 @@ export function DashboardCard({
   width,
   className,
 }: DashboardCardProps) {
-  const { findByName } = useCharacterDirectory()
   const [rows, setRows] = useState(DEFAULT_ROWS)
   const nativeHeight = rows * CELL_SIZE
   const targetWidth = width ?? CARD_NATIVE_WIDTH
@@ -59,9 +57,15 @@ export function DashboardCard({
         initialCharacterName={initialCharacterName}
         autoOpenSettings={autoOpenSettings}
         onRemove={onRemove}
-        onCharacterNameChange={(name) => {
-          const record = name ? findByName(name) : undefined
-          if (record) onBound(record.id)
+        onCharacterNameChange={(_name, characterId) => {
+          // characterId는 CharacterNameForm이 resolveByName 결과를 그대로 넘겨준 값이다 — 여기서
+          // findByName으로 다시 찾으면, 방금 등록된(처음 보는) 캐릭터의 경우 컨텍스트의 characters
+          // 배열이 아직 갱신되기 전이라 못 찾을 수 있다(리액트 상태 갱신은 비동기라 resolveByName의
+          // await 직후에도 아직 반영 전일 수 있음). 그러면 onBound가 영영 호출되지 않아 이 카드의
+          // id가 임시 uuid로 남고, 탭을 옮겼다 돌아와 리마운트될 때 그 임시 uuid가 여전히
+          // autoOpenCardId(App.tsx)와 같아 설정 모달이 다시 열리며 배치한 위젯도 못 불러오는
+          // 버그로 이어졌었다.
+          if (characterId) onBound(characterId)
         }}
         onRowsChange={setRows}
       />

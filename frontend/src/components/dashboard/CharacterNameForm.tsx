@@ -9,7 +9,12 @@ export interface CharacterNameFormProps {
   className?: string
   /** 이 카드에 귀속된 캐릭터 이름. 아직 귀속되지 않았으면 빈 문자열. */
   characterName: string
-  onCharacterNameChange: (characterName: string) => void
+  /** 처음 등록하는(직전까지 CharacterDirectoryContext에 없던) 캐릭터면 resolveByName이 반환하는
+   * characterId를 함께 넘긴다 — 호출하는 쪽에서 컨텍스트를 다시 findByName으로 조회하면, 그 조회가
+   * 이 콜백보다 먼저 실행돼도 setCharacters 갱신이 아직 반영되기 전이라 못 찾을 수 있다(리액트
+   * 상태 갱신은 비동기라 이 함수 안에서 await 직후에도 아직 새 캐릭터가 없을 수 있음) — 그래서
+   * 조회 대신 이 결과값을 그대로 전달한다. */
+  onCharacterNameChange: (characterName: string, characterId?: string) => void
 }
 
 /**
@@ -35,8 +40,8 @@ export function CharacterNameForm({ className, characterName, onCharacterNameCha
     setResolveError(null)
     try {
       // 등록된 캐릭터면 그대로 조회하고, 아니면 Open API로 실존 여부를 확인해 새로 등록한 뒤 카드에 귀속시킨다.
-      await resolveByName(name)
-      onCharacterNameChange(name)
+      const resolved = await resolveByName(name)
+      onCharacterNameChange(name, resolved.id)
     } catch (err) {
       setResolveError(describeCharacterApiError(err))
     } finally {

@@ -118,6 +118,12 @@ function App() {
   const handleCardBound = (id: string, characterId: string) => {
     setCardIds((prev) => {
       if (!prev) return prev
+      if (id === characterId) {
+        // 이미 이 characterId로 귀속된 카드가 같은 이름을 다시 적용한 경우(예: 입력창에서 Enter로
+        // 재제출) — 바뀌는 게 없으니 그대로 둔다. 이 검사 없이 아래 "이미 다른 카드에 귀속된
+        // 캐릭터" 처리로 넘어가면 자기 자신과 충돌한 것으로 판정돼 카드가 통째로 사라져버린다.
+        return prev
+      }
       if (prev.includes(characterId)) {
         // 이미 다른 카드에 귀속된 캐릭터를 또 검색한 경우 — 그대로 교체하면 같은 characterId가
         // 배열에 두 번 들어가 React key가 중복되고(카드 삭제가 엉뚱하게 동작하는 원인), 그 카드는
@@ -126,6 +132,12 @@ function App() {
       }
       return prev.map((cardId) => (cardId === id ? characterId : cardId))
     })
+    // 이 카드가 Add Character로 막 추가돼 자동으로 설정 모달이 열려 있던 카드였다면(autoOpenCardId
+    // === id), 위 id → characterId 교체로 React key가 바뀌어 WidgetDashboard가 새로 마운트되면서
+    // isSettingsOpen 로컬 상태가 초기화돼 모달이 닫혀버린다 — autoOpenCardId도 같이 새 id를
+    // 가리키도록 옮겨두면, 새로 마운트되는 인스턴스가 다시 autoOpenSettings=true로 열려서 사용자
+    // 눈에는 모달이 계속 열려 있던 것처럼 보인다.
+    setAutoOpenCardId((prev) => (prev === id ? characterId : prev))
   }
 
   return (

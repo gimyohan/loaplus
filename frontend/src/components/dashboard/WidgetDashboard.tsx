@@ -94,8 +94,11 @@ export interface WidgetDashboardProps {
   initialCharacterName?: string
   /** 이 카드에 캐릭터가 (재)귀속될 때마다 알려준다. 카드를 감싸는 상위 UI(예: 대시보드 카드 헤더)가
    * 이 카드의 상태를 몰라도 캐릭터 정보를 표시할 수 있도록 하기 위함이며, WidgetDashboard 자체의
-   * 동작에는 영향을 주지 않는다. */
-  onCharacterNameChange?: (characterName: string) => void
+   * 동작에는 영향을 주지 않는다. 처음 등록하는 캐릭터라면 characterId도 함께 넘어온다
+   * (CharacterNameForm 참고) — 상위 UI가 findByName으로 다시 찾으면, CharacterDirectoryContext의
+   * setCharacters 갱신이 아직 반영되기 전이라 못 찾는 경우가 있어(카드가 영영 임시 uuid로 남는
+   * 버그의 원인이었다) 이미 조회된 id를 그대로 전달한다. */
+  onCharacterNameChange?: (characterName: string, characterId?: string) => void
   /** 전달하면 카드 좌상단에 삭제 버튼이 표시된다 (호버 시 노출). */
   onRemove?: () => void
   /** 이 카드의 그리드 세로 칸 수(rows)가 서버에서 조회되거나 설정에서 바뀔 때마다 알려준다.
@@ -139,9 +142,9 @@ export function WidgetDashboard({
   // 귀속시키기 전에는 characterId가 없으므로 로컬 state로만 동작한다(위 initialCharacterName 참고).
   const boundCharacterId = characterName ? findByName(characterName)?.id : undefined
 
-  const setCharacterName = (name: string) => {
+  const setCharacterName = (name: string, characterId?: string) => {
     setCharacterNameState(name)
-    onCharacterNameChange?.(name)
+    onCharacterNameChange?.(name, characterId)
   }
 
   const setRows = (next: number) => {
