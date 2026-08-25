@@ -35,6 +35,10 @@ function App() {
   // 아직 이름을 검색하지 않은 카드만 임시로 클라이언트 uuid를 쓰다가 귀속되는 순간 characterId로
   // 교체된다(onCardBound). null이면 초기 순서를 아직 불러오는 중.
   const [cardIds, setCardIds] = useState<string[] | null>(null)
+  // Add Character로 막 추가한 카드의 id. 그 카드가 마운트되자마자 위젯 설정 모달을 자동으로 열어주기
+  // 위한 신호로만 쓰인다 — 카드는 항상 새 uuid로(React key도 새로) 마운트되므로 굳이 나중에
+  // 초기화하지 않아도 이후 다른 카드가 이 값과 잘못 일치할 일은 없다.
+  const [autoOpenCardId, setAutoOpenCardId] = useState<string | null>(null)
   // 귀속된 카드(실제 캐릭터) 삭제는 되돌릴 수 없어 확인 모달을 띄운다. 아직 이름을 검색하지
   // 않은 임시 카드는 서버에 아무 것도 없으니 확인 없이 바로 지운다.
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; characterName: string } | null>(null)
@@ -126,15 +130,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Sidebar
-        activeView={activeView}
-        onNavigate={setActiveView}
-        onAddCharacter={() => {
-          setCardIds((prev) => [...(prev ?? []), crypto.randomUUID()])
-          setActiveView('dashboard')
-        }}
-        onSignOut={() => logout()}
-      />
+      <Sidebar activeView={activeView} onNavigate={setActiveView} onSignOut={() => logout()} />
       <TopAppBar
         title={VIEW_TITLES[activeView]}
         nickname={user?.nickname}
@@ -163,7 +159,17 @@ function App() {
             // 두 조회가 모두 끝난 뒤에만 그린다.
             <p className="py-24 text-center text-sm text-muted-foreground">불러오는 중...</p>
           ) : (
-            <DashboardView cardIds={cardIds} onRemoveCard={handleRemoveCard} onCardBound={handleCardBound} />
+            <DashboardView
+              cardIds={cardIds}
+              autoOpenCardId={autoOpenCardId}
+              onRemoveCard={handleRemoveCard}
+              onCardBound={handleCardBound}
+              onAddCharacter={() => {
+                const newId = crypto.randomUUID()
+                setCardIds((prev) => [...(prev ?? []), newId])
+                setAutoOpenCardId(newId)
+              }}
+            />
           )}
         </div>
         {activeView === 'logs' && <LogsView />}

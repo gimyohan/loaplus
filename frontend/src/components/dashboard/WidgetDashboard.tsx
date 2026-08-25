@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { checkCustomWidget, updateCustomWidget } from '@/lib/customWidgets'
 import { fetchWidgetLayout, saveWidgetLayout } from '@/lib/dashboards'
+import { useElementWidth } from '@/hooks/useElementWidth'
 import {
   clearRaidGate,
   createRaidWidget,
@@ -14,11 +16,17 @@ import {
   updateRaidTarget,
 } from '@/lib/raids'
 import { cn } from '@/lib/utils'
-import { CELL_SIZE, WIDGET_CATALOG, WIDGET_DRAG_MIME } from '@/lib/widgetCatalog'
+import { CELL_SIZE, WIDGET_CATALOG } from '@/lib/widgetCatalog'
 import { collidesWithAny } from '@/lib/widgetLayout'
 import raidCatalogData from '@/data/raidCatalog.json'
+import { CharacterNameForm } from '@/components/dashboard/CharacterNameForm'
 import { WidgetGrid } from '@/components/dashboard/WidgetGrid'
-import { WidgetPalette } from '@/components/dashboard/WidgetPalette'
+import {
+  WidgetPalette,
+  type PaletteGrabEndHandler,
+  type PaletteGrabMoveHandler,
+  type PaletteGrabStartHandler,
+} from '@/components/dashboard/WidgetPalette'
 import { WidgetPlaceholder } from '@/components/dashboard/WidgetPlaceholder'
 import { TemplatePanel } from '@/components/dashboard/TemplatePanel'
 import { PlacedWidgetContent } from '@/components/dashboard/PlacedWidgetContent'
@@ -66,6 +74,18 @@ interface DragState {
   originY: number
 }
 
+// 위젯 목록에서 그리드로 옮기는 동안의 상태. 네이티브 HTML5 드래그앤드롭 대신 포인터 이벤트로
+// 직접 구현한다 — WidgetPalette.tsx 상단 주석 참고(setDragImage 고스트가 디스플레이 배율에 따라
+// 실제 크기와 다르게 보이는 크로미움 버그를 피하기 위함).
+interface PaletteDragState {
+  item: WidgetCatalogItem
+  /** 타일 안에서 실제로 잡은 위치(0~1 비율) — 그리드에 스냅할 때도 이 비율을 그대로 앵커로 쓴다. */
+  grabX: number
+  grabY: number
+  clientX: number
+  clientY: number
+}
+
 export interface WidgetDashboardProps {
   /** 이미 실제 캐릭터에 귀속된 카드라면 그 캐릭터 이름을 넘긴다. 넘기면 위젯 배치를
    * 마운트 시 바로 서버에서 조회한다(GET .../dashboards/{characterId}/widgets). 아직 귀속되지
@@ -81,6 +101,8 @@ export interface WidgetDashboardProps {
   /** 이 카드의 그리드 세로 칸 수(rows)가 서버에서 조회되거나 설정에서 바뀔 때마다 알려준다.
    * 카드를 감싸는 DashboardCard가 카드 전체를 스케일할 때 이 값으로 세로 비율을 맞춘다. */
   onRowsChange?: (rows: number) => void
+  /** true면 마운트되자마자 위젯 설정 모달을 자동으로 연다(Add Character로 막 추가된 카드). */
+  autoOpenSettings?: boolean
 }
 
 export function WidgetDashboard({
@@ -88,14 +110,29 @@ export function WidgetDashboard({
   onCharacterNameChange,
   onRemove,
   onRowsChange,
+  autoOpenSettings,
 }: WidgetDashboardProps = {}) {
   const [widgets, setWidgets] = useState<PlacedWidget[]>([])
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  // Add Character로 막 추가된 카드는 마운트되자마자 위젯 설정 모달을 자동으로 연다 — 카드는 항상
+  // 새 uuid로 새로 마운트되므로 이 이펙트는 그 카드의 생애주기 동안 한 번만 실행되면 된다.
+  useEffect(() => {
+    if (autoOpenSettings) setIsSettingsOpen(true)
+  }, [autoOpenSettings])
   const [characterName, setCharacterNameState] = useState(initialCharacterName ?? '')
   const [rows, setRowsState] = useState(DEFAULT_ROWS)
   const gridRef = useRef<HTMLDivElement>(null)
   const dragState = useRef<DragState | null>(null)
+  // 위젯 설정 모달의 편집용 그리드는 실제 대시보드(카드 단위 ScaleToFit)와 달리, 모달 폭이 남는
+  // 만큼 그리드 자체를 키워서 꽉 채운다 — 칸 하나의 픽셀 크기를 고정 CELL_SIZE 대신 이 칸이 실제로
+  // 차지하는 폭을 재서 동적으로 계산한다(gridColumnRef가 붙는 wrapper는 min-w만 있고 자기 콘텐츠
+  // 크기에 좌우되지 않으므로 순환 참조 없이 안정적으로 수렴한다). 좌표 계산(드롭 위치, 드래그
+  // 이동)도 전부 이 값 기준으로 통일해야 한다 — DB에는 항상 그리드 칸 단위(정수)로만 저장되므로
+  // 이 값 자체가 바뀌어도 저장되는 배치 데이터에는 영향이 없다.
+  const { ref: gridColumnRef, width: gridColumnWidth } = useElementWidth<HTMLDivElement>()
+  const editCellSize = gridColumnWidth > 0 ? gridColumnWidth / DEFAULT_COLUMNS : CELL_SIZE
 
   const { findByName } = useCharacterDirectory()
   // 귀속된 실제 캐릭터가 있을 때만 위젯 배치를 서버에 조회/저장한다. 아직 이름을 검색해
@@ -314,31 +351,35 @@ export function WidgetDashboard({
       .catch((err) => console.error('레이드 목표 변경 실패', err))
   }
 
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'copy'
+  const [paletteDrag, setPaletteDrag] = useState<PaletteDragState | null>(null)
+
+  // 현재 포인터 위치 기준으로 스냅될 그리드 칸 좌표와, 그 자리에 실제로 놓을 수 있는지를 계산한다.
+  // 드래그 중 미리보기(그리드 위 스냅 표시)와 놓았을 때(handlePaletteGrabEnd) 양쪽에서 같이 쓴다.
+  const computeDropCell = (
+    item: { w: number; h: number },
+    grabX: number,
+    grabY: number,
+    clientX: number,
+    clientY: number,
+  ) => {
+    if (!gridRef.current) return null
+    const gridRect = gridRef.current.getBoundingClientRect()
+    const withinGrid =
+      clientX >= gridRect.left && clientX <= gridRect.right && clientY >= gridRect.top && clientY <= gridRect.bottom
+    const localX = clientX - gridRect.left
+    const localY = clientY - gridRect.top
+    // 스냅 지점이 마우스로 실제로 잡았던 자리(grabX/grabY)가 되도록 칸 단위로 스냅한다 — 항상
+    // 중심으로 맞추면 어디를 잡고 옮겼는지와 무관하게 자리가 튀어 보인다.
+    const x = clamp(Math.round(localX / editCellSize - item.w * grabX), 0, DEFAULT_COLUMNS - item.w)
+    const y = clamp(Math.round(localY / editCellSize - item.h * grabY), 0, rows - item.h)
+    const valid = withinGrid && !collidesWithAny({ x, y, w: item.w, h: item.h }, widgets)
+    return { x, y, withinGrid, valid }
   }
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    const raw = event.dataTransfer.getData(WIDGET_DRAG_MIME)
-    if (!raw || !gridRef.current) return
-
-    const item = JSON.parse(raw) as WidgetCatalogItem
-    const gridRect = gridRef.current.getBoundingClientRect()
-    const dropX = event.clientX - gridRect.left
-    const dropY = event.clientY - gridRect.top
-
-    // 드롭 지점이 위젯의 중심이 되도록 칸 단위로 스냅
-    const x = clamp(Math.round(dropX / CELL_SIZE - item.w / 2), 0, DEFAULT_COLUMNS - item.w)
-    const y = clamp(Math.round(dropY / CELL_SIZE - item.h / 2), 0, rows - item.h)
-
-    // 이미 다른 위젯이 있는 칸에는 놓을 수 없다 — 겹치면 그냥 드롭을 무시한다.
-    if (collidesWithAny({ x, y, w: item.w, h: item.h }, widgets)) return
-
-    // 레이드는 서버가 raidId를 생성해줘야 위젯이 성립하므로(POST .../raids) 다른 위젯처럼 임시
-    // uuid로 즉시 로컬 생성할 수 없다 — 목표는 일단 고르지 않고(서버가 아이템 레벨 기준 자동 추천)
-    // 바로 추가한 뒤, 톱니바퀴(RaidTargetModal, WidgetVisual 참고)에서 원하는 목표로 바꾸게 한다.
+  // 레이드는 서버가 raidId를 생성해줘야 위젯이 성립하므로(POST .../raids) 다른 위젯처럼 임시
+  // uuid로 즉시 로컬 생성할 수 없다 — 목표는 일단 고르지 않고(서버가 아이템 레벨 기준 자동 추천)
+  // 바로 추가한 뒤, 톱니바퀴(RaidTargetModal, WidgetVisual 참고)에서 원하는 목표로 바꾸게 한다.
+  const placeWidgetAt = (item: WidgetCatalogItem, x: number, y: number) => {
     if (item.kind === 'raid') {
       if (!boundCharacterId) return
       createRaidWidget(boundCharacterId, { x, y, w: item.w, h: item.h })
@@ -363,6 +404,28 @@ export function WidgetDashboard({
     persistLayout(next)
   }
 
+  const handlePaletteGrabStart: PaletteGrabStartHandler = (item, grabX, grabY, clientX, clientY) => {
+    setPaletteDrag({ item, grabX, grabY, clientX, clientY })
+  }
+
+  const handlePaletteGrabMove: PaletteGrabMoveHandler = (clientX, clientY) => {
+    setPaletteDrag((prev) => (prev ? { ...prev, clientX, clientY } : prev))
+  }
+
+  const handlePaletteGrabEnd: PaletteGrabEndHandler = (clientX, clientY) => {
+    setPaletteDrag((prev) => {
+      if (!prev) return null
+      const cell = computeDropCell(prev.item, prev.grabX, prev.grabY, clientX, clientY)
+      if (cell?.valid) placeWidgetAt(prev.item, cell.x, cell.y)
+      return null
+    })
+  }
+
+  // 드래그 중 실시간으로 스냅 미리보기를 그리기 위한 파생값 — paletteDrag가 바뀔 때마다 다시 계산한다.
+  const paletteDropPreview = paletteDrag
+    ? computeDropCell(paletteDrag.item, paletteDrag.grabX, paletteDrag.grabY, paletteDrag.clientX, paletteDrag.clientY)
+    : null
+
   const handleWidgetPointerDown = (widget: PlacedWidget) => (event: PointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('[data-widget-delete]')) return
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -382,8 +445,8 @@ export function WidgetDashboard({
 
     const deltaX = event.clientX - drag.pointerStartX
     const deltaY = event.clientY - drag.pointerStartY
-    const x = clamp(Math.round(drag.originX + deltaX / CELL_SIZE), 0, DEFAULT_COLUMNS - widget.w)
-    const y = clamp(Math.round(drag.originY + deltaY / CELL_SIZE), 0, rows - widget.h)
+    const x = clamp(Math.round(drag.originX + deltaX / editCellSize), 0, DEFAULT_COLUMNS - widget.w)
+    const y = clamp(Math.round(drag.originY + deltaY / editCellSize), 0, rows - widget.h)
 
     // 다른 위젯과 겹치는 칸으로는 움직이지 않는다 — 드래그 중인 자기 자신은 비교에서 뺀다.
     // 겹치는 방향으로는 위치가 그대로 멈춰있고, 안 겹치는 다른 방향으로는 계속 움직일 수 있다.
@@ -524,99 +587,146 @@ export function WidgetDashboard({
       </div>
 
       <GridSettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)}>
-        {/* 위젯 목록에서 그리드로 드래그해서 배치/이동/삭제하는 편집기 */}
-        <div className="flex flex-wrap items-start gap-6">
-          <div className="relative inline-block">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground">그리드 높이</span>
-              <div className="flex items-center gap-1 rounded-lg border border-border p-1">
-                <button
-                  type="button"
-                  aria-label="그리드 높이 줄이기"
-                  disabled={!boundCharacterId || rows <= Math.max(MIN_ROWS, ...widgets.map((w) => w.y + w.h))}
-                  onClick={() => handleRowsChange(rows - 1)}
-                  className="flex h-6 w-6 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-                >
-                  −
-                </button>
-                <span className="w-8 text-center font-mono text-sm text-foreground">{rows}</span>
-                <button
-                  type="button"
-                  aria-label="그리드 높이 늘리기"
-                  disabled={!boundCharacterId || rows >= MAX_ROWS}
-                  onClick={() => handleRowsChange(rows + 1)}
-                  className="flex h-6 w-6 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-                >
-                  +
-                </button>
-              </div>
-              <span className="text-xs text-muted-foreground">칸 (최대 {MAX_ROWS})</span>
-            </div>
-            <WidgetGrid
-              ref={gridRef}
-              columns={DEFAULT_COLUMNS}
-              rows={rows}
-              cellSize={CELL_SIZE}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            >
-              {widgets.map((widget) => (
-                <div
-                  key={widget.id}
-                  onPointerDown={handleWidgetPointerDown(widget)}
-                  onPointerMove={handleWidgetPointerMove(widget)}
-                  onPointerUp={handleWidgetPointerUp}
-                  className={cn(
-                    'group absolute z-10 touch-none cursor-move',
-                    draggingId === widget.id && 'z-50',
-                  )}
-                  style={{
-                    left: widget.x * CELL_SIZE,
-                    top: widget.y * CELL_SIZE,
-                    width: widget.w * CELL_SIZE,
-                    height: widget.h * CELL_SIZE,
-                  }}
-                >
-                  {/* 편집 중엔 이미 놓인 위젯도 실제 데이터로 그리지 않는다 — 배치/이동에 필요한
-                      건 이름과 칸 크기뿐이라 위젯 목록(WidgetPalette)과 같은 자리표시자를 쓴다 */}
-                  <WidgetPlaceholder
-                    label={WIDGET_CATALOG.find((item) => item.kind === widget.kind)?.label ?? widget.kind}
-                    w={widget.w}
-                    h={widget.h}
-                    className="h-full w-full"
-                  />
-                  <button
-                    type="button"
-                    data-widget-delete
-                    onClick={() => removeWidget(widget.id)}
-                    aria-label="위젯 삭제"
-                    className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow transition-opacity hover:bg-red-600 group-hover:opacity-100"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+        {/* 왼쪽 열(그리드 칸) 안에서, 그리드를 직접 편집하는 게 아니라 카드 전체 설정에 해당하는
+            그리드 높이/캐릭터 이름/배치 코드를 그리드 위에 얹는다 — 그리드 높이는 내용만큼만
+            차지하고 캐릭터 이름이 남는 폭을 채우며 가로로 나란히 놓이고, 그 아래에 배치 코드가 이
+            열 전체 폭을 그대로 써서 오른쪽 끝이 그리드 오른쪽 끝과 나란해진다. 오른쪽 위젯 목록은
+            이 열과 나란한 형제(items-stretch)라 이 열 전체 높이(상단 컨트롤+그리드)만큼 저절로
+            늘어난다. */}
+        <div className="flex flex-wrap items-stretch gap-6">
+          <div ref={gridColumnRef} className="flex min-w-[320px] flex-[6] flex-col gap-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-stretch gap-4">
+                <div className="flex shrink-0 items-center gap-2 rounded-xl border border-border bg-card p-3">
+                  <span className="text-sm font-medium text-foreground">그리드 높이</span>
+                  <div className="flex items-center gap-1 rounded-lg border border-border p-1">
+                    <button
+                      type="button"
+                      aria-label="그리드 높이 줄이기"
+                      disabled={!boundCharacterId || rows <= Math.max(MIN_ROWS, ...widgets.map((w) => w.y + w.h))}
+                      onClick={() => handleRowsChange(rows - 1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center font-mono text-sm text-foreground">{rows}</span>
+                    <button
+                      type="button"
+                      aria-label="그리드 높이 늘리기"
+                      disabled={!boundCharacterId || rows >= MAX_ROWS}
+                      onClick={() => handleRowsChange(rows + 1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </WidgetGrid>
+                <CharacterNameForm
+                  className="min-w-[200px] flex-1"
+                  characterName={characterName}
+                  onCharacterNameChange={setCharacterName}
+                />
+              </div>
+              <TemplatePanel
+                widgets={widgets}
+                rows={rows}
+                boundCharacterId={boundCharacterId}
+                onApplyLayout={applyTemplateLayout}
+              />
+            </div>
 
-            {/* 편집 모드에서는 항상 또렷하게 보여준다 (호버 없이도) */}
-            <GridSettingsButton className="cursor-default opacity-100" />
+            <div className="relative inline-block">
+              <WidgetGrid ref={gridRef} columns={DEFAULT_COLUMNS} rows={rows} cellSize={editCellSize}>
+                {/* 위젯 목록에서 옮기는 중일 때, 실제로 스냅될 칸을 미리 보여준다 — 놓을 수 있으면
+                    파란색, 다른 위젯과 겹쳐 놓을 수 없으면 빨간색으로 구분한다. */}
+                {paletteDrag && paletteDropPreview?.withinGrid && (
+                  <div
+                    className={cn(
+                      'pointer-events-none absolute z-30 rounded-lg border-2 transition-colors',
+                      paletteDropPreview.valid ? 'border-primary bg-primary/20' : 'border-red-500 bg-red-500/20',
+                    )}
+                    style={{
+                      left: paletteDropPreview.x * editCellSize,
+                      top: paletteDropPreview.y * editCellSize,
+                      width: paletteDrag.item.w * editCellSize,
+                      height: paletteDrag.item.h * editCellSize,
+                    }}
+                  />
+                )}
+                {widgets.map((widget) => (
+                  <div
+                    key={widget.id}
+                    onPointerDown={handleWidgetPointerDown(widget)}
+                    onPointerMove={handleWidgetPointerMove(widget)}
+                    onPointerUp={handleWidgetPointerUp}
+                    className={cn(
+                      'group absolute z-10 touch-none cursor-move',
+                      draggingId === widget.id && 'z-50',
+                    )}
+                    style={{
+                      left: widget.x * editCellSize,
+                      top: widget.y * editCellSize,
+                      width: widget.w * editCellSize,
+                      height: widget.h * editCellSize,
+                    }}
+                  >
+                    {/* 편집 중엔 이미 놓인 위젯도 실제 데이터로 그리지 않는다 — 배치/이동에 필요한
+                        건 이름과 칸 크기뿐이라 위젯 목록(WidgetPalette)과 같은 자리표시자를 쓴다 */}
+                    <WidgetPlaceholder
+                      label={WIDGET_CATALOG.find((item) => item.kind === widget.kind)?.label ?? widget.kind}
+                      w={widget.w}
+                      h={widget.h}
+                      className="h-full w-full"
+                    />
+                    <button
+                      type="button"
+                      data-widget-delete
+                      onClick={() => removeWidget(widget.id)}
+                      aria-label="위젯 삭제"
+                      className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </WidgetGrid>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <TemplatePanel
-              widgets={widgets}
-              rows={rows}
-              boundCharacterId={boundCharacterId}
-              onApplyLayout={applyTemplateLayout}
-            />
-            <WidgetPalette
-              maxHeight={rows * CELL_SIZE}
-              characterName={characterName}
-              onCharacterNameChange={setCharacterName}
-            />
-          </div>
+          <WidgetPalette
+            className="min-w-[240px] flex-[4]"
+            characterName={characterName}
+            onGrabStart={handlePaletteGrabStart}
+            onGrabMove={handlePaletteGrabMove}
+            onGrabEnd={handlePaletteGrabEnd}
+          />
         </div>
       </GridSettingsModal>
+
+      {/* 위젯 목록에서 그리드로 옮기는 동안 커서를 따라다니는 미리보기. 실제로 놓일 크기 그대로
+          CSS 픽셀로 직접 그려서(브라우저 네이티브 드래그 고스트를 쓰지 않음) 디스플레이 배율과
+          무관하게 항상 정확한 크기로 보이고, 투명도도 우리가 직접 정한다. body에 포털로 그려서
+          모달 등 어떤 조상 엘리먼트의 clipping/transform에도 영향받지 않는다. */}
+      {paletteDrag &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[100] flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-primary bg-primary/30 text-center opacity-90 shadow-2xl backdrop-blur-[1px]"
+            style={{
+              left: paletteDrag.clientX - paletteDrag.grabX * paletteDrag.item.w * editCellSize,
+              top: paletteDrag.clientY - paletteDrag.grabY * paletteDrag.item.h * editCellSize,
+              width: paletteDrag.item.w * editCellSize,
+              height: paletteDrag.item.h * editCellSize,
+            }}
+          >
+            <span className="px-1 text-xs font-medium leading-tight text-foreground">
+              {paletteDrag.item.label}
+            </span>
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {paletteDrag.item.w}×{paletteDrag.item.h}
+            </span>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

@@ -25,6 +25,13 @@ export interface WidgetCatalogItem {
   /** 그리드 칸 단위 크기 */
   w: number
   h: number
+  /** 같은 값을 가진 항목끼리(예: 배너류) 위젯 목록에서 하나의 타일로 묶여 좌우 화살표로
+   * 종류를 바꿔가며 고를 수 있다. 없으면 항상 독립된 타일이다. */
+  group?: string
+  /** 위젯 목록(WidgetPalette)에서 보여줄 때만 쓰는 표시용 묶음. category와는 별개다 — category는
+   * 캐릭터 귀속 여부에 따른 노출 조건에 쓰이고, section은 그 위에 사용자가 보기 편하도록 얹은
+   * 5개 그룹(배너/주간 콘텐츠/일일 콘텐츠/커스텀 위젯/툴)이다. */
+  section: 'banner' | 'weekly' | 'daily' | 'custom' | 'tool'
 }
 
 export interface PlacedWidget {

@@ -2,6 +2,10 @@ import { Moon, Sun } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
+// 라이트 모드 스타일이 아직 다듬어지지 않아 전환 버튼을 임시로 숨긴다 — 다시 보이려면 이 값만
+// true로 되돌리면 된다(다크 모드 자체 로직은 App.tsx에 그대로 남아있다).
+const SHOW_THEME_TOGGLE = false
+
 export interface TopAppBarProps {
   title: string
   nickname?: string | null
@@ -21,9 +25,11 @@ export function TopAppBar({ title, nickname, isDark, onToggleDark }: TopAppBarPr
 
       <div className="ml-auto flex items-center gap-3">
         {nickname && <span className="hidden text-sm text-muted-foreground sm:block">{nickname}</span>}
-        <Button variant="outline" size="icon" onClick={onToggleDark} aria-label="테마 전환">
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
+        {SHOW_THEME_TOGGLE && (
+          <Button variant="outline" size="icon" onClick={onToggleDark} aria-label="테마 전환">
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
     </header>
   )

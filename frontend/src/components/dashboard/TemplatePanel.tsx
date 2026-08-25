@@ -1,3 +1,4 @@
+import { Check, Copy } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -70,14 +71,7 @@ export function TemplatePanel({ className, widgets, rows, boundCharacterId, onAp
   }
 
   return (
-    <div className={cn('flex w-72 shrink-0 flex-col gap-2 rounded-xl border border-border bg-card p-3', className)}>
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">배치 코드</h3>
-        <Button type="button" variant="outline" className="h-7 shrink-0 px-2.5 py-0 text-xs" onClick={handleCopy}>
-          {copied ? '복사됨' : '코드 복사'}
-        </Button>
-      </div>
-
+    <div className={cn('flex flex-col justify-center gap-2 rounded-xl border border-border bg-card p-3', className)}>
       <div className="flex gap-1.5">
         <input
           type="text"
@@ -98,6 +92,14 @@ export function TemplatePanel({ className, widgets, rows, boundCharacterId, onAp
         >
           적용
         </Button>
+        <button
+          type="button"
+          aria-label={copied ? '복사됨' : '코드 복사'}
+          onClick={handleCopy}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
       </div>
 
       {!boundCharacterId && (

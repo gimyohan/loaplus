@@ -20,7 +20,7 @@ export function GridSettingsModal({ open, onClose, children }: GridSettingsModal
     // 기본(center) 정렬이면 넘치는 높이가 위아래로 반씩 걸쳐 상단이 화면 밖으로 잘려 보이고,
     // 그 과정에서 배경 오버레이가 아니라 페이지 자체에 스크롤이 생기는 문제가 있었다 — 상단을
     // 고정하고 아래로만 늘어나게 하면 늘 모달 맨 위부터 보이고 스크롤도 모달 안에서만 일어난다.
-    <Modal open={open} onClose={onClose} title="위젯 설정" className="max-w-7xl" align="start">
+    <Modal open={open} onClose={onClose} title="위젯 설정" className="max-w-4xl" align="start">
       {children}
     </Modal>
   )

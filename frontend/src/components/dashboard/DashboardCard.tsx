@@ -14,6 +14,8 @@ export const CARD_NATIVE_HEIGHT = DEFAULT_ROWS * CELL_SIZE
 export interface DashboardCardProps {
   /** 이미 실제 캐릭터에 귀속된 카드라면 그 캐릭터 이름. 없으면 아직 검색으로 귀속 전인 새 카드. */
   initialCharacterName?: string
+  /** true면 마운트되자마자 위젯 설정 모달을 자동으로 연다(Add Character로 막 추가된 카드). */
+  autoOpenSettings?: boolean
   onRemove: () => void
   /** 위젯 팔레트의 이름 검색으로 실제 캐릭터에 (처음) 귀속되면 그 characterId를 알려준다. */
   onBound: (characterId: string) => void
@@ -31,7 +33,14 @@ export interface DashboardCardProps {
  * 한 번 더 적용한 것. 배치 편집 모달(GridSettingsModal)은 별도 portal(document.body)로
  * 렌더링되어 이 스케일의 영향을 받지 않고 항상 원본 크기로 열린다.
  */
-export function DashboardCard({ initialCharacterName, onRemove, onBound, width, className }: DashboardCardProps) {
+export function DashboardCard({
+  initialCharacterName,
+  autoOpenSettings,
+  onRemove,
+  onBound,
+  width,
+  className,
+}: DashboardCardProps) {
   const { findByName } = useCharacterDirectory()
   const [rows, setRows] = useState(DEFAULT_ROWS)
   const nativeHeight = rows * CELL_SIZE
@@ -48,6 +57,7 @@ export function DashboardCard({ initialCharacterName, onRemove, onBound, width, 
     >
       <WidgetDashboard
         initialCharacterName={initialCharacterName}
+        autoOpenSettings={autoOpenSettings}
         onRemove={onRemove}
         onCharacterNameChange={(name) => {
           const record = name ? findByName(name) : undefined

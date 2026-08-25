@@ -1,3 +1,4 @@
+import { AddCharacterCard } from '@/components/dashboard/AddCharacterCard'
 import { DashboardCard } from '@/components/dashboard/DashboardCard'
 import { DashboardCardCarousel } from '@/components/dashboard/DashboardCardCarousel'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
@@ -6,9 +7,12 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 
 export interface DashboardViewProps {
   cardIds: string[]
+  /** Add Character로 막 추가된 카드의 id. 일치하는 카드는 마운트되자마자 위젯 설정 모달을 자동으로 연다. */
+  autoOpenCardId?: string | null
   onRemoveCard: (id: string) => void
   /** 카드(id)가 실제 캐릭터(characterId)에 처음 귀속됐을 때 호출된다. */
   onCardBound: (id: string, characterId: string) => void
+  onAddCharacter: () => void
 }
 
 const GRID_GAP = 24
@@ -20,21 +24,36 @@ const MIN_CARD_WIDTH = 150
 // 카드 크기가 계속 흔들리는 문제가 있어 우선 3열로 고정한다.
 const COLUMNS_PER_ROW = 3
 
-export function DashboardView({ cardIds, onRemoveCard, onCardBound }: DashboardViewProps) {
+export function DashboardView({
+  cardIds,
+  autoOpenCardId,
+  onRemoveCard,
+  onCardBound,
+  onAddCharacter,
+}: DashboardViewProps) {
   const { characters } = useCharacterDirectory()
   const isMobile = useIsMobile()
   const { ref, width: containerWidth } = useElementWidth<HTMLDivElement>()
 
   if (cardIds.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-border py-24 text-center text-sm text-muted-foreground">
-        등록된 카드가 없습니다. 사이드바의 "Add Character"로 카드를 추가해 보세요.
-      </p>
+      <div className="flex flex-col items-center gap-4 py-12">
+        <p className="text-sm text-muted-foreground">등록된 카드가 없습니다. 아래에서 캐릭터를 추가해 보세요.</p>
+        <AddCharacterCard onClick={onAddCharacter} className="w-full max-w-[240px]" />
+      </div>
     )
   }
 
   if (isMobile) {
-    return <DashboardCardCarousel cardIds={cardIds} onRemoveCard={onRemoveCard} onCardBound={onCardBound} />
+    return (
+      <DashboardCardCarousel
+        cardIds={cardIds}
+        autoOpenCardId={autoOpenCardId}
+        onRemoveCard={onRemoveCard}
+        onCardBound={onCardBound}
+        onAddCharacter={onAddCharacter}
+      />
+    )
   }
 
   // 화면 폭이 좁으면 COLUMNS_PER_ROW만큼 배치했을 때 카드가 MIN_CARD_WIDTH보다 좁아질 수 있으므로,
@@ -64,12 +83,14 @@ export function DashboardView({ cardIds, onRemoveCard, onCardBound }: DashboardV
             <DashboardCard
               key={id}
               initialCharacterName={boundCharacter?.characterName}
+              autoOpenSettings={id === autoOpenCardId}
               onRemove={() => onRemoveCard(id)}
               onBound={(characterId) => onCardBound(id, characterId)}
               width={cardWidth}
             />
           )
         })}
+      {containerWidth > 0 && <AddCharacterCard onClick={onAddCharacter} width={cardWidth} />}
     </div>
   )
 }

@@ -1,24 +1,29 @@
 import type { WidgetCatalogItem } from '@/types/widget'
 
-// docs/widgets.typ - Default Value(가디언/낙원 등) / Additional Value(텍스트/이미지 등) 위젯 목록
+// docs/widgets.typ - Default Value(가디언/낙원 등) / Additional Value(텍스트/이미지 등) 위젯 목록.
+// section은 위젯 목록(WidgetPalette)에서만 쓰는 표시용 묶음이다 — category(default/additional)는
+// 캐릭터 귀속 여부에 따른 노출 조건(hasCharacterRecord)에 계속 쓰이고, section은 그 위에 사용자가
+// 보기 편하도록 얹은 5개 그룹(배너/주간 콘텐츠/일일 콘텐츠/커스텀 위젯/툴)이다. group을 section과
+// 같은 값으로 둬서, 배너류처럼 같은 section 안 항목 전부가 화살표로 넘겨가며 고르는 카드 하나로
+// 묶인다(WidgetPalette의 groupCatalogItems 참고) — 툴(어빌리티 스톤)만 항목이 하나뿐이라 group을
+// 안 둬도 자기 kind로 혼자만의 묶음이 된다.
 export const WIDGET_CATALOG: WidgetCatalogItem[] = [
-  { kind: 'banner', label: '배너 (10x2)', category: 'default', w: 10, h: 2 },
-  { kind: 'bannerCompact', label: '배너 (10x1)', category: 'default', w: 10, h: 1 },
-  { kind: 'bannerDetailed', label: '배너 상세 (10x5)', category: 'default', w: 10, h: 5 },
-  { kind: 'guardian', label: '가디언', category: 'default', w: 5, h: 3 },
-  { kind: 'kurzanFrontline', label: '쿠르잔 전선', category: 'default', w: 5, h: 3 },
-  { kind: 'paradise', label: '낙원', category: 'default', w: 5, h: 2 },
-  { kind: 'raid', label: '레이드', category: 'default', w: 5, h: 3 },
-  { kind: 'ebonyCube', label: '에브니 큐브', category: 'default', w: 5, h: 2 },
-  { kind: 'halHourglass', label: '할의 모래시계', category: 'default', w: 5, h: 2 },
-  { kind: 'text', label: '텍스트', category: 'additional', w: 5, h: 1 },
-  { kind: 'textCheckbox', label: '루틴', category: 'additional', w: 5, h: 1 },
-  { kind: 'image', label: '이미지', category: 'additional', w: 4, h: 4 },
-  { kind: 'linkIcon', label: '링크 & 아이콘', category: 'additional', w: 1, h: 1 },
-  { kind: 'abilityStone', label: '어빌리티 스톤', category: 'additional', w: 1, h: 1 },
+  { kind: 'bannerDetailed', label: '캐릭터 상세 배너', category: 'default', w: 10, h: 5, group: 'banner', section: 'banner' },
+  { kind: 'banner', label: '캐릭터 배너', category: 'default', w: 10, h: 2, group: 'banner', section: 'banner' },
+  { kind: 'bannerCompact', label: '캐릭터 요약 배너', category: 'default', w: 10, h: 1, group: 'banner', section: 'banner' },
+  { kind: 'raid', label: '레이드', category: 'default', w: 5, h: 3, group: 'weekly', section: 'weekly' },
+  { kind: 'paradise', label: '낙원', category: 'default', w: 5, h: 2, group: 'weekly', section: 'weekly' },
+  // 에브니 큐브는 실제로는 주간 콘텐츠가 아니지만, 마땅한 자리가 정해지기 전까지는 일단 여기에 둔다.
+  { kind: 'ebonyCube', label: '에브니 큐브', category: 'default', w: 5, h: 2, group: 'weekly', section: 'weekly' },
+  { kind: 'halHourglass', label: '할의 모래시계', category: 'default', w: 5, h: 2, group: 'weekly', section: 'weekly' },
+  { kind: 'guardian', label: '가디언', category: 'default', w: 5, h: 3, group: 'daily', section: 'daily' },
+  { kind: 'kurzanFrontline', label: '쿠르잔 전선', category: 'default', w: 5, h: 3, group: 'daily', section: 'daily' },
+  { kind: 'text', label: '텍스트', category: 'additional', w: 5, h: 1, group: 'custom', section: 'custom' },
+  { kind: 'textCheckbox', label: '루틴', category: 'additional', w: 5, h: 1, group: 'custom', section: 'custom' },
+  { kind: 'image', label: '이미지', category: 'additional', w: 4, h: 4, group: 'custom', section: 'custom' },
+  { kind: 'linkIcon', label: '링크 & 아이콘', category: 'additional', w: 1, h: 1, group: 'custom', section: 'custom' },
+  { kind: 'abilityStone', label: '어빌리티 스톤', category: 'additional', w: 1, h: 1, section: 'tool' },
 ]
-
-export const WIDGET_DRAG_MIME = 'application/x-loaplus-widget'
 
 /** 그리드 한 칸의 픽셀 크기 (docs/db_schema.typ: grid_x, grid_y, width, height) */
 export const CELL_SIZE = 50

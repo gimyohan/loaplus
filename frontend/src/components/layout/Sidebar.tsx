@@ -3,7 +3,6 @@ import {
   HelpCircle,
   LayoutDashboard,
   LogOut,
-  Plus,
   ScrollText,
   Settings,
   TrendingUp,
@@ -25,11 +24,10 @@ const NAV_ITEMS: { view: NavView; label: string; icon: typeof LayoutDashboard }[
 export interface SidebarProps {
   activeView: NavView
   onNavigate: (view: NavView) => void
-  onAddCharacter: () => void
   onSignOut: () => void
 }
 
-export function Sidebar({ activeView, onNavigate, onAddCharacter, onSignOut }: SidebarProps) {
+export function Sidebar({ activeView, onNavigate, onSignOut }: SidebarProps) {
   return (
     <nav className="fixed left-0 top-0 hidden h-full w-[240px] flex-col border-r border-border bg-card px-4 py-6 md:flex">
       <div className="mb-8">
@@ -55,15 +53,6 @@ export function Sidebar({ activeView, onNavigate, onAddCharacter, onSignOut }: S
           </button>
         ))}
       </div>
-
-      <button
-        type="button"
-        onClick={onAddCharacter}
-        className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-      >
-        <Plus className="h-4 w-4" />
-        Add Character
-      </button>
 
       <div className="flex flex-col gap-1 border-t border-border pt-4">
         <button
