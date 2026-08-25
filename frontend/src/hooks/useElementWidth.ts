@@ -23,7 +23,16 @@ export function useElementWidth<T extends HTMLElement>() {
 
     setWidth(node.getBoundingClientRect().width)
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(entry.contentRect.width)
+      if (!entry) return
+      const next = entry.contentRect.width
+      // 조상이 display:none이 되면(탭 전환으로 대시보드 컨테이너가 hidden 처리되는 경우 등)
+      // ResizeObserver가 폭을 0으로 보고한다 — 그 0을 그대로 반영하면 이 값에 기대는 조건부
+      // 렌더링(예: DashboardView의 `containerWidth > 0 && ...`)이 자식을 통째로 언마운트했다가
+      // 다시 보일 때 전부 새로 마운트해버려, 이미 불러온 위젯 배치를 매번 API로 다시 조회하고
+      // 로컬 편집 상태(열려 있던 모달 등)도 잃는다. 실제로 폭이 0인 레이아웃은 사실상 없으므로,
+      // 0으로 관측되면 무시하고 마지막으로 잰 양수 값을 그대로 유지한다 — 다시 보이면
+      // ResizeObserver가 실제 폭으로 다시 알려준다.
+      if (next > 0) setWidth(next)
     })
     observer.observe(node)
     observerRef.current = observer
