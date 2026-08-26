@@ -82,12 +82,12 @@ export function RaidTargetModal({
       .sort((a, b) => a.minItemLevel - b.minItemLevel),
   }))
     .filter((group) => group.difficulties.length > 0)
-    // 그룹 사이의 순서는 그 그룹에서 갈 수 있는 가장 어려운(최상위) 난이도 기준 내림차순 — 난이도가
-    // 오름차순이라 배열의 마지막 원소가 그룹의 최상위 목표다.
+    // 그룹 사이의 순서는 그 그룹의 가장 쉬운 난이도 기준 내림차순 — 난이도가 오름차순이라
+    // 배열의 첫 원소가 그 그룹에서 가장 쉬운 난이도다.
     .sort((a, b) => {
-      const bestA = a.difficulties[a.difficulties.length - 1]!.minItemLevel
-      const bestB = b.difficulties[b.difficulties.length - 1]!.minItemLevel
-      return bestB - bestA
+      const easiestA = a.difficulties[0]!.minItemLevel
+      const easiestB = b.difficulties[0]!.minItemLevel
+      return easiestB - easiestA
     })
 
   // 빈 위젯을 처음 설정할 땐 아무 것도 미리 골라두지 않는다 — 사용자가 직접 하나를 골라야 저장할 수 있다.
