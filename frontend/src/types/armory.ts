@@ -4,6 +4,11 @@ export interface EquipmentSlotDetail {
   refineLevel: number
   advancedRefineLevel: number
   quality: number
+  /** 재련 접두사("+13 ")를 뗀 아이템 이름(예: "운명의 업화 상의"). 강화 단계 색 구간을 세트
+   * 이름으로 구분하는 데 쓴다(lib/armoryColors.ts 참고). */
+  itemName: string
+  /** 아이템 아이콘 이미지 URL. 상세 배너에서 직업 아이콘 대신 실제 장비 이미지를 보여주는 데 쓴다. */
+  iconUrl: string
 }
 
 export interface EquipmentDetail {

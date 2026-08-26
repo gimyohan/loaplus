@@ -15,7 +15,13 @@ import {
 import type { ReactNode } from 'react'
 
 import { CharacterBanner } from '@/components/character/CharacterBanner'
-import { engravingLevelColor, qualityColor } from '@/lib/armoryColors'
+import {
+  advancedRefineLevelColor,
+  engravingLevelColor,
+  hasAdvancedRefine,
+  qualityColor,
+  refineLevelColor,
+} from '@/lib/armoryColors'
 import { BANNER_ZOOM_PERCENT, getBannerImagePosition } from '@/lib/bannerImagePosition'
 import { cn } from '@/lib/utils'
 import type { AccessoryDetail, EquipmentDetail, PolishEffect } from '@/types/armory'
@@ -167,7 +173,10 @@ export function CharacterBannerDetailed({
         <div className="grid flex-[5] grid-cols-2 grid-rows-3 gap-x-3 gap-y-1.5 p-3">
           {EQUIPMENT_SLOTS.map(({ key, label, icon: Icon }) => {
             const slot = equipment[key]
-            const color = qualityColor(slot.quality)
+            const qualityColorValue = qualityColor(slot.quality)
+            const refineColor = refineLevelColor(slot.refineLevel, slot.itemName)
+            const advancedRefineColor = advancedRefineLevelColor(slot.advancedRefineLevel)
+            const showAdvancedRefine = hasAdvancedRefine(slot.itemName)
             const isWeapon = key === 'weapon'
             return (
               <HoverDetail
@@ -177,39 +186,59 @@ export function CharacterBannerDetailed({
                   <div className="flex flex-col gap-2 text-base">
                     <p className="font-semibold text-foreground">{label}</p>
                     <p className="text-muted-foreground">
-                      재련 <span className="text-foreground">+{slot.refineLevel}</span>
+                      재련 <span style={{ color: refineColor }}>+{slot.refineLevel}</span>
                     </p>
+                    {/* "전율" 세트처럼 상급 재련 자체가 없는 아이템은 표시하지 않는다(hasAdvancedRefine). */}
+                    {showAdvancedRefine && (
+                      <p className="text-muted-foreground">
+                        상급 재련 <span style={{ color: advancedRefineColor }}>{slot.advancedRefineLevel}단계</span>
+                      </p>
+                    )}
                     <p className="text-muted-foreground">
-                      상급 재련 <span className="text-foreground">{slot.advancedRefineLevel}단계</span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      품질 <span style={{ color }}>{slot.quality}</span>
+                      품질 <span style={{ color: qualityColorValue }}>{slot.quality}</span>
                     </p>
                   </div>
                 }
               >
-                {/* w-fit + mx-auto로 이 블록 자체를 내용(아이콘+재련 텍스트) 너비만큼만 차지하게
-                    만든 뒤, 진행도 바를 w-full로 채운다 — 그러면 바의 왼쪽 끝은 아이콘에,
-                    오른쪽 끝은 재련 텍스트 끝에 정확히 맞춰진다. */}
-                <div className="mx-auto grid w-fit gap-1.5">
+                {/* 이 블록을 셀 전체 너비(w-full)로 고정한다 — 예전엔 w-fit으로 내용(아이콘+재련
+                    텍스트) 너비만큼만 차지하게 해서 바가 텍스트 끝에 맞춰지게 했었는데, "전율"처럼
+                    상급 재련 텍스트가 없는 슬롯만 블록이 좁아져 품질 게이지 바(quality%만큼 채우는
+                    바)의 실제 픽셀 길이가 다른 슬롯보다 짧아 보이는 문제가 있었다. 모든 슬롯이 같은
+                    너비를 쓰면 품질 값이 같을 때 바 길이도 항상 같아진다. */}
+                <div className="grid w-full gap-1.5">
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
-                        'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border bg-background',
+                        'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-background',
                         isWeapon ? 'border-primary' : 'border-border',
                       )}
                     >
-                      <Icon className={cn('h-7 w-7', isWeapon ? 'text-primary' : 'text-muted-foreground')} />
+                      {/* Open API가 내려주는 실제 장비 아이콘 이미지를 우선 쓰고, 없으면(구 저장
+                          데이터 등) 부위별 lucide 아이콘으로 대체한다. */}
+                      {slot.iconUrl ? (
+                        <img src={slot.iconUrl} alt={label} className="h-full w-full object-cover" />
+                      ) : (
+                        <Icon className={cn('h-7 w-7', isWeapon ? 'text-primary' : 'text-muted-foreground')} />
+                      )}
                     </div>
-                    <span className="font-mono text-xl font-bold leading-none whitespace-nowrap" style={{ color }}>
+                    <span
+                      className="font-mono text-xl font-bold leading-none whitespace-nowrap"
+                      style={{ color: refineColor }}
+                    >
                       +{slot.refineLevel}
-                      <span className="text-muted-foreground">/+{slot.advancedRefineLevel}</span>
+                      {showAdvancedRefine && (
+                        <span style={{ color: advancedRefineColor }}>/+{slot.advancedRefineLevel}</span>
+                      )}
                     </span>
                   </div>
                   <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full"
-                      style={{ width: `${slot.quality}%`, backgroundColor: color, boxShadow: `0 0 6px ${color}66` }}
+                      style={{
+                        width: `${slot.quality}%`,
+                        backgroundColor: qualityColorValue,
+                        boxShadow: `0 0 6px ${qualityColorValue}66`,
+                      }}
                     />
                   </div>
                 </div>

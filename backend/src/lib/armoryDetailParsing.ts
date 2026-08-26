@@ -23,6 +23,13 @@ export interface EquipmentSlotDetail {
   refineLevel: number
   advancedRefineLevel: number
   quality: number
+  /** 재련 접두사("+13 ")를 뗀 아이템 이름(예: "운명의 업화 상의"). 강화 단계 색 구간을 세트
+   * 이름으로 구분하기 위해 저장한다(workspace/frontend/src/lib/armoryColors.ts 참고) — 세트마다
+   * 같은 강화 단계라도 대응하는 아이템 레벨 폭이 달라, 이름 없이는 구간을 나눌 수 없다. */
+  itemName: string
+  /** 아이템 아이콘 이미지 URL(ArmoryEquipment[].Icon 그대로). 상세 배너에서 직업별 lucide
+   * 아이콘 대신 실제 장비 이미지를 보여주는 데 쓴다. */
+  iconUrl: string
 }
 
 export interface EquipmentDetail {
@@ -71,7 +78,13 @@ export interface ArmoryDetail {
   bracelet: BraceletDetail
 }
 
-const EMPTY_EQUIPMENT_SLOT: EquipmentSlotDetail = { refineLevel: 0, advancedRefineLevel: 0, quality: 0 }
+const EMPTY_EQUIPMENT_SLOT: EquipmentSlotDetail = {
+  refineLevel: 0,
+  advancedRefineLevel: 0,
+  quality: 0,
+  itemName: '',
+  iconUrl: '',
+}
 const EMPTY_ACCESSORY_SLOT: AccessorySlotDetail = { polishEffects: [] }
 
 const EQUIPMENT_SLOT_BY_TYPE: Record<string, keyof EquipmentDetail> = {
@@ -140,10 +153,12 @@ function parseEffectLines(html: string): PolishEffect[] {
   return effects
 }
 
-function parseEquipmentSlot(name: string, tooltip: Tooltip): EquipmentSlotDetail {
+function parseEquipmentSlot(name: string, iconUrl: string, tooltip: Tooltip): EquipmentSlotDetail {
   // 이름 앞 "+13 " 접두사에서 재련 단계를 얻는다. 접두사가 없으면(미재련) 0단계다.
   const refineMatch = name.match(/^\+(\d+)\s/)
   const refineLevel = refineMatch ? Number.parseInt(refineMatch[1], 10) : 0
+  // 접두사를 뗀 나머지가 세트 구분에 쓰는 아이템 이름이다(예: "운명의 업화 상의").
+  const itemName = refineMatch ? name.slice(refineMatch[0].length) : name
 
   let advancedRefineLevel = 0
   let quality = 0
@@ -162,7 +177,7 @@ function parseEquipmentSlot(name: string, tooltip: Tooltip): EquipmentSlotDetail
       if (match) advancedRefineLevel = Number.parseInt(match[1], 10)
     }
   }
-  return { refineLevel, advancedRefineLevel, quality }
+  return { refineLevel, advancedRefineLevel, quality, itemName, iconUrl }
 }
 
 function parseAbilityStoneEngravings(tooltip: Tooltip): AbilityStoneEngraving[] {
@@ -216,7 +231,7 @@ export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | nul
 
     const equipmentSlot = EQUIPMENT_SLOT_BY_TYPE[item.Type]
     if (equipmentSlot) {
-      equipment[equipmentSlot] = parseEquipmentSlot(item.Name, tooltip)
+      equipment[equipmentSlot] = parseEquipmentSlot(item.Name, item.Icon, tooltip)
       continue
     }
 

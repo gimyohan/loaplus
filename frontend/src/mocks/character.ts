@@ -1,9 +1,15 @@
 import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail } from '@/types/armory'
 import type { CharacterSummary } from '@/types/character'
 
-const mockEquipmentSlot = { refineLevel: 15, advancedRefineLevel: 5, quality: 82 }
+const mockEquipmentSlot = {
+  refineLevel: 15,
+  advancedRefineLevel: 5,
+  quality: 82,
+  itemName: '운명의 업화 방어구',
+  iconUrl: '',
+}
 const mockEquipment: EquipmentDetail = {
-  weapon: { refineLevel: 17, advancedRefineLevel: 8, quality: 95 },
+  weapon: { refineLevel: 17, advancedRefineLevel: 8, quality: 95, itemName: '운명의 업화 무기', iconUrl: '' },
   head: mockEquipmentSlot,
   chest: mockEquipmentSlot,
   pants: mockEquipmentSlot,
