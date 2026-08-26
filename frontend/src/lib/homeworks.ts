@@ -39,21 +39,60 @@ export interface Homeworks {
   halHourglass: HalHourglassSummary
 }
 
-export async function fetchHomeworks(characterId: string): Promise<Homeworks> {
-  const data = await apiFetch<{
+// 카드 하나에 배치된 가디언/쿠르잔 전선/낙원/에브니 큐브/할의 모래시계 위젯이 마운트 시
+// 각자 독립적으로 fetchHomeworks(characterId)를 호출한다(WidgetVisual.tsx). 이 호출들은
+// 전부 같은 characterId·같은 엔드포인트를 부르므로 두 겹으로 합친다:
+// 1) 진행 중인 요청은 Promise를 공유해 실제 HTTP 호출을 1번으로 합친다.
+// 2) 막 받아온 응답은 아주 짧게(HOMEWORKS_CACHE_TTL_MS) 캐시해둔다 — 위젯들의 useEffect가
+//    같은 타이밍에 실행되지 않고 몇 ms 어긋나게 스케줄되는 경우(React StrictMode의 개발 모드
+//    2회 실행 포함)까지 흡수하기 위함이다. 값이 바뀌었을 수 있는 시점(체크박스 해제 등 로그
+//    롤백 뒤 재조회)에는 `force: true`로 이 캐시를 건너뛰어 항상 서버에서 새로 받아온다.
+const HOMEWORKS_CACHE_TTL_MS = 300
+
+const inFlightHomeworks = new Map<string, Promise<Homeworks>>()
+const resolvedHomeworksCache = new Map<string, { data: Homeworks; expiresAt: number }>()
+
+export function fetchHomeworks(
+  characterId: string,
+  options?: { force?: boolean },
+): Promise<Homeworks> {
+  if (!options?.force) {
+    const cached = resolvedHomeworksCache.get(characterId)
+    if (cached && cached.expiresAt > Date.now()) {
+      return Promise.resolve(cached.data)
+    }
+
+    const existing = inFlightHomeworks.get(characterId)
+    if (existing) return existing
+  }
+
+  const promise = apiFetch<{
     guardian: HomeworkSummaryDto
     kurzan: HomeworkSummaryDto
     paradise: ParadiseSummary
     ebonyCube: EbonyCubeSummary
     halHourglass: HalHourglassSummary
   }>(`/api/characters/${characterId}/homeworks`)
-  return {
-    guardian: toSummary(data.guardian),
-    kurzan: toSummary(data.kurzan),
-    paradise: data.paradise,
-    ebonyCube: data.ebonyCube,
-    halHourglass: data.halHourglass,
-  }
+    .then((data) => {
+      const result: Homeworks = {
+        guardian: toSummary(data.guardian),
+        kurzan: toSummary(data.kurzan),
+        paradise: data.paradise,
+        ebonyCube: data.ebonyCube,
+        halHourglass: data.halHourglass,
+      }
+      resolvedHomeworksCache.set(characterId, {
+        data: result,
+        expiresAt: Date.now() + HOMEWORKS_CACHE_TTL_MS,
+      })
+      return result
+    })
+    .finally(() => {
+      inFlightHomeworks.delete(characterId)
+    })
+
+  inFlightHomeworks.set(characterId, promise)
+  return promise
 }
 
 export async function consumeParadiseTicket(characterId: string): Promise<ParadiseSummary> {

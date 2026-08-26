@@ -181,14 +181,15 @@ function GuardianWidgetBound({
 
   useEffect(() => {
     let cancelled = false
-    const load = () => {
-      fetchHomeworks(characterId).then(({ guardian }) => {
+    const load = (force = false) => {
+      fetchHomeworks(characterId, { force }).then(({ guardian }) => {
         if (!cancelled) setGuardianData(guardian)
       })
     }
     load()
     // Logs 탭에서 이 캐릭터의 HARVEST_GUARDIAN 로그를 되돌리면 여기도 다시 조회해 반영한다.
-    const unsubscribe = subscribeHomeworksChanged(characterId, load)
+    // 이때는 캐시가 아니라 항상 최신 값을 받아야 하므로 force로 부른다.
+    const unsubscribe = subscribeHomeworksChanged(characterId, () => load(true))
     return () => {
       cancelled = true
       unsubscribe()
@@ -217,7 +218,7 @@ function GuardianWidgetBound({
           // 체크 해제 = 로그 롤백 재사용(게이지 원복 + 로그 삭제). /guardian/reset과는 다른 동작이다
           // (docs/api.typ "체크박스 해제" 참고) — 롤백 후 최신 상태를 다시 조회한다.
           undoGuardianHarvest(characterId)
-            .then(() => fetchHomeworks(characterId))
+            .then(() => fetchHomeworks(characterId, { force: true }))
             .then(({ guardian }) => {
               setGuardianData(guardian)
               notifyHomeworksChanged(characterId)
@@ -272,14 +273,15 @@ function KurzanFrontlineWidgetBound({
 
   useEffect(() => {
     let cancelled = false
-    const load = () => {
-      fetchHomeworks(characterId).then(({ kurzan }) => {
+    const load = (force = false) => {
+      fetchHomeworks(characterId, { force }).then(({ kurzan }) => {
         if (!cancelled) setKurzanData(kurzan)
       })
     }
     load()
     // Logs 탭에서 이 캐릭터의 HARVEST_KURZAN 로그를 되돌리면 여기도 다시 조회해 반영한다.
-    const unsubscribe = subscribeHomeworksChanged(characterId, load)
+    // 이때는 캐시가 아니라 항상 최신 값을 받아야 하므로 force로 부른다.
+    const unsubscribe = subscribeHomeworksChanged(characterId, () => load(true))
     return () => {
       cancelled = true
       unsubscribe()
@@ -308,7 +310,7 @@ function KurzanFrontlineWidgetBound({
           // 체크 해제 = 로그 롤백 재사용(게이지 원복 + 로그 삭제). 공명의 비약(/kurzan/reset)과는
           // 다른 동작이다(docs/api.typ "체크박스 해제" 참고) — 롤백 후 최신 상태를 다시 조회한다.
           undoKurzanHarvest(characterId)
-            .then(() => fetchHomeworks(characterId))
+            .then(() => fetchHomeworks(characterId, { force: true }))
             .then(({ kurzan }) => {
               setKurzanData(kurzan)
               notifyHomeworksChanged(characterId)
@@ -450,13 +452,13 @@ function EbonyCubeWidgetBound({ characterId, characterNameForModal }: EbonyCubeW
 
   useEffect(() => {
     let cancelled = false
-    const load = () => {
-      fetchHomeworks(characterId).then(({ ebonyCube }) => {
+    const load = (force = false) => {
+      fetchHomeworks(characterId, { force }).then(({ ebonyCube }) => {
         if (!cancelled) setEbonyCubeData(ebonyCube)
       })
     }
     load()
-    const unsubscribe = subscribeHomeworksChanged(characterId, load)
+    const unsubscribe = subscribeHomeworksChanged(characterId, () => load(true))
     return () => {
       cancelled = true
       unsubscribe()
@@ -522,14 +524,15 @@ function HalHourglassWidgetBound({ characterId, characterNameForModal }: HalHour
 
   useEffect(() => {
     let cancelled = false
-    const load = () => {
-      fetchHomeworks(characterId).then(({ halHourglass }) => {
+    const load = (force = false) => {
+      fetchHomeworks(characterId, { force }).then(({ halHourglass }) => {
         if (!cancelled) setHourglassData(halHourglass)
       })
     }
     load()
     // Logs 탭에서 이 캐릭터의 HAL_HOURGLASS_COMPLETE 로그를 되돌리면 여기도 다시 조회해 반영한다.
-    const unsubscribe = subscribeHomeworksChanged(characterId, load)
+    // 이때는 캐시가 아니라 항상 최신 값을 받아야 하므로 force로 부른다.
+    const unsubscribe = subscribeHomeworksChanged(characterId, () => load(true))
     return () => {
       cancelled = true
       unsubscribe()
@@ -563,7 +566,7 @@ function HalHourglassWidgetBound({ characterId, characterNameForModal }: HalHour
           // 체크 해제 = 로그 롤백 재사용(스택/완료 여부 원복). 가디언/쿠르잔 '오늘 수확' 해제와
           // 동일한 패턴이다(docs/api.typ "체크박스 해제" 참고).
           undoHalHourglassComplete(characterId)
-            .then(() => fetchHomeworks(characterId))
+            .then(() => fetchHomeworks(characterId, { force: true }))
             .then(({ halHourglass }) => {
               setHourglassData(halHourglass)
               notifyHomeworksChanged(characterId)
