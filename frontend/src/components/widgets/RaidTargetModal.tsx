@@ -47,6 +47,10 @@ export interface RaidTargetModalProps {
   locked?: boolean
   submitLabel?: string
   onConfirm: (raidKey: string, difficultyKey: string) => void
+  /** 골드 획득 허용/거부. 목표 변경과 동일하게 완료된 관문이 있으면(locked) 바꿀 수 없고,
+   * 그 외에는 별도 토글로 즉시 저장한다(docs/widgets.typ "레이드" 참고). */
+  goldRewardEnabled: boolean
+  onGoldRewardChange: (enabled: boolean) => void
 }
 
 /**
@@ -67,6 +71,8 @@ export function RaidTargetModal({
   locked = false,
   submitLabel = '저장',
   onConfirm,
+  goldRewardEnabled,
+  onGoldRewardChange,
 }: RaidTargetModalProps) {
   const groups = RAID_GROUPS.map((group) => ({
     ...group,
@@ -111,9 +117,40 @@ export function RaidTargetModal({
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {locked && (
           <p className="rounded-lg border border-dashed border-border bg-muted p-3 text-xs text-muted-foreground">
-            이미 완료한 관문이 있어 목표를 바꿀 수 없습니다. 다른 레이드를 진행하려면 레이드 위젯을 새로 추가하세요.
+            이미 완료한 관문이 있어 목표와 골드 획득 설정을 바꿀 수 없습니다. 다른 레이드를 진행하려면 레이드 위젯을 새로 추가하세요.
           </p>
         )}
+
+        {/* 목표(target)와 동일하게, 완료된 관문이 있으면(locked) 바꿀 수 없다 — 아래 목표 선택
+            폼과 별개로 클릭 즉시 저장한다(docs/widgets.typ "레이드" 참고). */}
+        <section className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+          <div className="flex flex-col gap-0.5">
+            <h3 className="text-sm font-semibold text-foreground">골드 획득</h3>
+            <p className="text-xs text-muted-foreground">
+              꺼두면 이 레이드의 관문을 완료해도 골드/귀속골드를 받지 않은 것으로 기록됩니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={goldRewardEnabled}
+            aria-label="골드 획득"
+            disabled={locked}
+            onClick={() => onGoldRewardChange(!goldRewardEnabled)}
+            className={cn(
+              'relative h-6 w-11 shrink-0 rounded-full transition-colors',
+              goldRewardEnabled ? 'bg-primary' : 'bg-border',
+              locked && 'cursor-not-allowed opacity-50',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+                goldRewardEnabled && 'translate-x-5',
+              )}
+            />
+          </button>
+        </section>
 
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold text-foreground">목표 레이드</h3>

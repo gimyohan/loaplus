@@ -107,6 +107,7 @@ const MOCK_RAID_PREVIEW: RaidTargetSummary = {
   raidKey: null,
   difficultyKey: null,
   gates: [],
+  goldRewardEnabled: true,
 }
 
 export interface WidgetVisualProps {
@@ -139,6 +140,8 @@ export interface WidgetVisualProps {
   onRaidMoreRewardToggle?: (gateIndex: number, enabled: boolean) => void
   /** 레이드 목표(레이드/난이도) 변경(interactive일 때만 호출됨) */
   onRaidTargetChange?: (raidKey: string, difficultyKey: string) => void
+  /** 레이드 골드 획득 허용/거부 토글(interactive일 때만 호출됨) */
+  onRaidGoldRewardChange?: (enabled: boolean) => void
   className?: string
 }
 
@@ -614,6 +617,7 @@ export function WidgetVisual({
   onRaidGateToggle,
   onRaidMoreRewardToggle,
   onRaidTargetChange,
+  onRaidGoldRewardChange,
   className,
 }: WidgetVisualProps) {
   const catalogItem = WIDGET_CATALOG.find((item) => item.kind === kind)
@@ -850,6 +854,7 @@ export function WidgetVisual({
             raidName={raidDefinition?.name ?? raidData.raidKey}
             difficultyName={difficultyDefinition?.name ?? raidData.difficultyKey}
             gates={gateViews}
+            goldRewardEnabled={raidData.goldRewardEnabled}
             onToggleGateCleared={onRaidGateToggle}
             onToggleMoreReward={onRaidMoreRewardToggle}
             onOpenSettings={() => setIsRaidSettingsOpen(true)}
@@ -868,6 +873,8 @@ export function WidgetVisual({
             onRaidTargetChange?.(raidKey, difficultyKey)
             setIsRaidSettingsOpen(false)
           }}
+          goldRewardEnabled={raidData.goldRewardEnabled}
+          onGoldRewardChange={(enabled) => onRaidGoldRewardChange?.(enabled)}
         />
       </>
     )

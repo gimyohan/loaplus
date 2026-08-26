@@ -38,7 +38,7 @@ export function toWidgetResponse(widget: {
   height: number
   customData: unknown
   raidId?: string | null
-  raid?: { raidKey: string | null; difficultyKey: string | null; gates: unknown } | null
+  raid?: { raidKey: string | null; difficultyKey: string | null; gates: unknown; goldRewardEnabled: boolean } | null
 }) {
   return {
     id: widget.id,
@@ -53,7 +53,12 @@ export function toWidgetResponse(widget: {
       ? {
           raidId: widget.raidId ?? null,
           raid: widget.raid
-            ? { raidKey: widget.raid.raidKey, difficultyKey: widget.raid.difficultyKey, gates: widget.raid.gates }
+            ? {
+                raidKey: widget.raid.raidKey,
+                difficultyKey: widget.raid.difficultyKey,
+                gates: widget.raid.gates,
+                goldRewardEnabled: widget.raid.goldRewardEnabled,
+              }
             : null,
         }
       : {}),

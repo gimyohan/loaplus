@@ -19,6 +19,8 @@ export interface PlacedWidgetContentProps {
   onRaidMoreRewardToggle?: (gateIndex: number, enabled: boolean) => void
   /** 레이드 목표(레이드/난이도) 변경(interactive일 때만 의미 있음) */
   onRaidTargetChange?: (raidKey: string, difficultyKey: string) => void
+  /** 레이드 골드 획득 허용/거부 토글(interactive일 때만 의미 있음) */
+  onRaidGoldRewardChange?: (enabled: boolean) => void
 }
 
 export function PlacedWidgetContent({
@@ -31,6 +33,7 @@ export function PlacedWidgetContent({
   onRaidGateToggle,
   onRaidMoreRewardToggle,
   onRaidTargetChange,
+  onRaidGoldRewardChange,
 }: PlacedWidgetContentProps) {
   return (
     <WidgetVisual
@@ -47,6 +50,7 @@ export function PlacedWidgetContent({
       onRaidGateToggle={onRaidGateToggle}
       onRaidMoreRewardToggle={onRaidMoreRewardToggle}
       onRaidTargetChange={onRaidTargetChange}
+      onRaidGoldRewardChange={onRaidGoldRewardChange}
       className="h-full w-full"
     />
   )

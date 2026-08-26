@@ -1,4 +1,4 @@
-import { Check, Settings } from 'lucide-react'
+import { Ban, Check, Settings } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -15,6 +15,9 @@ export interface RaidWidgetProps {
   /** 난이도 표시 (예: "하드") */
   difficultyName: string | null
   gates: RaidGateView[]
+  /** 이 슬롯의 골드 획득 허용/거부. false면 관문을 완료해도 골드를 받지 못하므로 관문별 획득량
+   * 표시 자체를 숨긴다(docs/widgets.typ "레이드" 참고). */
+  goldRewardEnabled?: boolean
   onToggleGateCleared?: (gateIndex: number, cleared: boolean) => void
   onToggleMoreReward?: (gateIndex: number, enabled: boolean) => void
   onOpenSettings?: () => void
@@ -22,16 +25,17 @@ export interface RaidWidgetProps {
 }
 
 /**
- * 거래 가능한 골드(secondary)와 귀속 골드(muted)를 색으로만 구분해 보여준다 — "골드"/"귀속" 같은
- * 단위 글자는 붙이지 않는다.
+ * 골드(gold)와 귀속 골드(muted)를 색으로만 구분해 보여준다 — "골드"/"귀속" 같은 단위 글자는
+ * 붙이지 않는다. 이 슬롯이 골드 획득을 거부 중이면(goldRewardEnabled: false) 실제로 받지 못할
+ * 금액을 보여주는 게 오히려 혼란을 주므로, 카탈로그 값과 무관하게 항상 "-"로 표시한다.
  */
-function GateRewardText({ gate }: { gate: RaidGateView }) {
-  if (gate.goldReward <= 0 && gate.boundGoldReward <= 0) {
+function GateRewardText({ gate, goldRewardEnabled }: { gate: RaidGateView; goldRewardEnabled: boolean }) {
+  if (!goldRewardEnabled || (gate.goldReward <= 0 && gate.boundGoldReward <= 0)) {
     return <span className="text-center font-mono text-sm leading-tight text-muted-foreground">-</span>
   }
   return (
     <span className="flex flex-wrap items-center justify-center gap-x-1 text-center font-mono text-sm leading-tight">
-      {gate.goldReward > 0 && <span className="text-secondary">{gate.goldReward.toLocaleString('ko-KR')}</span>}
+      {gate.goldReward > 0 && <span className="text-gold">{gate.goldReward.toLocaleString('ko-KR')}</span>}
       {gate.goldReward > 0 && gate.boundGoldReward > 0 && <span className="text-muted-foreground">/</span>}
       {gate.boundGoldReward > 0 && (
         <span className="text-muted-foreground">{gate.boundGoldReward.toLocaleString('ko-KR')}</span>
@@ -48,6 +52,7 @@ export function RaidWidget({
   raidName,
   difficultyName,
   gates,
+  goldRewardEnabled = true,
   onToggleGateCleared,
   onToggleMoreReward,
   onOpenSettings,
@@ -67,6 +72,17 @@ export function RaidWidget({
           {difficultyName && (
             <span className="shrink-0 rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-base uppercase tracking-wide text-secondary">
               {difficultyName}
+            </span>
+          )}
+          {/* 카탈로그상 이 관문들이 골드를 주더라도, 이 슬롯이 골드 획득을 거부 중이면 받지 못한다 —
+              관문마다 "-"만 보이는 이유를 헤더에서 바로 알 수 있게 한다. */}
+          {raidName !== null && !goldRewardEnabled && (
+            <span
+              title="골드 획득 거부 중"
+              className="flex shrink-0 items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              골드
             </span>
           )}
         </div>
@@ -132,7 +148,7 @@ export function RaidWidget({
                 <span aria-hidden="true" />
               </div>
 
-              <GateRewardText gate={gate} />
+              <GateRewardText gate={gate} goldRewardEnabled={goldRewardEnabled} />
 
               <label
                 onClick={(event) => event.stopPropagation()}

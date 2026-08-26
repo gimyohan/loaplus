@@ -185,6 +185,10 @@ model CharacterRaid {
   /// 배열 길이(관문 수)는 raid_key+difficulty_key로 정해진다 (docs/db_schema.typ 참고).
   /// 목표가 비어있으면(raid_key가 null) 빈 배열이다.
   gates Json
+  /// 골드 획득 허용/거부. false인 동안 완료되는 관문은 Action_Logs에 rewards: []로 기록되어
+  /// Character_Statistics의 레이드 골드 컬럼이 늘어나지 않는다. gates와 달리 주간 초기화
+  /// 대상이 아니다 (docs/db_schema.typ 참고).
+  goldRewardEnabled Boolean @default(true) @map("gold_reward_enabled")
 
   character       Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
   dashboardWidget DashboardWidget?

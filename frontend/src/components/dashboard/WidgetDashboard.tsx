@@ -12,6 +12,7 @@ import {
   deleteRaidWidget,
   setRaidGateMoreReward,
   undoRaidGateClear,
+  updateRaidGoldReward,
   updateRaidPosition,
   updateRaidTarget,
 } from '@/lib/raids'
@@ -354,6 +355,16 @@ export function WidgetDashboard({
       .catch((err) => console.error('레이드 목표 변경 실패', err))
   }
 
+  // 골드 획득 허용/거부 토글. 목표 변경과 동일하게 완료된 관문이 있으면 서버가 409를 반환하므로
+  // (RaidTargetModal이 locked일 때 스위치를 비활성화해 평소엔 이 경로를 안 타지만) 별도로 즉시 저장한다.
+  const changeRaidGoldReward = (widgetId: string, enabled: boolean) => {
+    const widget = widgets.find((w) => w.id === widgetId)
+    if (!widget?.raidId || !boundCharacterId) return
+    updateRaidGoldReward(boundCharacterId, widget.raidId, enabled)
+      .then((raid) => setWidgets((prev) => prev.map((w) => (w.id === widgetId ? { ...w, raid } : w))))
+      .catch((err) => console.error('레이드 골드 획득 설정 변경 실패', err))
+  }
+
   const [paletteDrag, setPaletteDrag] = useState<PaletteDragState | null>(null)
 
   // 현재 포인터 위치 기준으로 스냅될 그리드 칸 좌표와, 그 자리에 실제로 놓을 수 있는지를 계산한다.
@@ -570,6 +581,7 @@ export function WidgetDashboard({
                   toggleRaidGateMoreReward(widget.id, gateIndex, enabled)
                 }
                 onRaidTargetChange={(raidKey, difficultyKey) => changeRaidTarget(widget.id, raidKey, difficultyKey)}
+                onRaidGoldRewardChange={(enabled) => changeRaidGoldReward(widget.id, enabled)}
               />
             </div>
           ))}

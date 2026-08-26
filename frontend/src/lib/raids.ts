@@ -57,6 +57,21 @@ export async function updateRaidTarget(
 }
 
 /**
+ * 골드 획득 허용/거부 토글. 목표 변경과 동일하게, 완료된 관문이 하나라도 있으면 서버가 409를
+ * 반환한다(docs/api.typ 참고) — 이미 지급된 과거 관문의 보상/통계는 소급 조정되지 않는다.
+ */
+export async function updateRaidGoldReward(
+  characterId: string,
+  raidId: string,
+  enabled: boolean,
+): Promise<RaidTargetSummary> {
+  return apiFetch<RaidTargetDto>(`/api/characters/${characterId}/raids/${raidId}/gold-reward`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  })
+}
+
+/**
  * gateIndex 관문 하나만 완료 처리한다 — 연쇄(그보다 앞선 미완료 관문까지 함께 완료)는 이
  * 함수의 책임이 아니다. gateIndex보다 앞선 관문이 아직 미완료면 서버가 409로 거부하므로,
  * 연쇄가 필요하면 호출부(WidgetDashboard의 toggleRaidGateCleared)가 관문 순서대로 이 함수를

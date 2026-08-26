@@ -33,6 +33,10 @@ const moreRewardSchema = z.object({
   enabled: z.boolean(),
 })
 
+const goldRewardSchema = z.object({
+  enabled: z.boolean(),
+})
+
 const positionUpdateSchema = z.object({
   x: z.number().int().min(0),
   y: z.number().int().min(0),
@@ -42,12 +46,19 @@ const positionUpdateSchema = z.object({
 
 const gateClearSchema = z.object({ description: z.string().trim().min(1).optional() }).optional()
 
-function toRaidResponse(raid: { id: string; raidKey: string | null; difficultyKey: string | null; gates: unknown }) {
+function toRaidResponse(raid: {
+  id: string
+  raidKey: string | null
+  difficultyKey: string | null
+  gates: unknown
+  goldRewardEnabled: boolean
+}) {
   return {
     raidId: raid.id,
     raidKey: raid.raidKey,
     difficultyKey: raid.difficultyKey,
     gates: raid.gates as RaidGateState[],
+    goldRewardEnabled: raid.goldRewardEnabled,
   }
 }
 
@@ -237,6 +248,39 @@ export async function raidRoutes(fastify: FastifyInstance) {
     },
   )
 
+  // 목표 변경(target)과 동일하게, 완료된 관문이 하나라도 있으면(gates에 cleared: true가 존재)
+  // 바꿀 수 없다 — 과거에 지급된 보상/통계는 소급 조정되지 않으므로, 이미 골드를 받은 관문이
+  // 있는 상태에서 값을 바꾸면 그 슬롯의 골드 획득 여부가 관문마다 뒤섞여 보이는 걸 막기 위함
+  // (docs/db_schema.typ의 Character_Raids.gold_reward_enabled 참고).
+  fastify.patch<{ Params: { characterId: string; raidId: string } }>(
+    '/api/characters/:characterId/raids/:raidId/gold-reward',
+    { preHandler: auth, schema: { tags: ['Raid'], summary: '골드 획득 허용/거부 토글' } },
+    async (request, reply) => {
+      const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
+      if (!character) return
+
+      const raid = await requireOwnedRaid(character.id, request.params.raidId, reply)
+      if (!raid) return
+
+      const parsed = goldRewardSchema.safeParse(request.body)
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'invalid_request' })
+      }
+
+      const gates = raid.gates as unknown as RaidGateState[]
+      if (gates.some((gate) => gate.cleared)) {
+        return reply.code(409).send({ error: 'raid_already_in_progress' })
+      }
+
+      const updated = await fastify.prisma.characterRaid.update({
+        where: { id: raid.id },
+        data: { goldRewardEnabled: parsed.data.enabled },
+      })
+
+      return reply.send(toRaidResponse(updated))
+    },
+  )
+
   fastify.post<{ Params: { characterId: string; raidId: string; gateIndex: string } }>(
     '/api/characters/:characterId/raids/:raidId/gates/:gateIndex/clear',
     { preHandler: auth, schema: { tags: ['Raid'], summary: '레이드 관문 완료 처리' } },
@@ -282,13 +326,19 @@ export async function raidRoutes(fastify: FastifyInstance) {
 
       // '더보기'는 관문 완료와 독립적인 별개 플래그라 보상 계산에 관여하지 않는다 — 관문을
       // 완료하면 '더보기' on/off와 무관하게 항상 표준 골드/귀속골드 보상을 그대로 로그에 남긴다.
+      // 다만 이 슬롯이 지금 골드 획득을 거부(gold_reward_enabled: false) 중이면 보상을 빈
+      // 배열로 넘겨 로그에 rewards가 남지 않게 하고, Character_Statistics 갱신도 건너뛴다
+      // (docs/db_schema.typ의 Character_Raids.gold_reward_enabled 참고). 관문 완료 처리와
+      // 연쇄 규칙 자체는 이 값과 무관하게 항상 동일하게 동작한다.
+      const rewards = raid.goldRewardEnabled ? buildRaidGateRewardEntries(difficulty.gates[gateIndex]) : []
+
       const updated = await createRaidGateClearLog(fastify.prisma, {
         userId: request.userId!,
         characterId: character.id,
         raidId: raid.id,
         gates,
         gateIndex,
-        rewards: buildRaidGateRewardEntries(difficulty.gates[gateIndex]),
+        rewards,
         description: parsed.data?.description,
       })
 
