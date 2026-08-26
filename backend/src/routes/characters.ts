@@ -12,6 +12,11 @@ const registerCharacterSchema = z.object({
   characterName: z.string().trim().min(1),
 })
 
+// 한 유저(user_id)가 등록할 수 있는 캐릭터 카드 최대 개수. 나중에 상향될 가능성이 높은 값이라
+// 상수 하나로만 관리한다(docs/api.typ "캐릭터 등록 / 조회 / 삭제", docs/db_schema.typ의
+// Characters 참고 — 이 제약은 DB CHECK가 아니라 등록 시점에 행 수를 세어 판단한다).
+const MAX_CHARACTERS_PER_USER = 30
+
 /** Open API 조회 실패를 적절한 상태코드로 응답하고 null을 반환한다. 성공하면 배너 데이터를 반환한다. */
 async function fetchBannerOrRespondError(
   request: FastifyRequest,
@@ -168,6 +173,13 @@ export async function characterRoutes(fastify: FastifyInstance) {
     const parsed = registerCharacterSchema.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
+    }
+
+    // 로스트아크 Open API를 호출하기 전에 먼저 확인한다 — 어차피 거부할 등록 요청 때문에 개인/공용
+    // 키의 분당 호출 한도를 소모하지 않기 위함(docs/api.typ "캐릭터 등록 / 조회 / 삭제" 참고).
+    const existingCount = await fastify.prisma.character.count({ where: { userId: request.userId! } })
+    if (existingCount >= MAX_CHARACTERS_PER_USER) {
+      return reply.code(422).send({ error: 'character_limit_reached' })
     }
 
     const apiKey = await resolveApiKeyOrRespondError(request, reply)

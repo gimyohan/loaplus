@@ -2,6 +2,11 @@ import { ApiError, apiFetch } from '@/lib/api'
 import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail } from '@/types/armory'
 import type { CharacterSibling, CharacterSummary } from '@/types/character'
 
+// 한 유저가 등록할 수 있는 캐릭터 카드 최대 개수. 백엔드
+// workspace/backend/src/routes/characters.ts의 MAX_CHARACTERS_PER_USER와 항상 같은 값으로
+// 맞춰야 한다(FE/BE 양쪽에 동일한 상수를 두는 패턴 — raidCatalog.json 등과 동일).
+export const MAX_CHARACTERS_PER_USER = 30
+
 const CHARACTER_ERROR_MESSAGES: Record<string, string> = {
   lostark_key_required: '먼저 로스트아크 API 키를 등록해 주세요.',
   lostark_key_invalid: '등록된 로스트아크 API 키가 유효하지 않습니다.',
@@ -9,6 +14,7 @@ const CHARACTER_ERROR_MESSAGES: Record<string, string> = {
   character_not_found: '해당 이름의 캐릭터를 찾을 수 없습니다.',
   lostark_api_unavailable: '로스트아크 API에 접속할 수 없습니다. 잠시 후 다시 시도해 주세요.',
   item_level_too_low: '아이템 레벨 1,640 미만인 캐릭터는 추가할 수 없습니다.',
+  character_limit_reached: `캐릭터는 최대 ${MAX_CHARACTERS_PER_USER}개까지 등록할 수 있습니다.`,
 }
 
 /** 캐릭터 조회/등록 관련 ApiError를 사용자에게 보여줄 한글 메시지로 변환한다. */

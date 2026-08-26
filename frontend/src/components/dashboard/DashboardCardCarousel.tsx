@@ -5,6 +5,7 @@ import { AddCharacterCard } from '@/components/dashboard/AddCharacterCard'
 import { DashboardCard } from '@/components/dashboard/DashboardCard'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { useElementWidth } from '@/hooks/useElementWidth'
+import { MAX_CHARACTERS_PER_USER } from '@/lib/characters'
 
 export interface DashboardCardCarouselProps {
   cardIds: string[]
@@ -30,13 +31,16 @@ export function DashboardCardCarousel({
   const { characters } = useCharacterDirectory()
   const { ref, width } = useElementWidth<HTMLDivElement>()
   const [index, setIndex] = useState(0)
-  const slideCount = cardIds.length + 1
-  const isAddSlide = index === cardIds.length
+  // 이미 최대 개수를 등록한 상태면 "새 카드 추가" 슬라이드 자체를 없앤다 — 어차피 이름을 입력하는
+  // 순간 서버가 거부할 걸 알면서 빈 카드부터 만들게 두는 건 혼란만 준다(docs/api.typ 참고).
+  const atCharacterLimit = characters.length >= MAX_CHARACTERS_PER_USER
+  const slideCount = cardIds.length + (atCharacterLimit ? 0 : 1)
+  const isAddSlide = !atCharacterLimit && index === cardIds.length
 
-  // 카드가 삭제되는 등 목록이 짧아져 현재 인덱스가 범위를 벗어나면 마지막 슬라이드(추가 타일)로 당겨온다.
+  // 카드가 삭제되는 등 목록이 짧아져 현재 인덱스가 범위를 벗어나면 마지막 슬라이드로 당겨온다.
   useEffect(() => {
-    setIndex((prev) => Math.min(prev, cardIds.length))
-  }, [cardIds.length])
+    setIndex((prev) => Math.min(prev, slideCount - 1))
+  }, [slideCount])
 
   const currentId = isAddSlide ? undefined : cardIds[index]
   const boundCharacter = currentId ? characters.find((character) => character.id === currentId) : undefined

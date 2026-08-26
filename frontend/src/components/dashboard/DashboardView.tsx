@@ -4,6 +4,7 @@ import { DashboardCardCarousel } from '@/components/dashboard/DashboardCardCarou
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { useElementWidth } from '@/hooks/useElementWidth'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { MAX_CHARACTERS_PER_USER } from '@/lib/characters'
 
 export interface DashboardViewProps {
   cardIds: string[]
@@ -34,12 +35,15 @@ export function DashboardView({
   const { characters } = useCharacterDirectory()
   const isMobile = useIsMobile()
   const { ref, width: containerWidth } = useElementWidth<HTMLDivElement>()
+  // 이미 최대 개수를 등록한 상태면 "새 카드 추가" 타일 자체를 숨긴다 — 어차피 이름을 입력하는
+  // 순간 서버가 거부할 걸 알면서 빈 카드부터 만들게 두는 건 혼란만 준다(docs/api.typ 참고).
+  const atCharacterLimit = characters.length >= MAX_CHARACTERS_PER_USER
 
   if (cardIds.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-12">
         <p className="text-sm text-muted-foreground">등록된 카드가 없습니다. 아래에서 캐릭터를 추가해 보세요.</p>
-        <AddCharacterCard onClick={onAddCharacter} className="w-full max-w-[240px]" />
+        {!atCharacterLimit && <AddCharacterCard onClick={onAddCharacter} className="w-full max-w-[240px]" />}
       </div>
     )
   }
@@ -90,7 +94,7 @@ export function DashboardView({
             />
           )
         })}
-      {containerWidth > 0 && <AddCharacterCard onClick={onAddCharacter} width={cardWidth} />}
+      {containerWidth > 0 && !atCharacterLimit && <AddCharacterCard onClick={onAddCharacter} width={cardWidth} />}
     </div>
   )
 }

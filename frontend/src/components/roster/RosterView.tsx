@@ -3,7 +3,8 @@ import { useState, type FormEvent } from 'react'
 import { CharacterOrderList } from '@/components/roster/CharacterOrderList'
 import { Button } from '@/components/ui/button'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
-import { describeCharacterApiError, fetchCharacterSiblings } from '@/lib/characters'
+import { describeCharacterApiError, fetchCharacterSiblings, MAX_CHARACTERS_PER_USER } from '@/lib/characters'
+import { cn } from '@/lib/utils'
 import type { CharacterSibling } from '@/types/character'
 
 const itemLevelFormatter = new Intl.NumberFormat('ko-KR', {
@@ -24,7 +25,7 @@ export interface RosterViewProps {
  * 보조 경로로 둔다.
  */
 export function RosterView({ onRosterChanged }: RosterViewProps) {
-  const { findByName, resolveByName } = useCharacterDirectory()
+  const { characters, findByName, resolveByName } = useCharacterDirectory()
 
   const [nameInput, setNameInput] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -102,11 +103,21 @@ export function RosterView({ onRosterChanged }: RosterViewProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">카드 순서</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            드래그해서 다른 카드 위에 놓으면 두 캐릭터의 순서가 서로 맞바뀝니다
-          </p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">카드 순서</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              드래그해서 다른 카드 위에 놓으면 두 캐릭터의 순서가 서로 맞바뀝니다
+            </p>
+          </div>
+          <span
+            className={cn(
+              'shrink-0 whitespace-nowrap font-mono text-sm',
+              characters.length >= MAX_CHARACTERS_PER_USER ? 'text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            {characters.length} / {MAX_CHARACTERS_PER_USER}
+          </span>
         </div>
         <CharacterOrderList onOrderChanged={onRosterChanged} />
       </div>
