@@ -1,4 +1,5 @@
 import contentStagesData from '@/data/contentStages.json'
+import ebonyCubeRewardsData from '@/data/ebonyCubeRewards.json'
 
 const CHAOS_RIFT_STAGE_NAMES = new Set(contentStagesData.chaosRift.stages.map((stage) => stage.name))
 
@@ -10,4 +11,31 @@ const CHAOS_RIFT_STAGE_NAMES = new Set(contentStagesData.chaosRift.stages.map((s
  */
 export function isChaosRiftKurzanTarget(targetName: string): boolean {
   return CHAOS_RIFT_STAGE_NAMES.has(targetName)
+}
+
+interface KurzanStageWithTicketType {
+  name: string
+  ticketType?: string
+}
+
+const KURZAN_TICKET_TYPE_BY_TARGET_NAME: Record<string, string> = Object.fromEntries(
+  (contentStagesData.kurzanFrontline.stages as KurzanStageWithTicketType[])
+    .filter((stage): stage is KurzanStageWithTicketType & { ticketType: string } => stage.ticketType !== undefined)
+    .map((stage) => [stage.name, stage.ticketType]),
+)
+
+const TICKET_TIER_LABEL_BY_TYPE: Record<string, string> = Object.fromEntries(
+  ebonyCubeRewardsData.tiers.map((tier) => [tier.ticketType, tier.label]),
+)
+
+/**
+ * 쿠르잔 전선의 targetName에 대응하는 큐브 티켓 등급 라벨(예: "제 1 해금")을 찾는다. 매핑이
+ * 없으면(카오스 던전/혼돈의 균열/알 수 없는 이름) null — workspace/backend/src/lib/
+ * ebonyCubeCatalog.ts의 ticketTypeForKurzanTarget과 동일 판정이며, 여기서는 획득 토스트
+ * 문구를 만드는 용도로만 쓴다(실제 적립은 서버가 최종 결정).
+ */
+export function kurzanTicketTierLabel(targetName: string): string | null {
+  const ticketType = KURZAN_TICKET_TYPE_BY_TARGET_NAME[targetName]
+  if (!ticketType) return null
+  return TICKET_TIER_LABEL_BY_TYPE[ticketType] ?? null
 }

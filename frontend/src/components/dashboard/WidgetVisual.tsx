@@ -57,6 +57,8 @@ import {
   updateParadiseSettings,
 } from '@/lib/homeworks'
 import { notifyHomeworksChanged, subscribeHomeworksChanged } from '@/lib/homeworksEvents'
+import { kurzanTicketTierLabel } from '@/lib/contentStages'
+import { showToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import raidCatalogData from '@/data/raidCatalog.json'
 import {
@@ -333,9 +335,21 @@ function KurzanFrontlineWidgetBound({
           // 현재 목표(target_name)가 혼돈의 균열 구간이면 시련의 모래가, 그 외에는 대응하는
           // 에브니 큐브 등급 수량이 +1 된다(서버가 판단) — 이 위젯 자체 상태는 바뀌지 않고
           // 에브니 큐브/할의 모래시계 쪽 상태만 바뀌므로, 그 위젯이 열려 있다면 다시 조회하도록
-          // 알린다(docs/ebony_cube_hal_hourglass.typ 참고).
+          // 알린다(docs/ebony_cube_hal_hourglass.typ 참고). 응답이 어느 쪽 요약인지(sandStack
+          // 유무)로 구분해 실제로 뭘 얻었는지 토스트로 알려준다.
           collectKurzanTicket(characterId)
-            .then(() => notifyHomeworksChanged(characterId))
+            .then((result) => {
+              notifyHomeworksChanged(characterId)
+              const who = `[${characterNameForModal}]`
+              if ('sandStack' in result) {
+                showToast({ message: `${who} 시련의 모래를 획득했습니다` })
+              } else {
+                const tierLabel = kurzanTicketTierLabel(kurzanData.targetName)
+                showToast({
+                  message: `${who} ${tierLabel ? `${tierLabel} 티켓` : '에브니 큐브 티켓'}을 획득했습니다`,
+                })
+              }
+            })
             .catch((err) => console.error('쿠르잔 전선 티켓/모래 획득 실패', err))
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}

@@ -27,7 +27,7 @@ export function Toaster() {
           key={toast.id}
           role="status"
           className={cn(
-            'flex items-start gap-2.5 rounded-lg border bg-card p-3.5 text-sm shadow-2xl',
+            'relative flex items-start gap-2.5 overflow-hidden rounded-lg border bg-card p-3.5 text-sm shadow-2xl',
             toast.variant === 'warning' ? 'border-amber-500/40' : 'border-border',
           )}
         >
@@ -37,6 +37,14 @@ export function Toaster() {
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           )}
           <p className="leading-relaxed text-foreground">{toast.message}</p>
+          {/* 자동으로 사라지기까지 남은 시간 표시 — 왼쪽에서 시작해 durationMs 동안 줄어든다. */}
+          <div
+            className={cn(
+              'animate-toast-progress absolute inset-x-0 bottom-0 h-0.5 origin-left',
+              toast.variant === 'warning' ? 'bg-amber-500' : 'bg-primary',
+            )}
+            style={{ animationDuration: `${toast.durationMs}ms` }}
+          />
         </div>
       ))}
     </div>,

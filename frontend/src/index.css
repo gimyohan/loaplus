@@ -109,3 +109,21 @@
 .animate-flash-warning-text {
   animation: flash-warning-text 0.4s ease-in-out 3;
 }
+
+/* 토스트(components/ui/Toaster.tsx)가 자동으로 사라지기까지 남은 시간을 보여주는 바 —
+   scaleX(1)에서 0으로 줄어든다. 실제 표시 시간(durationMs)은 토스트마다 달라 이 클래스에
+   animation-duration을 고정하지 않고, 사용하는 쪽에서 인라인 style로 채운다. */
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.animate-toast-progress {
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
