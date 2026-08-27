@@ -9,8 +9,7 @@ interface HalHourglassLevelDefinition {
   baseRewards: RewardEntry[]
 }
 
-// workspace/frontend/src/data/halHourglassRewards.json을 그대로 옮긴 참조 데이터. 레벨별 기본
-// 보상의 실제 값은 미정이라 자리표시다(docs/ebony_cube_hal_hourglass.typ "구현 전 확인 필요" 참고).
+// workspace/frontend/src/data/halHourglassRewards.json을 그대로 옮긴 참조 데이터.
 export const HAL_HOURGLASS_LEVELS = halHourglassRewardsData.levels as HalHourglassLevelDefinition[]
 
 /** 캐릭터의 현재 아이템 레벨로 입장 가능한 목표 중 가장 높은 레벨을 고른다 (가디언/쿠르잔과 동일 규칙). */

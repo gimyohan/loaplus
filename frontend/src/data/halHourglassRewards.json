@@ -1,19 +1,19 @@
 {
   "levels": [
     {
-      "name": "심연의 역류 1 (자리표시)",
+      "name": "제 1 단계",
       "minItemLevel": 1730,
-      "baseRewards": [{ "categoryKey": "gold", "itemName": "골드", "amount": 1000 }]
+      "baseRewards": [{ "categoryKey": "gemstone", "itemName": "4티어 보석", "amount": 45 }]
     },
     {
-      "name": "심연의 역류 2 (자리표시)",
+      "name": "제 2 단계",
       "minItemLevel": 1750,
-      "baseRewards": [{ "categoryKey": "gold", "itemName": "골드", "amount": 1500 }]
+      "baseRewards": [{ "categoryKey": "gemstone", "itemName": "4티어 보석", "amount": 54 }]
     },
     {
-      "name": "심연의 역류 3 (자리표시)",
+      "name": "제 3 단계",
       "minItemLevel": 1770,
-      "baseRewards": [{ "categoryKey": "gold", "itemName": "골드", "amount": 2000 }]
+      "baseRewards": [{ "categoryKey": "gemstone", "itemName": "4티어 보석", "amount": 63 }]
     }
   ]
 }
