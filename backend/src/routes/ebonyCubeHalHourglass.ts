@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createEbonyCubeClearLog, createHalHourglassCompleteLog } from '../lib/actionLogs.js'
 import {
   availableTicketTypes,
+  buildTicketClearRewards,
   cycleTicketType,
   ensureValidSelection,
   findTicketTier,
@@ -112,13 +113,7 @@ export async function ebonyCubeHalHourglassRoutes(fastify: FastifyInstance) {
         characterId: character.id,
         ticketType,
         consumedCount: parsed.data.times,
-        rewards: [
-          {
-            categoryKey: 'gemstone',
-            itemName: '4티어 보석',
-            amount: tier.gemstoneReward * parsed.data.times,
-          },
-        ],
+        rewards: buildTicketClearRewards(tier, parsed.data.times),
         description: parsed.data.description,
       })
 

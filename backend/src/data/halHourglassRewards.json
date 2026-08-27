@@ -3,17 +3,17 @@
     {
       "name": "제 1 단계",
       "minItemLevel": 1730,
-      "baseRewards": [{ "categoryKey": "gemstone", "itemName": "4티어 보석", "amount": 45 }]
+      "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 45 }]
     },
     {
       "name": "제 2 단계",
       "minItemLevel": 1750,
-      "baseRewards": [{ "categoryKey": "gemstone", "itemName": "4티어 보석", "amount": 54 }]
+      "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 54 }]
     },
     {
       "name": "제 3 단계",
       "minItemLevel": 1770,
-      "baseRewards": [{ "categoryKey": "gemstone", "itemName": "4티어 보석", "amount": 63 }]
+      "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 63 }]
     }
   ]
 }

@@ -1,13 +1,17 @@
 import contentStagesData from '../data/contentStages.json' with { type: 'json' }
 import ebonyCubeRewardsData from '../data/ebonyCubeRewards.json' with { type: 'json' }
 
+import type { RewardEntry } from './actionLogs.js'
+import { resolveItemRewards } from './itemCatalog.js'
+import type { ItemRewardAmount } from './itemCatalog.js'
+
 export const TICKET_TYPES = ['unlock1', 'unlock2', 'unlock3', 'unlock4'] as const
 export type TicketType = (typeof TICKET_TYPES)[number]
 
 interface TicketTierDefinition {
   ticketType: TicketType
   label: string
-  gemstoneReward: number
+  rewards: ItemRewardAmount[]
 }
 
 // workspace/frontend/src/data/ebonyCubeRewards.json을 그대로 옮긴 참조 데이터.
@@ -15,6 +19,11 @@ export const TICKET_TIERS = ebonyCubeRewardsData.tiers as TicketTierDefinition[]
 
 export function findTicketTier(ticketType: string): TicketTierDefinition | null {
   return TICKET_TIERS.find((tier) => tier.ticketType === ticketType) ?? null
+}
+
+/** '1회 클리어'/'3회 클리어' 보상 = 등급 기본 보상 × times. itemCatalog에서 이름/categoryKey를 채운다. */
+export function buildTicketClearRewards(tier: TicketTierDefinition, times: number): RewardEntry[] {
+  return resolveItemRewards(tier.rewards.map((reward) => ({ itemId: reward.itemId, amount: reward.amount * times })))
 }
 
 interface KurzanStageWithTicketType {

@@ -1,8 +1,8 @@
 {
   "tiers": [
-    { "ticketType": "unlock1", "label": "제 1 해금", "gemstoneReward": 9 },
-    { "ticketType": "unlock2", "label": "제 2 해금", "gemstoneReward": 18 },
-    { "ticketType": "unlock3", "label": "제 3 해금", "gemstoneReward": 24 },
-    { "ticketType": "unlock4", "label": "제 4 해금", "gemstoneReward": 33 }
+    { "ticketType": "unlock1", "label": "제 1 해금", "rewards": [{ "itemId": "gemstoneTier4", "amount": 9 }] },
+    { "ticketType": "unlock2", "label": "제 2 해금", "rewards": [{ "itemId": "gemstoneTier4", "amount": 18 }] },
+    { "ticketType": "unlock3", "label": "제 3 해금", "rewards": [{ "itemId": "gemstoneTier4", "amount": 24 }] },
+    { "ticketType": "unlock4", "label": "제 4 해금", "rewards": [{ "itemId": "gemstoneTier4", "amount": 33 }] }
   ]
 }

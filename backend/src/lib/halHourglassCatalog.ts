@@ -2,11 +2,13 @@ import halHourglassRewardsData from '../data/halHourglassRewards.json' with { ty
 
 import type { RewardEntry } from './actionLogs.js'
 import { pickHighestEligibleTarget } from './contentTargets.js'
+import { resolveItemRewards } from './itemCatalog.js'
+import type { ItemRewardAmount } from './itemCatalog.js'
 
 interface HalHourglassLevelDefinition {
   name: string
   minItemLevel: number
-  baseRewards: RewardEntry[]
+  baseRewards: ItemRewardAmount[]
 }
 
 // workspace/frontend/src/data/halHourglassRewards.json을 그대로 옮긴 참조 데이터.
@@ -24,5 +26,5 @@ export function findHalHourglassLevel(name: string): HalHourglassLevelDefinition
 /** 완료 시점 보상 = 레벨 기본 보상 × (스택+1)배 (스택 0이어도 최소 1배, docs/ebony_cube_hal_hourglass.typ 참고). */
 export function buildHalHourglassCompleteRewards(level: HalHourglassLevelDefinition, sandStack: number): RewardEntry[] {
   const multiplier = sandStack + 1
-  return level.baseRewards.map((reward) => ({ ...reward, amount: reward.amount * multiplier }))
+  return resolveItemRewards(level.baseRewards.map((reward) => ({ ...reward, amount: reward.amount * multiplier })))
 }
