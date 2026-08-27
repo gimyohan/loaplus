@@ -67,20 +67,23 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
-interface DragState {
-  id: string
-  pointerStartX: number
-  pointerStartY: number
-  originX: number
-  originY: number
-}
-
 // 위젯 목록에서 그리드로 옮기는 동안의 상태. 네이티브 HTML5 드래그앤드롭 대신 포인터 이벤트로
 // 직접 구현한다 — WidgetPalette.tsx 상단 주석 참고(setDragImage 고스트가 디스플레이 배율에 따라
 // 실제 크기와 다르게 보이는 크로미움 버그를 피하기 위함).
 interface PaletteDragState {
   item: WidgetCatalogItem
   /** 타일 안에서 실제로 잡은 위치(0~1 비율) — 그리드에 스냅할 때도 이 비율을 그대로 앵커로 쓴다. */
+  grabX: number
+  grabY: number
+  clientX: number
+  clientY: number
+}
+
+// 이미 놓인 위젯을 옮기는 동안의 상태 — PaletteDragState와 동일한 모양이다. 새 위젯을 목록에서
+// 끌어올 때와 똑같이(커서를 따라다니는 플로팅 미리보기 + 그리드 위 스냅 칸 표시) 보여주기 위해
+// 드래그 중엔 실제 위젯 좌표(widget.x/y)를 바로 바꾸지 않고, 놓았을 때(pointer up)만 커밋한다.
+interface ExistingWidgetDragState {
+  widget: PlacedWidget
   grabX: number
   grabY: number
   clientX: number
@@ -117,7 +120,6 @@ export function WidgetDashboard({
   autoOpenSettings,
 }: WidgetDashboardProps = {}) {
   const [widgets, setWidgets] = useState<PlacedWidget[]>([])
-  const [draggingId, setDraggingId] = useState<string | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   // Add Character로 막 추가된 카드는 마운트되자마자 위젯 설정 모달을 자동으로 연다 — 카드는 항상
@@ -128,7 +130,6 @@ export function WidgetDashboard({
   const [characterName, setCharacterNameState] = useState(initialCharacterName ?? '')
   const [rows, setRowsState] = useState(DEFAULT_ROWS)
   const gridRef = useRef<HTMLDivElement>(null)
-  const dragState = useRef<DragState | null>(null)
   // 위젯 설정 모달의 편집용 그리드는 실제 대시보드(카드 단위 ScaleToFit)와 달리, 모달 폭이 남는
   // 만큼 그리드 자체를 키워서 꽉 채운다 — 칸 하나의 픽셀 크기를 고정 CELL_SIZE 대신 이 칸이 실제로
   // 차지하는 폭을 재서 동적으로 계산한다(gridColumnRef가 붙는 wrapper는 min-w만 있고 자기 콘텐츠
@@ -375,6 +376,7 @@ export function WidgetDashboard({
     grabY: number,
     clientX: number,
     clientY: number,
+    excludeId?: string,
   ) => {
     if (!gridRef.current) return null
     const gridRect = gridRef.current.getBoundingClientRect()
@@ -386,7 +388,8 @@ export function WidgetDashboard({
     // 중심으로 맞추면 어디를 잡고 옮겼는지와 무관하게 자리가 튀어 보인다.
     const x = clamp(Math.round(localX / editCellSize - item.w * grabX), 0, DEFAULT_COLUMNS - item.w)
     const y = clamp(Math.round(localY / editCellSize - item.h * grabY), 0, rows - item.h)
-    const valid = withinGrid && !collidesWithAny({ x, y, w: item.w, h: item.h }, widgets)
+    // excludeId: 이미 놓인 위젯을 옮기는 중이면 자기 자신과는 겹침으로 치지 않는다.
+    const valid = withinGrid && !collidesWithAny({ x, y, w: item.w, h: item.h }, widgets, excludeId)
     return { x, y, withinGrid, valid }
   }
 
@@ -440,59 +443,70 @@ export function WidgetDashboard({
     ? computeDropCell(paletteDrag.item, paletteDrag.grabX, paletteDrag.grabY, paletteDrag.clientX, paletteDrag.clientY)
     : null
 
-  const handleWidgetPointerDown = (widget: PlacedWidget) => (event: PointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest('[data-widget-delete]')) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    dragState.current = {
-      id: widget.id,
-      pointerStartX: event.clientX,
-      pointerStartY: event.clientY,
-      originX: widget.x,
-      originY: widget.y,
-    }
-    setDraggingId(widget.id)
-  }
+  const [existingDrag, setExistingDrag] = useState<ExistingWidgetDragState | null>(null)
 
-  const handleWidgetPointerMove = (widget: PlacedWidget) => (event: PointerEvent<HTMLDivElement>) => {
-    const drag = dragState.current
-    if (!drag || drag.id !== widget.id) return
-
-    const deltaX = event.clientX - drag.pointerStartX
-    const deltaY = event.clientY - drag.pointerStartY
-    const x = clamp(Math.round(drag.originX + deltaX / editCellSize), 0, DEFAULT_COLUMNS - widget.w)
-    const y = clamp(Math.round(drag.originY + deltaY / editCellSize), 0, rows - widget.h)
-
-    // 다른 위젯과 겹치는 칸으로는 움직이지 않는다 — 드래그 중인 자기 자신은 비교에서 뺀다.
-    // 겹치는 방향으로는 위치가 그대로 멈춰있고, 안 겹치는 다른 방향으로는 계속 움직일 수 있다.
-    if (collidesWithAny({ x, y, w: widget.w, h: widget.h }, widgets, widget.id)) return
-
-    setWidgets((prev) => prev.map((w) => (w.id === widget.id ? { ...w, x, y } : w)))
-  }
-
-  const handleWidgetPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    const drag = dragState.current
-    dragState.current = null
-    setDraggingId(null)
-    event.currentTarget.releasePointerCapture(event.pointerId)
-    if (!drag) return
-
-    const widget = widgets.find((w) => w.id === drag.id)
-    // 위치가 실제로 바뀌지 않았으면(드래그 없이 그냥 클릭만 한 경우 포함 — 가디언/쿠르잔 전선처럼
-    // 내부에 체크박스가 많은 위젯은 클릭할 때마다 pointerdown/up이 걸린다) 저장할 것도 없으니
-    // 그냥 끝낸다. 겹침 등으로 이동이 막혀 원래 자리로 되돌아온 경우도 이 조건에 걸려 저장을 건너뛴다.
-    if (!widget || (widget.x === drag.originX && widget.y === drag.originY)) return
+  // 이미 놓인 위젯을 옮길 때 실제로 좌표를 반영하고 저장한다 — pointer up에서만 호출된다.
+  const moveWidgetTo = (widget: PlacedWidget, x: number, y: number) => {
+    const next = widgets.map((w) => (w.id === widget.id ? { ...w, x, y } : w))
+    setWidgets(next)
 
     // 레이드는 bulk 저장(persistLayout)이 아예 body에서 제외하므로(docs/api.typ 참고),
     // 위치 이동은 전용 PATCH .../raids/{raidId}/position로 저장한다.
     if (widget.kind === 'raid' && widget.raidId && boundCharacterId) {
-      updateRaidPosition(boundCharacterId, widget.raidId, { x: widget.x, y: widget.y, w: widget.w, h: widget.h })
-        .then((updated) => setWidgets((prev) => prev.map((w) => (w.id === drag.id ? updated : w))))
+      updateRaidPosition(boundCharacterId, widget.raidId, { x, y, w: widget.w, h: widget.h })
+        .then((updated) => setWidgets((prev) => prev.map((w) => (w.id === widget.id ? updated : w))))
         .catch((err) => console.error('레이드 위치 저장 실패', err))
       return
     }
 
-    persistLayout(widgets)
+    persistLayout(next)
   }
+
+  const handleWidgetPointerDown = (widget: PlacedWidget) => (event: PointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest('[data-widget-delete]')) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const rect = event.currentTarget.getBoundingClientRect()
+    setExistingDrag({
+      widget,
+      grabX: (event.clientX - rect.left) / rect.width,
+      grabY: (event.clientY - rect.top) / rect.height,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    })
+  }
+
+  const handleWidgetPointerMove = (widget: PlacedWidget) => (event: PointerEvent<HTMLDivElement>) => {
+    setExistingDrag((prev) =>
+      prev && prev.widget.id === widget.id ? { ...prev, clientX: event.clientX, clientY: event.clientY } : prev,
+    )
+  }
+
+  const handleWidgetPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.releasePointerCapture(event.pointerId)
+    setExistingDrag((prev) => {
+      if (!prev) return null
+      const cell = computeDropCell(prev.widget, prev.grabX, prev.grabY, prev.clientX, prev.clientY, prev.widget.id)
+      // 클릭만 한 경우(가디언/쿠르잔 전선처럼 내부에 체크박스가 많은 위젯은 클릭할 때마다
+      // pointerdown/up이 걸린다)나, 겹침 등으로 놓을 수 없는 자리면 원래 자리를 그대로 둔다.
+      if (cell?.valid && (cell.x !== prev.widget.x || cell.y !== prev.widget.y)) {
+        moveWidgetTo(prev.widget, cell.x, cell.y)
+      }
+      return null
+    })
+  }
+
+  // 이미 놓인 위젯을 옮기는 동안의 스냅 미리보기 — paletteDropPreview와 동일한 계산이되, 자기
+  // 자신과의 겹침은 무시한다(excludeId).
+  const existingDropPreview = existingDrag
+    ? computeDropCell(
+        existingDrag.widget,
+        existingDrag.grabX,
+        existingDrag.grabY,
+        existingDrag.clientX,
+        existingDrag.clientY,
+        existingDrag.widget.id,
+      )
+    : null
 
   const removeWidget = (id: string) => {
     const widget = widgets.find((w) => w.id === id)
@@ -551,6 +565,11 @@ export function WidgetDashboard({
       setRows(nextRows)
     })
   }
+
+  // 배치 초기화 — 위젯을 전부 지우고(레이드 포함) 그리드 높이를 기본값으로 되돌린다. 캐릭터
+  // 귀속(characterName/boundCharacterId)은 건드리지 않는다. 빈 배치를 적용하는 것과 동일하므로
+  // applyTemplateLayout을 그대로 재사용한다.
+  const resetLayout = () => applyTemplateLayout({ columns: DEFAULT_COLUMNS, rows: DEFAULT_ROWS, widgets: [] })
 
   return (
     <div>
@@ -647,6 +666,7 @@ export function WidgetDashboard({
                 rows={rows}
                 boundCharacterId={boundCharacterId}
                 onApplyLayout={applyTemplateLayout}
+                onResetLayout={resetLayout}
               />
             </div>
 
@@ -668,6 +688,22 @@ export function WidgetDashboard({
                     }}
                   />
                 )}
+                {/* 이미 놓인 위젯을 옮기는 중일 때도 새 위젯을 배치할 때와 똑같이 스냅될 칸을
+                    미리 보여준다. */}
+                {existingDrag && existingDropPreview?.withinGrid && (
+                  <div
+                    className={cn(
+                      'pointer-events-none absolute z-30 rounded-lg border-2 transition-colors',
+                      existingDropPreview.valid ? 'border-primary bg-primary/20' : 'border-red-500 bg-red-500/20',
+                    )}
+                    style={{
+                      left: existingDropPreview.x * editCellSize,
+                      top: existingDropPreview.y * editCellSize,
+                      width: existingDrag.widget.w * editCellSize,
+                      height: existingDrag.widget.h * editCellSize,
+                    }}
+                  />
+                )}
                 {widgets.map((widget) => (
                   <div
                     key={widget.id}
@@ -675,8 +711,8 @@ export function WidgetDashboard({
                     onPointerMove={handleWidgetPointerMove(widget)}
                     onPointerUp={handleWidgetPointerUp}
                     className={cn(
-                      'group absolute z-10 touch-none cursor-move',
-                      draggingId === widget.id && 'z-50',
+                      'group absolute z-10 touch-none cursor-move transition-opacity',
+                      existingDrag?.widget.id === widget.id && 'z-50 opacity-30',
                     )}
                     style={{
                       left: widget.x * editCellSize,
@@ -738,6 +774,30 @@ export function WidgetDashboard({
             </span>
             <span className="font-mono text-[10px] text-muted-foreground">
               {paletteDrag.item.w}×{paletteDrag.item.h}
+            </span>
+          </div>,
+          document.body,
+        )}
+
+      {/* 이미 놓인 위젯을 옮기는 동안에도 위와 동일한 방식의 플로팅 미리보기를 보여준다 —
+          원래 자리의 위젯은 흐리게(opacity-30) 남겨두고, 커서를 따라다니는 이 미리보기와 위
+          그리드 위 스냅 칸 표시로 어디에 놓일지 확인할 수 있게 한다. */}
+      {existingDrag &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[100] flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-primary bg-primary/30 text-center opacity-90 shadow-2xl backdrop-blur-[1px]"
+            style={{
+              left: existingDrag.clientX - existingDrag.grabX * existingDrag.widget.w * editCellSize,
+              top: existingDrag.clientY - existingDrag.grabY * existingDrag.widget.h * editCellSize,
+              width: existingDrag.widget.w * editCellSize,
+              height: existingDrag.widget.h * editCellSize,
+            }}
+          >
+            <span className="px-1 text-xs font-medium leading-tight text-foreground">
+              {WIDGET_CATALOG.find((item) => item.kind === existingDrag.widget.kind)?.label ?? existingDrag.widget.kind}
+            </span>
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {existingDrag.widget.w}×{existingDrag.widget.h}
             </span>
           </div>,
           document.body,

@@ -22,7 +22,10 @@ export function WidgetPlaceholder({ label, w, h, className, style }: WidgetPlace
     <div
       style={style}
       className={cn(
-        'flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/40 p-1 text-center',
+        // select-none: 배치 편집 그리드에서 이 이름/크기 텍스트가 드래그 가능한 상태로 있으면,
+        // 위젯을 옮기려고 누른 지점이 텍스트 위일 때 우리 포인터 드래그 대신 브라우저의 텍스트
+        // 선택 드래그가 걸려버리는 경우가 있었다.
+        'select-none flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/40 p-1 text-center',
         className,
       )}
     >
