@@ -19,7 +19,6 @@ interface HomeworkSummaryDto {
   targetAutoManaged: boolean
 }
 
-// 프론트 표시엔 targetAutoManaged가 아직 쓰이지 않아 Summary 타입엔 옮기지 않는다.
 function toSummary(dto: HomeworkSummaryDto): GuardianSummary {
   return {
     targetName: dto.targetName,
@@ -28,6 +27,7 @@ function toSummary(dto: HomeworkSummaryDto): GuardianSummary {
     restGaugeThreshold: dto.restGaugeThreshold,
     isHarvested: dto.isHarvested,
     restGaugeConsumedByHarvest: dto.restGaugeConsumedByHarvest,
+    targetAutoManaged: dto.targetAutoManaged,
   }
 }
 

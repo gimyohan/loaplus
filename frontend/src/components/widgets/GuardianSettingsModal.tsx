@@ -54,6 +54,9 @@ export function GuardianSettingsModal({
   const availableTargets = guardianRaidTargets.targets
     .filter((target) => target.minItemLevel <= characterItemLevel)
     .sort((a, b) => b.minItemLevel - a.minItemLevel)
+  // 내림차순 정렬이므로 첫 항목이 곧 자동 산정값(가능한 가장 높은 가디언) — 백엔드
+  // pickHighestEligibleTarget과 동일한 판정(homeworks.ts의 guardian/target 참고).
+  const defaultTargetName = availableTargets[0]?.name
 
   useEffect(() => {
     if (open) {
@@ -179,7 +182,14 @@ export function GuardianSettingsModal({
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >
-                  <span>{target.name}</span>
+                  <span className="flex items-center gap-1.5">
+                    {target.name}
+                    {data.targetAutoManaged && target.name === defaultTargetName && (
+                      <span className="rounded bg-secondary/20 px-1.5 py-0.5 text-[10px] font-semibold text-secondary">
+                        기본값
+                      </span>
+                    )}
+                  </span>
                   <span className="font-mono text-xs opacity-70">Lv.{target.minItemLevel}</span>
                 </button>
               ))}

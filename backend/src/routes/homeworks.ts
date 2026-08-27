@@ -15,7 +15,7 @@ import {
 } from '../lib/homeworkDefaults.js'
 import type { ActionLogCreateInput } from '../lib/actionLogs.js'
 import { applyHarvestStatistics, createRewardLog, enforceActionLogCap, toLogEntry } from '../lib/actionLogs.js'
-import { isChaosRiftKurzanTarget } from '../lib/contentTargets.js'
+import { GUARDIAN_RAID_TARGETS, isChaosRiftKurzanTarget, pickHighestEligibleTarget } from '../lib/contentTargets.js'
 import type { TicketType } from '../lib/ebonyCubeCatalog.js'
 import { ensureValidSelection, ticketColumnField, ticketCountByType, ticketTypeForKurzanTarget } from '../lib/ebonyCubeCatalog.js'
 import {
@@ -254,15 +254,18 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
       }
 
       await getOrCreateGuardian(fastify.prisma, character.id, character.itemLevel)
+      // 선택한 대상이 현재 레벨 기준 자동 산정 값(가능한 가장 높은 가디언)과 같으면 자동 관리를
+      // 켜고, 다르면(유저가 일부러 더 낮은 단계를 골랐으면) 끈다 — 이 모달은 게이지/임계치만
+      // 바꿀 때도 항상 현재 targetName을 그대로 함께 보내므로, 매번 무조건 끄면 게이지만 조절해도
+      // 자동 관리가 깨져 이후 새로고침으로도 최고 목표로 다시 맞춰지지 않는 문제가 있었다.
+      const defaultTargetName = pickHighestEligibleTarget(GUARDIAN_RAID_TARGETS, character.itemLevel)
       const updated = await fastify.prisma.guardian.update({
         where: { characterId: character.id },
         data: {
           targetName: parsed.data.targetName,
           restGauge: parsed.data.restGauge,
           restGaugeThreshold: parsed.data.restGaugeThreshold,
-          // 유저가 대상을 직접 골랐으므로, 이후 새로고침이 아이템 레벨을 갱신해도
-          // 이 값을 자동으로 다시 바꾸지 않는다.
-          targetAutoManaged: false,
+          targetAutoManaged: parsed.data.targetName === defaultTargetName,
         },
       })
 

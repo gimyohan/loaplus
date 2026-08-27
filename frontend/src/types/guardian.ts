@@ -9,4 +9,6 @@ export interface GuardianSummary {
   isHarvested: boolean
   /** '오늘 수확' 체크로 휴식 게이지가 실제로 소모되었는지 여부. 체크 해제 시 복구할지 판단하는 데 쓰인다 */
   restGaugeConsumedByHarvest: boolean
+  /** 자동으로 최고 난이도를 따라가는 중인지 여부. 설정 모달에서 자동 산정값과 다른 대상을 고르면 서버에서 false로 바뀐다 */
+  targetAutoManaged: boolean
 }
