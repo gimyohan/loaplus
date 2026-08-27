@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 
-import { CharacterDropdown } from '@/components/statistics/CharacterDropdown'
+import { CharacterDropdown, type CharacterOption } from '@/components/statistics/CharacterDropdown'
 import { PieChart } from '@/components/statistics/charts/PieChart'
-import type { CharacterStatistics, StatFields } from '@/lib/statistics'
+import type { StatFields, WeeklyStatRow } from '@/lib/statistics'
 import { categoryValue, cssVar, GOLD_BASIS_OPTIONS, GOLD_CATEGORIES, type GoldBasis } from '@/lib/statisticsCategories'
 import { cn } from '@/lib/utils'
 
 export interface GoldCategoryPieSectionProps {
-  characters: CharacterStatistics[]
+  characters: CharacterOption[]
+  allWeekly: WeeklyStatRow[]
 }
 
 const numberFormatter = new Intl.NumberFormat('ko-KR')
@@ -15,38 +16,37 @@ function formatNumber(value: number) {
   return numberFormatter.format(value)
 }
 
-function sumFields(characters: CharacterStatistics[]): StatFields {
-  return characters.reduce<StatFields>(
-    (acc, character) => {
-      for (const key of Object.keys(acc) as (keyof StatFields)[]) {
-        acc[key] += character[key]
-      }
-      return acc
-    },
-    {
-      totalGoldEarned: 0,
-      totalBoundGoldEarned: 0,
-      raidGoldEarned: 0,
-      raidBoundGoldEarned: 0,
-      shardGoldEarned: 0,
-      shardBoundGoldEarned: 0,
-      azenaBlessingGoldEarned: 0,
-      azenaBlessingBoundGoldEarned: 0,
-      paradiseGoldEarned: 0,
-      paradiseBoundGoldEarned: 0,
-      otherGoldEarned: 0,
-      otherBoundGoldEarned: 0,
-      guardianHarvestCount: 0,
-      kurzanHarvestCount: 0,
-      shardRewardCount: 0,
-      guardianShardRewardCount: 0,
-      kurzanShardRewardCount: 0,
-      azenaBlessingRewardCount: 0,
-      guardianAzenaBlessingRewardCount: 0,
-      kurzanAzenaBlessingRewardCount: 0,
-      cubeGemEarned: 0,
-    },
-  )
+const ZERO_STAT_FIELDS: StatFields = {
+  totalGoldEarned: 0,
+  totalBoundGoldEarned: 0,
+  raidGoldEarned: 0,
+  raidBoundGoldEarned: 0,
+  shardGoldEarned: 0,
+  shardBoundGoldEarned: 0,
+  azenaBlessingGoldEarned: 0,
+  azenaBlessingBoundGoldEarned: 0,
+  paradiseGoldEarned: 0,
+  paradiseBoundGoldEarned: 0,
+  otherGoldEarned: 0,
+  otherBoundGoldEarned: 0,
+  guardianHarvestCount: 0,
+  kurzanHarvestCount: 0,
+  shardRewardCount: 0,
+  guardianShardRewardCount: 0,
+  kurzanShardRewardCount: 0,
+  azenaBlessingRewardCount: 0,
+  guardianAzenaBlessingRewardCount: 0,
+  kurzanAzenaBlessingRewardCount: 0,
+  cubeGemEarned: 0,
+}
+
+function sumFields(rows: StatFields[]): StatFields {
+  return rows.reduce<StatFields>((acc, row) => {
+    for (const key of Object.keys(acc) as (keyof StatFields)[]) {
+      acc[key] += row[key]
+    }
+    return acc
+  }, { ...ZERO_STAT_FIELDS })
 }
 
 function toSlices(fields: StatFields, basis: GoldBasis) {
@@ -58,18 +58,46 @@ function toSlices(fields: StatFields, basis: GoldBasis) {
   }))
 }
 
-/** 컨텐츠별 골드 획득량 — 왼쪽은 모든 캐릭터 합, 오른쪽은 드롭다운으로 고른 캐릭터 하나. */
-export function GoldCategoryPieSection({ characters }: GoldCategoryPieSectionProps) {
+/** "8/20" 형태로 포맷한다. */
+function formatShortDate(dateStr: string) {
+  const [, month, day] = dateStr.split('-')
+  return `${Number(month)}/${Number(day)}`
+}
+
+/**
+ * 컨텐츠별 골드 획득량 — 왼쪽은 이번 주 모든 캐릭터 합, 오른쪽은 드롭다운으로 고른 캐릭터
+ * 하나의 이번 주 값(사용자 확정: 전체 기간 누적이 아니라 이번 주 기준). allWeekly에 있는
+ * weekStartDate 중 가장 최근 값을 "이번 주"로 본다 — Character_Statistics_Weekly는 배치가
+ * 아니라 행위 발생 시점에 바로 적립되므로(docs/db_schema.typ 참고) 이번 주 행이 하나라도
+ * 있으면 그 날짜가 항상 최신값이다. 이번 주에 아직 아무 행위도 없어 행 자체가 없는 캐릭터는
+ * 0으로 취급한다.
+ */
+export function GoldCategoryPieSection({ characters, allWeekly }: GoldCategoryPieSectionProps) {
   const [basis, setBasis] = useState<GoldBasis>('total')
   const [selectedId, setSelectedId] = useState<string>(characters[0]?.characterId ?? '')
 
-  const allFields = useMemo(() => sumFields(characters), [characters])
-  const selectedCharacter = characters.find((c) => c.characterId === selectedId) ?? characters[0]
+  const latestWeekStartDate = useMemo(
+    () => allWeekly.reduce<string | null>((latest, row) => (!latest || row.weekStartDate > latest ? row.weekStartDate : latest), null),
+    [allWeekly],
+  )
+  const thisWeekRows = useMemo(
+    () => (latestWeekStartDate ? allWeekly.filter((row) => row.weekStartDate === latestWeekStartDate) : []),
+    [allWeekly, latestWeekStartDate],
+  )
+
+  const allFields = useMemo(() => sumFields(thisWeekRows), [thisWeekRows])
+  const selectedCharacterFields = thisWeekRows.find((row) => row.characterId === selectedId) ?? ZERO_STAT_FIELDS
+  const selectedCharacterId = characters.some((c) => c.characterId === selectedId) ? selectedId : (characters[0]?.characterId ?? null)
 
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-foreground">컨텐츠별 골드 획득량</h3>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sm font-semibold text-foreground">컨텐츠별 골드 획득량</h3>
+          <span className="text-xs text-muted-foreground">
+            이번 주{latestWeekStartDate ? ` (${formatShortDate(latestWeekStartDate)}~)` : ''} 기준
+          </span>
+        </div>
         <div className="flex items-center gap-1 rounded-lg border border-border p-1">
           {GOLD_BASIS_OPTIONS.map((option) => (
             <button
@@ -94,12 +122,12 @@ export function GoldCategoryPieSection({ characters }: GoldCategoryPieSectionPro
         </div>
         <div className="flex flex-col items-center gap-2">
           <CharacterDropdown
-            characters={characters.map((c) => ({ characterId: c.characterId, characterName: c.characterName }))}
-            selectedId={selectedCharacter?.characterId ?? null}
+            characters={characters}
+            selectedId={selectedCharacterId}
             onChange={(id) => id && setSelectedId(id)}
             allowAll={false}
           />
-          <PieChart slices={selectedCharacter ? toSlices(selectedCharacter, basis) : []} formatValue={formatNumber} />
+          <PieChart slices={toSlices(selectedCharacterFields, basis)} formatValue={formatNumber} />
         </div>
       </div>
     </section>

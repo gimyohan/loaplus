@@ -59,7 +59,7 @@ function sumByWeek(rows: WeeklyStatRow[]): { weekStartDate: string; totalGoldEar
  * 이 배열을 characterId로 걸러 쓴다.
  */
 export function GoldTrendSection({ characters, allWeekly }: GoldTrendSectionProps) {
-  const [basis, setBasis] = useState<GoldBasis>('gold')
+  const [basis, setBasis] = useState<GoldBasis>('total')
   // 초기 선택값은 "모든 캐릭터" 하나만(사용자 확정).
   const [selectedIds, setSelectedIds] = useState<string[]>([ALL_CHARACTERS_ID])
 

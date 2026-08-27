@@ -93,7 +93,7 @@ export function StatisticsView() {
       {activeTab === 'main' && (
         <div className="flex flex-col gap-6">
           <GoldTrendSection characters={characterOptions} allWeekly={allWeekly} />
-          <GoldCategoryPieSection characters={characters} />
+          <GoldCategoryPieSection characters={characterOptions} allWeekly={allWeekly} />
         </div>
       )}
       {activeTab === 'table' && <StatisticsTable characters={characters} />}

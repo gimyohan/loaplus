@@ -51,14 +51,15 @@ export function CharacterMultiSelect({ characters, selectedIds, onChange, classN
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+        className="flex select-none items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
       >
         {label}
         <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 max-h-72 w-56 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-lg">
+        // select-none: 체크박스를 연달아 여러 개 누를 때 라벨 텍스트가 드래그로 선택돼버리는 것을 막는다.
+        <div className="absolute right-0 top-full z-20 mt-1 max-h-72 w-56 select-none overflow-y-auto rounded-md border border-border bg-card p-1 shadow-lg">
           <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted">
             <input
               type="checkbox"
