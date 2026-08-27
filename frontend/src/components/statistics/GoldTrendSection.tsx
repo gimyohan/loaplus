@@ -1,14 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import { CharacterDropdown, type CharacterOption } from '@/components/statistics/CharacterDropdown'
+import type { CharacterOption } from '@/components/statistics/CharacterDropdown'
+import { ALL_CHARACTERS_ID, CharacterMultiSelect } from '@/components/statistics/CharacterMultiSelect'
 import { LineChart, type LineChartPoint, type LineChartSeries } from '@/components/statistics/charts/LineChart'
-import { fetchCharacterWeeklyStatistics, type CharacterWeeklyStatRow, type WeeklyStatRow } from '@/lib/statistics'
-import { cssVar } from '@/lib/statisticsCategories'
+import type { WeeklyStatRow } from '@/lib/statistics'
+import { cssVar, GOLD_BASIS_OPTIONS, type GoldBasis } from '@/lib/statisticsCategories'
+import { cn } from '@/lib/utils'
 
 export interface GoldTrendSectionProps {
   characters: CharacterOption[]
   allWeekly: WeeklyStatRow[]
 }
+
+// 팔레트가 5슬롯(index.css --chart-1~5)뿐이라 6번째 캐릭터부터는 색이 되풀이된다.
+const CHART_COLOR_SLOTS = 5
 
 const numberFormatter = new Intl.NumberFormat('ko-KR')
 function formatNumber(value: number) {
@@ -21,27 +26,13 @@ function formatWeekLabel(dateStr: string) {
   return `${Number(month)}/${Number(day)}`
 }
 
-const SERIES: LineChartSeries[] = [
-  { key: 'gold', label: '골드', color: cssVar('--chart-1') },
-  { key: 'boundGold', label: '귀속 골드', color: cssVar('--chart-2') },
-  { key: 'total', label: '골드 + 귀속 골드', color: cssVar('--chart-3') },
-]
-
-function toPoints(rows: { weekStartDate: string; totalGoldEarned: number; totalBoundGoldEarned: number }[]): LineChartPoint[] {
-  return rows
-    .slice()
-    .sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate))
-    .map((row) => ({
-      label: formatWeekLabel(row.weekStartDate),
-      values: {
-        gold: row.totalGoldEarned,
-        boundGold: row.totalBoundGoldEarned,
-        total: row.totalGoldEarned + row.totalBoundGoldEarned,
-      },
-    }))
+function basisValue(row: { totalGoldEarned: number; totalBoundGoldEarned: number }, basis: GoldBasis): number {
+  if (basis === 'gold') return row.totalGoldEarned
+  if (basis === 'boundGold') return row.totalBoundGoldEarned
+  return row.totalGoldEarned + row.totalBoundGoldEarned
 }
 
-/** 여러 캐릭터의 같은 주 행을 weekStartDate 기준으로 합산한다("모든 캐릭터" 모드). */
+/** 여러 캐릭터의 같은 주 행을 weekStartDate 기준으로 합산한다("모든 캐릭터" 항목용). */
 function sumByWeek(rows: WeeklyStatRow[]): { weekStartDate: string; totalGoldEarned: number; totalBoundGoldEarned: number }[] {
   const map = new Map<string, { weekStartDate: string; totalGoldEarned: number; totalBoundGoldEarned: number }>()
   for (const row of rows) {
@@ -60,52 +51,86 @@ function sumByWeek(rows: WeeklyStatRow[]): { weekStartDate: string; totalGoldEar
   return [...map.values()]
 }
 
-/** 주차별 캐릭터 골드 획득 추이 — "모든 캐릭터 합" 또는 드롭다운으로 고른 특정 캐릭터. */
+/**
+ * 주차별 캐릭터 골드 획득 추이 — 골드/귀속골드/골드+귀속골드 중 하나를 라디오로 고르고("what"),
+ * "모든 캐릭터"를 포함해 캐릭터를 여러 개 동시에 선택해("who") 그래프에 캐릭터별 선 하나씩
+ * 겹쳐 비교한다. allWeekly가 이미 내 모든 캐릭터의 주간 행을 characterId 태그와 함께 담고
+ * 있으므로(StatisticsView가 한 번에 조회), 캐릭터를 추가로 선택해도 서버에 다시 묻지 않고
+ * 이 배열을 characterId로 걸러 쓴다.
+ */
 export function GoldTrendSection({ characters, allWeekly }: GoldTrendSectionProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [characterWeeklyCache, setCharacterWeeklyCache] = useState<Record<string, CharacterWeeklyStatRow[]>>({})
-  const [isLoadingCharacter, setIsLoadingCharacter] = useState(false)
+  const [basis, setBasis] = useState<GoldBasis>('gold')
+  // 초기 선택값은 "모든 캐릭터" 하나만(사용자 확정).
+  const [selectedIds, setSelectedIds] = useState<string[]>([ALL_CHARACTERS_ID])
 
-  // allWeekly가 새로 fetch될 때마다(예: 기타 수입 기록 직후) 캐릭터별 캐시도 같이 비워야, 이미
-  // 캐시된 캐릭터를 보고 있어도 방금 기록한 값이 반영된다.
-  useEffect(() => {
-    setCharacterWeeklyCache({})
+  const rowsByCharacter = useMemo(() => {
+    const map = new Map<string, WeeklyStatRow[]>()
+    for (const row of allWeekly) {
+      if (!map.has(row.characterId)) map.set(row.characterId, [])
+      map.get(row.characterId)!.push(row)
+    }
+    return map
   }, [allWeekly])
 
-  useEffect(() => {
-    if (selectedId === null || characterWeeklyCache[selectedId]) return
-    let cancelled = false
-    setIsLoadingCharacter(true)
-    fetchCharacterWeeklyStatistics(selectedId)
-      .then((rows) => {
-        if (cancelled) return
-        setCharacterWeeklyCache((prev) => ({ ...prev, [selectedId]: rows }))
-      })
-      .catch((err) => console.error('캐릭터 주간 통계 조회 실패', err))
-      .finally(() => {
-        if (!cancelled) setIsLoadingCharacter(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [selectedId, characterWeeklyCache])
+  const allCharactersRows = useMemo(() => sumByWeek(allWeekly), [allWeekly])
 
-  const points = useMemo(() => {
-    if (selectedId === null) return toPoints(sumByWeek(allWeekly))
-    return toPoints(characterWeeklyCache[selectedId] ?? [])
-  }, [selectedId, allWeekly, characterWeeklyCache])
+  const { series, points } = useMemo(() => {
+    const resolved = selectedIds.map((id, index) => {
+      const isAll = id === ALL_CHARACTERS_ID
+      return {
+        key: id,
+        label: isAll ? '모든 캐릭터' : (characters.find((c) => c.characterId === id)?.characterName ?? id),
+        color: cssVar(`--chart-${(index % CHART_COLOR_SLOTS) + 1}`),
+        rows: isAll ? allCharactersRows : (rowsByCharacter.get(id) ?? []),
+      }
+    })
+
+    const weekSet = new Set<string>()
+    resolved.forEach((r) => r.rows.forEach((row) => weekSet.add(row.weekStartDate)))
+    const weeks = [...weekSet].sort()
+
+    const series: LineChartSeries[] = resolved.map((r) => ({ key: r.key, label: r.label, color: r.color }))
+    const points: LineChartPoint[] = weeks.map((week) => ({
+      label: formatWeekLabel(week),
+      values: Object.fromEntries(
+        resolved.map((r) => {
+          const row = r.rows.find((candidate) => candidate.weekStartDate === week)
+          return [r.key, row ? basisValue(row, basis) : 0]
+        }),
+      ),
+    }))
+
+    return { series, points }
+  }, [selectedIds, characters, rowsByCharacter, allCharactersRows, basis])
 
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-foreground">주차별 골드 획득 추이</h3>
-        <CharacterDropdown characters={characters} selectedId={selectedId} onChange={setSelectedId} />
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="radiogroup" aria-label="재화 종류" className="flex items-center gap-1 rounded-lg border border-border p-1">
+            {GOLD_BASIS_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                role="radio"
+                aria-checked={basis === option.key}
+                onClick={() => setBasis(option.key)}
+                className={cn(
+                  'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  basis === option.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <CharacterMultiSelect characters={characters} selectedIds={selectedIds} onChange={setSelectedIds} />
+        </div>
       </div>
-      {selectedId !== null && isLoadingCharacter && characterWeeklyCache[selectedId] === undefined ? (
-        <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">불러오는 중...</div>
-      ) : (
-        <LineChart series={SERIES} points={points} formatValue={formatNumber} />
-      )}
+      <LineChart series={series} points={points} formatValue={formatNumber} />
     </section>
   )
 }
