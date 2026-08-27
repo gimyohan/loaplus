@@ -330,12 +330,13 @@ function KurzanFrontlineWidgetBound({
         }}
         onQuickAction={(key) => {
           if (key !== 'ticket') return
-          // 현재 목표(target_name)에 대응하는 에브니 큐브 등급 수량이 +1 된다 — 이 위젯 자체
-          // 상태는 바뀌지 않고 에브니 큐브 쪽 상태만 바뀌므로, 그 위젯이 열려 있다면 다시
-          // 조회하도록 알린다(docs/ebony_cube_hal_hourglass.typ 참고).
+          // 현재 목표(target_name)가 혼돈의 균열 구간이면 시련의 모래가, 그 외에는 대응하는
+          // 에브니 큐브 등급 수량이 +1 된다(서버가 판단) — 이 위젯 자체 상태는 바뀌지 않고
+          // 에브니 큐브/할의 모래시계 쪽 상태만 바뀌므로, 그 위젯이 열려 있다면 다시 조회하도록
+          // 알린다(docs/ebony_cube_hal_hourglass.typ 참고).
           collectKurzanTicket(characterId)
             .then(() => notifyHomeworksChanged(characterId))
-            .catch((err) => console.error('쿠르잔 전선 입장권 획득 실패', err))
+            .catch((err) => console.error('쿠르잔 전선 티켓/모래 획득 실패', err))
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onClaimShardReward={(item) => {

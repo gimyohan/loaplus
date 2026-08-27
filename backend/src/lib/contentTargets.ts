@@ -14,6 +14,18 @@ export const KURZAN_FRONTLINE_STAGES = [
   ...contentStagesData.chaosRift.stages,
 ]
 
+const CHAOS_RIFT_STAGE_NAMES = new Set(contentStagesData.chaosRift.stages.map((stage) => stage.name))
+
+/**
+ * 쿠르잔 전선의 현재 target_name이 혼돈의 균열 구간으로 넘어갔는지 판정한다. 쿠르잔 전선 위젯의
+ * "티켓" 퀵액션은 이 구간에서는 에브니 큐브 티켓 대신 시련의 모래를 적립한다 — 혼돈의 균열
+ * 단계는 애초에 에브니 큐브 등급 매핑표(ticketTypeForKurzanTarget)에 없기 때문이다
+ * (docs/ebony_cube_hal_hourglass.typ "쿠르잔 전선 위젯 변경" 참고).
+ */
+export function isChaosRiftKurzanTarget(targetName: string): boolean {
+  return CHAOS_RIFT_STAGE_NAMES.has(targetName)
+}
+
 /**
  * 캐릭터의 현재 아이템 레벨로 입장 가능한 목표 중 가장 높은 것을 고른다.
  * 입장 가능한 목표가 하나도 없으면(레벨이 최소 요구치에도 못 미치면) 목록에서 가장 낮은

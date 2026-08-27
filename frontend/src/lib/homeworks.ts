@@ -237,13 +237,14 @@ export async function updateKurzanTarget(
 }
 
 /**
- * 쿠르잔 전선 위젯의 입장권 표시 영역 클릭. 현재 target_name에 대응하는 에브니 큐브 등급의 보유
- * 수량이 1 늘어난다 — '오늘 수확' 여부와 무관하게 언제든 누를 수 있고 로그를 남기지 않는다
- * (docs/ebony_cube_hal_hourglass.typ 참고). 목표가 카오스 던전/혼돈의 균열 단계라 매핑표에 없으면
- * 서버가 409 ticket_not_available_for_target을 던진다.
+ * 쿠르잔 전선 위젯의 입장권 표시 영역 클릭. 현재 target_name이 혼돈의 균열 구간이면 시련의 모래
+ * 스택이 1 늘고(할의 모래시계 참고), 그 외에는 대응하는 에브니 큐브 등급의 보유 수량이 1
+ * 늘어난다 — '오늘 수확' 여부와 무관하게 언제든 누를 수 있고 로그를 남기지 않는다
+ * (docs/ebony_cube_hal_hourglass.typ 참고). 목표가 카오스 던전 단계라 매핑표에 없으면 서버가
+ * 409 ticket_not_available_for_target을 던진다.
  */
-export async function collectKurzanTicket(characterId: string): Promise<EbonyCubeSummary> {
-  return apiFetch<EbonyCubeSummary>(`/api/characters/${characterId}/kurzan/ticket/collect`, {
+export async function collectKurzanTicket(characterId: string): Promise<EbonyCubeSummary | HalHourglassSummary> {
+  return apiFetch<EbonyCubeSummary | HalHourglassSummary>(`/api/characters/${characterId}/kurzan/ticket/collect`, {
     method: 'POST',
   })
 }

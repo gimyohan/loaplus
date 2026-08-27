@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 
 import {
+  collectHalHourglassSand,
   getOrCreateEbonyCube,
   getOrCreateGuardian,
   getOrCreateHalHourglass,
@@ -14,6 +15,7 @@ import {
 } from '../lib/homeworkDefaults.js'
 import type { ActionLogCreateInput } from '../lib/actionLogs.js'
 import { applyHarvestStatistics, createRewardLog, enforceActionLogCap, toLogEntry } from '../lib/actionLogs.js'
+import { isChaosRiftKurzanTarget } from '../lib/contentTargets.js'
 import type { TicketType } from '../lib/ebonyCubeCatalog.js'
 import { ensureValidSelection, ticketColumnField, ticketCountByType, ticketTypeForKurzanTarget } from '../lib/ebonyCubeCatalog.js'
 import {
@@ -447,12 +449,20 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
     },
   )
 
-  // 쿠르잔 전선 위젯의 티켓 표시 영역 클릭. 현재 target_name에 대응하는 큐브 티켓 등급을 찾아
-  // Ebony_Cubes의 그 등급 컬럼을 +1 한다 — '오늘 수확' 여부와 무관하게 언제든 누를 수 있고,
-  // 로그를 남기지 않는 단순 적립이다(docs/ebony_cube_hal_hourglass.typ 참고).
+  // 쿠르잔 전선 위젯의 티켓 표시 영역 클릭. 현재 target_name이 혼돈의 균열 구간이면 에브니 큐브
+  // 대신 시련의 모래 스택을 적립하고(할의 모래시계와 동일한 +1/최대 5 규칙), 그 외(카오스 던전
+  // 제외 — 아직 위젯 없음)는 기존처럼 target_name에 대응하는 큐브 티켓 등급을 찾아 Ebony_Cubes의
+  // 그 등급 컬럼을 +1 한다. '오늘 수확' 여부와 무관하게 언제든 누를 수 있고, 둘 다 로그를 남기지
+  // 않는 단순 적립이다(docs/ebony_cube_hal_hourglass.typ "쿠르잔 전선 위젯 변경" 참고).
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/kurzan/ticket/collect',
-    { preHandler: auth, schema: { tags: ['Kurzan'], summary: '쿠르잔 전선 티켓 획득 클릭 (에브니 큐브 등급별 +1)' } },
+    {
+      preHandler: auth,
+      schema: {
+        tags: ['Kurzan'],
+        summary: '쿠르잔 전선 티켓 획득 클릭 (구간에 따라 에브니 큐브 등급별 +1 또는 시련의 모래 +1)',
+      },
+    },
     async (request, reply) => {
       const character = await requireOwnedCharacter(
         request.params.characterId,
@@ -462,11 +472,16 @@ export async function homeworkRoutes(fastify: FastifyInstance) {
       if (!character) return
 
       const kurzan = await getOrCreateKurzanFrontline(fastify.prisma, character.id, character.itemLevel)
+
+      if (isChaosRiftKurzanTarget(kurzan.targetName)) {
+        const updated = await collectHalHourglassSand(fastify.prisma, character.id, character.itemLevel)
+        return reply.send(toHalHourglassSummary(updated))
+      }
+
       await getOrCreateEbonyCube(fastify.prisma, character.id)
 
-      // 이 서비스는 아직 카오스 던전 위젯이 없어 target_name이 카오스 던전·혼돈의 균열
-      // 스테이지일 수도 있다 — 그런 경우 큐브 등급 매핑표에 없으므로 거부한다
-      // (docs/ebony_cube_hal_hourglass.typ "쿠르잔 전선 위젯 변경" 참고).
+      // 이 서비스는 아직 카오스 던전 위젯이 없어 target_name이 카오스 던전 스테이지일 수도 있다 —
+      // 그런 경우 큐브 등급 매핑표에 없으므로 거부한다.
       const ticketType = ticketTypeForKurzanTarget(kurzan.targetName)
       if (!ticketType) {
         return reply.code(409).send({ error: 'ticket_not_available_for_target' })

@@ -74,6 +74,20 @@ export async function getOrCreateHalHourglass(prisma: PrismaClient, characterId:
 }
 
 /**
+ * 시련의 모래 스택 +1(최대 5, 이미 5면 그대로) — 할의 모래시계 위젯의 전용 획득 버튼과, 쿠르잔
+ * 전선이 혼돈의 균열 구간일 때의 "티켓" 퀵액션이 공유하는 로직이다(docs/ebony_cube_hal_hourglass.typ
+ * "쿠르잔 전선 위젯 변경" 참고). 로그를 남기지 않는 단순 적립이다.
+ */
+export async function collectHalHourglassSand(prisma: PrismaClient, characterId: string, itemLevel: number) {
+  const hourglass = await getOrCreateHalHourglass(prisma, characterId, itemLevel)
+  if (hourglass.sandStack >= 5) return hourglass
+  return prisma.halHourglass.update({
+    where: { characterId },
+    data: { sandStack: hourglass.sandStack + 1 },
+  })
+}
+
+/**
  * 캐릭터 새로고침(아이템 레벨 갱신) 뒤에 호출한다. target_auto_managed가 true인 콘텐츠만
  * 새 아이템 레벨 기준 최고 목표로 다시 맞추고, 유저가 직접 고른(false) 콘텐츠는 건드리지 않는다.
  * 가디언/쿠르잔 행이 아직 없는 캐릭터(위젯을 한 번도 안 연 경우)는 새로고침만으로 만들지 않는다.

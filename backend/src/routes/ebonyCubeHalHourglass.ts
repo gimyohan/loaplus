@@ -12,7 +12,7 @@ import {
   TICKET_TYPES,
 } from '../lib/ebonyCubeCatalog.js'
 import type { TicketType } from '../lib/ebonyCubeCatalog.js'
-import { getOrCreateEbonyCube, getOrCreateHalHourglass } from '../lib/homeworkDefaults.js'
+import { collectHalHourglassSand, getOrCreateEbonyCube, getOrCreateHalHourglass } from '../lib/homeworkDefaults.js'
 import { buildHalHourglassCompleteRewards, findHalHourglassLevel } from '../lib/halHourglassCatalog.js'
 import { requireAuth } from '../lib/session.js'
 import { toEbonyCubeSummary, toHalHourglassSummary } from '../lib/widgetSummaries.js'
@@ -190,15 +190,7 @@ export async function ebonyCubeHalHourglassRoutes(fastify: FastifyInstance) {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
 
-      const hourglass = await getOrCreateHalHourglass(fastify.prisma, character.id, character.itemLevel)
-      if (hourglass.sandStack >= 5) {
-        return reply.send(toHalHourglassSummary(hourglass))
-      }
-
-      const updated = await fastify.prisma.halHourglass.update({
-        where: { characterId: character.id },
-        data: { sandStack: hourglass.sandStack + 1 },
-      })
+      const updated = await collectHalHourglassSand(fastify.prisma, character.id, character.itemLevel)
       return reply.send(toHalHourglassSummary(updated))
     },
   )

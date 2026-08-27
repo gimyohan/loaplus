@@ -1,5 +1,6 @@
-import { Bed, Check, Settings, Ticket } from 'lucide-react'
+import { Bed, Check, Hourglass, Settings, Ticket } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import type { ComponentType } from 'react'
 
 import { Tooltip } from '@/components/ui/tooltip'
 import { AzenaBlessingIcon, ResonancePotionIcon, ShardIcon } from '@/components/widgets/icons'
@@ -7,18 +8,14 @@ import { RestGaugeBar } from '@/components/widgets/RestGaugeBar'
 import { RewardSelectionModal, type RewardCategory, type RewardItem } from '@/components/widgets/RewardSelectionModal'
 import kurzanAzenaBlessingRewards from '@/data/kurzanAzenaBlessingRewards.json'
 import kurzanShardRewards from '@/data/kurzanShardRewards.json'
+import { isChaosRiftKurzanTarget } from '@/lib/contentStages'
 import { cn } from '@/lib/utils'
 import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
 
 const SHARD_REWARD_CATEGORIES: RewardCategory[] = kurzanShardRewards.categories
 const AZENA_BLESSING_REWARD_CATEGORIES: RewardCategory[] = kurzanAzenaBlessingRewards.categories
 
-const QUICK_ACTIONS = [
-  { key: 'resonancePotion', label: '공명비약', icon: ResonancePotionIcon },
-  { key: 'shard', label: '편린', icon: ShardIcon },
-  { key: 'azenaBlessing', label: '아제나 축복', icon: AzenaBlessingIcon },
-  { key: 'ticket', label: '입장권', icon: Ticket },
-] as const
+export type QuickActionKey = 'resonancePotion' | 'shard' | 'azenaBlessing' | 'ticket'
 
 // 체크박스 경고 깜빡임 지속 시간(ms). tailwind.config.js의 flash-warning 애니메이션(0.4s * 3회)과 맞춘다
 const RESONANCE_WARNING_DURATION_MS = 1200
@@ -28,7 +25,7 @@ export interface KurzanFrontlineWidgetProps {
   /** '오늘 수확' 체크박스 토글 (docs/widgets.typ 참고) */
   onToggleHarvested?: (checked: boolean) => void
   onOpenSettings?: () => void
-  onQuickAction?: (action: (typeof QUICK_ACTIONS)[number]['key']) => void
+  onQuickAction?: (action: QuickActionKey) => void
   /** 공명비약 사용(완료 상태에서만 가능): 휴식 게이지는 그대로 두고 체크박스만 초기화한다 */
   onUseResonancePotion?: () => void
   onClaimShardReward?: (item: RewardItem) => void
@@ -60,6 +57,19 @@ export function KurzanFrontlineWidget({
   // 별도 퀵액션 버튼으로 처리한다(docs/api.typ "체크박스 해제" 참고).
   const isCheckboxDisabled = isResting
 
+  // 목표가 혼돈의 균열 구간으로 넘어가면 "티켓" 퀵액션이 에브니 큐브 티켓 대신 시련의 모래를
+  // 적립한다 — 실제 적립은 서버가 결정하고, 여기서는 버튼 아이콘/라벨만 미리 맞춘다
+  // (docs/ebony_cube_hal_hourglass.typ "쿠르잔 전선 위젯 변경" 참고).
+  const isSandStage = isChaosRiftKurzanTarget(targetName)
+  const quickActions = [
+    { key: 'resonancePotion', label: '공명비약', icon: ResonancePotionIcon },
+    { key: 'shard', label: '편린', icon: ShardIcon },
+    { key: 'azenaBlessing', label: '아제나 축복', icon: AzenaBlessingIcon },
+    isSandStage
+      ? { key: 'ticket', label: '시련의 모래', icon: Hourglass }
+      : { key: 'ticket', label: '입장권', icon: Ticket },
+  ] as const satisfies { key: QuickActionKey; label: string; icon: ComponentType<{ className?: string }> }[]
+
   // 완료 전에 공명비약을 사용하려고 하면 체크박스를 빨갛게 깜빡여 경고한다
   const [isResonanceWarningActive, setIsResonanceWarningActive] = useState(false)
   const resonanceWarningTimeoutRef = useRef<number | undefined>(undefined)
@@ -72,7 +82,7 @@ export function KurzanFrontlineWidget({
     return () => window.clearTimeout(resonanceWarningTimeoutRef.current)
   }, [])
 
-  const handleQuickActionClick = (key: (typeof QUICK_ACTIONS)[number]['key']) => {
+  const handleQuickActionClick = (key: QuickActionKey) => {
     if (key === 'shard') {
       setIsShardRewardModalOpen(true)
       return
@@ -205,7 +215,7 @@ export function KurzanFrontlineWidget({
 
       {/* 하단: 관련 재화 바로가기. 4등분해서 아이콘 주변 배경을 눌러도 클릭되도록 버튼이 각 영역을 꽉 채운다 */}
       <div className="flex divide-x divide-border border-t border-border bg-muted">
-        {QUICK_ACTIONS.map(({ key, label, icon: Icon }) => (
+        {quickActions.map(({ key, label, icon: Icon }) => (
           <Tooltip key={key} label={label} className="flex-1">
             <button
               type="button"
