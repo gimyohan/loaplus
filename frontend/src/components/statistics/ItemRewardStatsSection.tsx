@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import type { CharacterOption } from '@/components/statistics/CharacterDropdown'
-import azenaBlessingCatalog from '@/data/kurzanAzenaBlessingRewards.json'
-import shardCatalog from '@/data/kurzanShardRewards.json'
+import type { RewardCategory } from '@/components/widgets/RewardSelectionModal'
+import { AZENA_BLESSING_REWARD_CATEGORIES, SHARD_REWARD_CATEGORIES } from '@/lib/rewardCatalog'
 import { fetchCharacterItemRewards, type ItemRewardContentType, type ItemRewardStat, type ItemRewardType } from '@/lib/statistics'
 import { cn } from '@/lib/utils'
 
@@ -16,21 +16,15 @@ function formatNumber(value: number) {
   return numberFormatter.format(value)
 }
 
-interface CatalogCategory {
-  key: string
-  label: string
-  items: { id: string; name: string }[]
-}
-
-function buildCategoryLabels(categories: CatalogCategory[]): Record<string, string> {
+function buildCategoryLabels(categories: RewardCategory[]): Record<string, string> {
   return Object.fromEntries(categories.map((category) => [category.key, category.label]))
 }
 
-// 편린/아제나 축복 두 보상 모두 가디언/쿠르잔이 같은 카탈로그를 공유한다(파일명은 kurzan이지만
+// 편린/아제나 축복 두 보상 모두 가디언/쿠르잔이 같은 카탈로그를 공유한다(lib/rewardCatalog.ts,
 // RewardSelectionModal도 동일하게 재사용) — categoryKey → 한글 라벨만 뽑아 쓴다.
 const CATEGORY_LABELS: Record<ItemRewardType, Record<string, string>> = {
-  SHARD: buildCategoryLabels(shardCatalog.categories),
-  AZENA_BLESSING: buildCategoryLabels(azenaBlessingCatalog.categories),
+  SHARD: buildCategoryLabels(SHARD_REWARD_CATEGORIES),
+  AZENA_BLESSING: buildCategoryLabels(AZENA_BLESSING_REWARD_CATEGORIES),
 }
 
 const CONTENT_TYPE_OPTIONS: { key: ItemRewardContentType; label: string }[] = [

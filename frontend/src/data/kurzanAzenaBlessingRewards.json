@@ -4,33 +4,33 @@
       "key": "boundGold",
       "label": "귀속 골드",
       "items": [
-        { "id": "azena-gold-pile-300000", "name": "300,000골드", "quantity": 1, "imageUrl": null },
-        { "id": "azena-gold-pile-200000", "name": "200,000골드", "quantity": 1, "imageUrl": null },
-        { "id": "azena-gold-box-100000", "name": "100,000골드", "quantity": 1, "imageUrl": null },
-        { "id": "azena-gold-box-50000", "name": "50,000골드", "quantity": 1, "imageUrl": null },
-        { "id": "azena-gold-box-20000", "name": "20,000골드", "quantity": 1, "imageUrl": null },
-        { "id": "azena-gold-bar-10000", "name": "10,000골드", "quantity": 1, "imageUrl": null }
+        { "itemId": "azena-gold-pile-300000", "amount": 1 },
+        { "itemId": "azena-gold-pile-200000", "amount": 1 },
+        { "itemId": "azena-gold-box-100000", "amount": 1 },
+        { "itemId": "azena-gold-box-50000", "amount": 1 },
+        { "itemId": "azena-gold-box-20000", "amount": 1 },
+        { "itemId": "azena-gold-bar-10000", "amount": 1 }
       ]
     },
     {
       "key": "cardPack",
       "label": "카드 팩",
       "items": [
-        { "id": "azena-card-pack-advance-legendary-1", "name": "진격의 전설 카드 팩 I", "quantity": 1, "imageUrl": null },
-        { "id": "azena-card-pack-advance-legendary-2", "name": "진격의 전설 카드 팩 II", "quantity": 1, "imageUrl": null },
-        { "id": "azena-card-pack-vigor-legendary-1", "name": "기백의 전설 카드 팩 I", "quantity": 1, "imageUrl": null },
-        { "id": "azena-card-pack-vigor-legendary-2", "name": "기백의 전설 카드 팩 II", "quantity": 1, "imageUrl": null },
-        { "id": "azena-card-pack-wish-legendary", "name": "염원의 전설 카드 팩", "quantity": 1, "imageUrl": null },
-        { "id": "azena-card-pack-desire-legendary", "name": "열망의 전설 카드 팩", "quantity": 1, "imageUrl": null },
-        { "id": "azena-card-pack-leap-legendary-choice-3", "name": "도약의 전설 카드 선택 팩 III", "quantity": 1, "imageUrl": null }
+        { "itemId": "azena-card-pack-advance-legendary-1", "amount": 1 },
+        { "itemId": "azena-card-pack-advance-legendary-2", "amount": 1 },
+        { "itemId": "azena-card-pack-vigor-legendary-1", "amount": 1 },
+        { "itemId": "azena-card-pack-vigor-legendary-2", "amount": 1 },
+        { "itemId": "azena-card-pack-wish-legendary", "amount": 1 },
+        { "itemId": "azena-card-pack-desire-legendary", "amount": 1 },
+        { "itemId": "azena-card-pack-leap-legendary-choice-3", "amount": 1 }
       ]
     },
     {
       "key": "relicEngravingBook",
       "label": "유물 각인서",
       "items": [
-        { "id": "azena-relic-engraving-pouch-blessing-random", "name": "축복의 유물 각인서 주머니 (랜덤)", "quantity": 1, "imageUrl": null },
-        { "id": "azena-relic-engraving-pouch-blessing-choice", "name": "축복의 유물 각인서 주머니 (선택)", "quantity": 1, "imageUrl": null }
+        { "itemId": "azena-relic-engraving-pouch-blessing-random", "amount": 1 },
+        { "itemId": "azena-relic-engraving-pouch-blessing-choice", "amount": 1 }
       ]
     }
   ]

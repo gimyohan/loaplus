@@ -5,15 +5,11 @@ import type { ComponentType } from 'react'
 import { Tooltip } from '@/components/ui/tooltip'
 import { AzenaBlessingIcon, ResonancePotionIcon, ShardIcon } from '@/components/widgets/icons'
 import { RestGaugeBar } from '@/components/widgets/RestGaugeBar'
-import { RewardSelectionModal, type RewardCategory, type RewardItem } from '@/components/widgets/RewardSelectionModal'
-import kurzanAzenaBlessingRewards from '@/data/kurzanAzenaBlessingRewards.json'
-import kurzanShardRewards from '@/data/kurzanShardRewards.json'
+import { RewardSelectionModal, type RewardItem } from '@/components/widgets/RewardSelectionModal'
 import { isChaosRiftKurzanTarget } from '@/lib/contentStages'
+import { AZENA_BLESSING_REWARD_CATEGORIES, SHARD_REWARD_CATEGORIES } from '@/lib/rewardCatalog'
 import { cn } from '@/lib/utils'
 import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
-
-const SHARD_REWARD_CATEGORIES: RewardCategory[] = kurzanShardRewards.categories
-const AZENA_BLESSING_REWARD_CATEGORIES: RewardCategory[] = kurzanAzenaBlessingRewards.categories
 
 export type QuickActionKey = 'resonancePotion' | 'shard' | 'azenaBlessing' | 'ticket'
 

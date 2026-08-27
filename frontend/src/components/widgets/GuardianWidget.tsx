@@ -4,16 +4,13 @@ import { useState } from 'react'
 import { Tooltip } from '@/components/ui/tooltip'
 import { AzenaBlessingIcon, ShardIcon } from '@/components/widgets/icons'
 import { RestGaugeBar } from '@/components/widgets/RestGaugeBar'
-import { RewardSelectionModal, type RewardCategory, type RewardItem } from '@/components/widgets/RewardSelectionModal'
-import kurzanAzenaBlessingRewards from '@/data/kurzanAzenaBlessingRewards.json'
-import kurzanShardRewards from '@/data/kurzanShardRewards.json'
+import { RewardSelectionModal, type RewardItem } from '@/components/widgets/RewardSelectionModal'
+import { AZENA_BLESSING_REWARD_CATEGORIES, SHARD_REWARD_CATEGORIES } from '@/lib/rewardCatalog'
 import { cn } from '@/lib/utils'
 import type { GuardianSummary } from '@/types/guardian'
 
 // 가디언 토벌에서는 편린 / 아제나 축복만 사용한다
-// 보상 목록은 쿠르잔 전선과 같은 재화 체계를 그대로 쓰므로 데이터도 공유한다
-const SHARD_REWARD_CATEGORIES: RewardCategory[] = kurzanShardRewards.categories
-const AZENA_BLESSING_REWARD_CATEGORIES: RewardCategory[] = kurzanAzenaBlessingRewards.categories
+// 보상 목록은 쿠르잔 전선과 같은 재화 체계를 그대로 쓰므로 데이터도 공유한다(lib/rewardCatalog.ts)
 
 const QUICK_ACTIONS = [
   { key: 'shard', label: '편린', icon: ShardIcon },

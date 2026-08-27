@@ -4,79 +4,79 @@
       "key": "gold",
       "label": "골드",
       "items": [
-        { "id": "gold-bar-stack-300000", "name": "300,000골드", "quantity": 1, "numericValue": 300000 },
-        { "id": "gold-bar-stack-200000", "name": "200,000골드", "quantity": 1, "numericValue": 200000 },
-        { "id": "gold-box-100000", "name": "100,000골드", "quantity": 1, "numericValue": 100000 },
-        { "id": "gold-box-50000", "name": "50,000골드", "quantity": 1, "numericValue": 50000 },
-        { "id": "gold-box-20000", "name": "20,000골드", "quantity": 1, "numericValue": 20000 },
-        { "id": "gold-bar-10000", "name": "10,000골드", "quantity": 1, "numericValue": 10000 },
-        { "id": "gold-bar-3000", "name": "3,000골드", "quantity": 1, "numericValue": 3000 },
-        { "id": "gold-coin-1500", "name": "1,500골드", "quantity": 1, "numericValue": 1500 }
+        { "itemId": "gold-bar-stack-300000", "amount": 1 },
+        { "itemId": "gold-bar-stack-200000", "amount": 1 },
+        { "itemId": "gold-box-100000", "amount": 1 },
+        { "itemId": "gold-box-50000", "amount": 1 },
+        { "itemId": "gold-box-20000", "amount": 1 },
+        { "itemId": "gold-bar-10000", "amount": 1 },
+        { "itemId": "gold-bar-3000", "amount": 1 },
+        { "itemId": "gold-coin-1500", "amount": 1 }
       ]
     },
     {
       "key": "silver",
       "label": "실링",
       "items": [
-        { "id": "silver-safe-10000000", "name": "10,000,000실링", "quantity": 1, "numericValue": 10000000 },
-        { "id": "silver-safe-5000000", "name": "5,000,000실링", "quantity": 1, "numericValue": 5000000 },
-        { "id": "silver-safe-2000000", "name": "2,000,000실링", "quantity": 1, "numericValue": 2000000 },
-        { "id": "silver-safe-1000000", "name": "1,000,000실링", "quantity": 1, "numericValue": 1000000 },
-        { "id": "silver-sack-500000", "name": "500,000실링", "quantity": 1, "numericValue": 500000 }
+        { "itemId": "silver-safe-10000000", "amount": 1 },
+        { "itemId": "silver-safe-5000000", "amount": 1 },
+        { "itemId": "silver-safe-2000000", "amount": 1 },
+        { "itemId": "silver-safe-1000000", "amount": 1 },
+        { "itemId": "silver-sack-500000", "amount": 1 }
       ]
     },
     {
       "key": "expCardPack",
       "label": "경험치 카드 팩",
       "items": [
-        { "id": "exp-card-pack-premium", "name": "경험치 카드 팩 : 프리미엄", "quantity": 1 },
-        { "id": "exp-card-pack-special", "name": "경험치 카드 팩 : 스페셜", "quantity": 1 },
-        { "id": "exp-card-pack-lucky", "name": "경험치 카드 팩 : 럭키", "quantity": 1 },
-        { "id": "exp-card-pack", "name": "경험치 카드 팩", "quantity": 1 }
+        { "itemId": "exp-card-pack-premium", "amount": 1 },
+        { "itemId": "exp-card-pack-special", "amount": 1 },
+        { "itemId": "exp-card-pack-lucky", "amount": 1 },
+        { "itemId": "exp-card-pack", "amount": 1 }
       ]
     },
     {
       "key": "cardPack",
       "label": "카드 팩",
       "items": [
-        { "id": "card-pack-happiness-legendary-choice", "name": "행복의 전설 카드 팩 (선택)", "quantity": 1 },
-        { "id": "card-pack-happiness-legendary-random", "name": "행복의 전설 카드 팩 (랜덤)", "quantity": 1 },
-        { "id": "card-pack-happiness-heroic-choice", "name": "행복의 영웅 카드 팩 (선택)", "quantity": 1 }
+        { "itemId": "card-pack-happiness-legendary-choice", "amount": 1 },
+        { "itemId": "card-pack-happiness-legendary-random", "amount": 1 },
+        { "itemId": "card-pack-happiness-heroic-choice", "amount": 1 }
       ]
     },
     {
       "key": "honingMaterialBox",
       "label": "재련 재료 상자",
       "items": [
-        { "id": "honing-box-flight-large", "name": "비상의 재련 재료 상자 (대)", "quantity": 1 },
-        { "id": "honing-box-flight-medium", "name": "비상의 재련 재료 상자 (중)", "quantity": 1 },
-        { "id": "honing-box-flight-small", "name": "비상의 재련 재료 상자 (소)", "quantity": 1 },
-        { "id": "honing-box-abundance-large", "name": "풍요의 재련 재료 상자 (대)", "quantity": 1 },
-        { "id": "honing-box-abundance-medium", "name": "풍요의 재련 재료 상자 (중)", "quantity": 1 },
-        { "id": "honing-box-abundance-small", "name": "풍요의 재련 재료 상자 (소)", "quantity": 1 },
-        { "id": "honing-box-harvest-large", "name": "수확의 재련 재료 상자 (대)", "quantity": 1 },
-        { "id": "honing-box-harvest-medium", "name": "수확의 재련 재료 상자 (중)", "quantity": 1 },
-        { "id": "honing-box-harvest-small", "name": "수확의 재련 재료 상자 (소)", "quantity": 1 }
+        { "itemId": "honing-box-flight-large", "amount": 1 },
+        { "itemId": "honing-box-flight-medium", "amount": 1 },
+        { "itemId": "honing-box-flight-small", "amount": 1 },
+        { "itemId": "honing-box-abundance-large", "amount": 1 },
+        { "itemId": "honing-box-abundance-medium", "amount": 1 },
+        { "itemId": "honing-box-abundance-small", "amount": 1 },
+        { "itemId": "honing-box-harvest-large", "amount": 1 },
+        { "itemId": "honing-box-harvest-medium", "amount": 1 },
+        { "itemId": "honing-box-harvest-small", "amount": 1 }
       ]
     },
     {
       "key": "relicEngravingBook",
       "label": "유물 각인서",
       "items": [
-        { "id": "relic-engraving-pouch-happiness-choice", "name": "행복의 유물 각인서 주머니 (선택)", "quantity": 1 },
-        { "id": "relic-engraving-pouch-happiness-random", "name": "행복의 유물 각인서 주머니 (랜덤)", "quantity": 1 }
+        { "itemId": "relic-engraving-pouch-happiness-choice", "amount": 1 },
+        { "itemId": "relic-engraving-pouch-happiness-random", "amount": 1 }
       ]
     },
     {
       "key": "gem",
       "label": "젬",
       "items": [
-        { "id": "gem-box-order-large", "name": "질서의 젬 상자 (대)", "quantity": 1 },
-        { "id": "gem-box-order-medium", "name": "질서의 젬 상자 (중)", "quantity": 1 },
-        { "id": "gem-box-order-small", "name": "질서의 젬 상자 (소)", "quantity": 1 },
-        { "id": "gem-box-chaos-large", "name": "혼돈의 젬 상자 (대)", "quantity": 1 },
-        { "id": "gem-box-chaos-medium", "name": "혼돈의 젬 상자 (중)", "quantity": 1 },
-        { "id": "gem-box-chaos-small", "name": "혼돈의 젬 상자 (소)", "quantity": 1 }
+        { "itemId": "gem-box-order-large", "amount": 1 },
+        { "itemId": "gem-box-order-medium", "amount": 1 },
+        { "itemId": "gem-box-order-small", "amount": 1 },
+        { "itemId": "gem-box-chaos-large", "amount": 1 },
+        { "itemId": "gem-box-chaos-medium", "amount": 1 },
+        { "itemId": "gem-box-chaos-small", "amount": 1 }
       ]
     }
   ]
