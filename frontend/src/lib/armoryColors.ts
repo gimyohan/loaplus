@@ -116,6 +116,29 @@ export function refineLevelColor(refineLevel: number, itemName: string): string 
   return colorForLevel(refineLevel, set.buckets)
 }
 
+// 장비 슬롯 아이콘의 배경색 — 세트별 고유색(사용자 확정). 원본 아이콘 이미지가 투명 배경이라
+// 이 색이 아이템 뒤로 그대로 비친다. 목걸이 등 장신구나 아직 색이 없는 세트는 null을 반환해
+// 호출부가 기본 배경(bg-background)을 그대로 쓰게 한다.
+interface EquipmentBackgroundColorSet {
+  nameIncludes: string
+  color: string
+}
+
+const EQUIPMENT_BACKGROUND_COLORS: EquipmentBackgroundColorSet[] = [
+  { nameIncludes: '결단', color: '#7d2b03' },
+  { nameIncludes: '업화', color: '#e9d099' },
+  { nameIncludes: '전율', color: '#bea371' },
+]
+
+export function equipmentBackgroundColor(itemName: string): string | null {
+  return EQUIPMENT_BACKGROUND_COLORS.find((set) => itemName?.includes(set.nameIncludes))?.color ?? null
+}
+
+/** "전율" 세트는 장비 칸 테두리를 secondary 색으로 강조한다(사용자 확정). */
+export function isJeonyulItem(itemName: string): boolean {
+  return Boolean(itemName?.includes('전율'))
+}
+
 /** 어빌리티 스톤 전투 각인 레벨(1~3)을 색상으로 구분한다(별도 색 정보 없음 — 이 앱 차트 팔레트 재사용). */
 export function engravingLevelColor(level: number): string {
   if (level >= 3) return chartColor(2)

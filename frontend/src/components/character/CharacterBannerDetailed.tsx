@@ -18,7 +18,9 @@ import { CharacterBanner } from '@/components/character/CharacterBanner'
 import {
   advancedRefineLevelColor,
   engravingLevelColor,
+  equipmentBackgroundColor,
   hasAdvancedRefine,
+  isJeonyulItem,
   qualityColor,
   refineLevelColor,
 } from '@/lib/armoryColors'
@@ -178,6 +180,8 @@ export function CharacterBannerDetailed({
             const advancedRefineColor = advancedRefineLevelColor(slot.advancedRefineLevel)
             const showAdvancedRefine = hasAdvancedRefine(slot.itemName)
             const isWeapon = key === 'weapon'
+            const isJeonyul = isJeonyulItem(slot.itemName)
+            const backgroundColor = equipmentBackgroundColor(slot.itemName)
             return (
               <HoverDetail
                 key={key}
@@ -209,9 +213,12 @@ export function CharacterBannerDetailed({
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
-                        'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-background',
-                        isWeapon ? 'border-primary' : 'border-border',
+                        'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-background',
+                        // box-sizing: border-box라 두께를 키워도 바깥 크기(h-14 w-14)는 그대로고
+                        // 안쪽 콘텐츠 영역만 줄어든다 — "안쪽으로 굵어지는" 테두리.
+                        isJeonyul ? 'border-4 border-secondary' : isWeapon ? 'border border-primary' : 'border border-border',
                       )}
+                      style={{ backgroundColor: backgroundColor ?? undefined }}
                     >
                       {/* Open API가 내려주는 실제 장비 아이콘 이미지를 우선 쓰고, 없으면(구 저장
                           데이터 등) 부위별 lucide 아이콘으로 대체한다. */}
