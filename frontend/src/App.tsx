@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { DashboardView } from '@/components/dashboard/DashboardView'
@@ -43,6 +43,11 @@ function App() {
   // 않은 임시 카드는 서버에 아무 것도 없으니 확인 없이 바로 지운다.
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; characterName: string } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+  // 대시보드는 탭을 옮겨도 언마운트되지 않지만(위 hidden 처리 참고), 다른 탭 콘텐츠가 같은
+  // <main> 안에 그려지면서 문서 높이가 바뀌어 스크롤 위치 자체는 유지되지 않는다 — 다른 탭으로
+  // 나갈 때 스크롤 위치를 기억해뒀다가, 대시보드로 돌아왔을 때만 복원한다(새로고침 시엔 사라지는
+  // 임시 기억이라 상태로 두지 않고 ref로 충분하다).
+  const dashboardScrollY = useRef(0)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
@@ -63,6 +68,17 @@ function App() {
       cancelled = true
     }
   }, [status])
+
+  // 대시보드에서 나가기 직전(handleNavigate)에 스크롤 위치를 저장해둔다 — effect cleanup에서
+  // 저장하면 그 시점엔 이미 다른 탭의(대개 더 짧은) 레이아웃으로 DOM이 바뀐 뒤라 window.scrollY가
+  // 브라우저에 의해 이미 0 근처로 잘려 있어 늦다. 대시보드로 들어올 때는(이 effect) 반대로
+  // 대시보드 콘텐츠가 다시 보이는 화면 갱신 뒤에 복원해야 하므로, 레이아웃 반영 직후·그리기 전에
+  // 맞추는 useLayoutEffect를 쓴다.
+  useLayoutEffect(() => {
+    if (activeView === 'dashboard') {
+      window.scrollTo(0, dashboardScrollY.current)
+    }
+  }, [activeView])
 
   // RosterView(원정대 일괄 추가, 카드 순서 드래그 스왑) 등 이 상태 밖에서 캐릭터가 새로
   // 등록되거나 순서가 바뀌었을 때, 대시보드 탭에도 반영되도록 순서를 다시 불러온다.
@@ -140,9 +156,16 @@ function App() {
     setAutoOpenCardId((prev) => (prev === id ? characterId : prev))
   }
 
+  const handleNavigate = (next: NavView) => {
+    if (activeView === 'dashboard' && next !== 'dashboard') {
+      dashboardScrollY.current = window.scrollY
+    }
+    setActiveView(next)
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Sidebar activeView={activeView} onNavigate={setActiveView} onSignOut={() => logout()} />
+      <Sidebar activeView={activeView} onNavigate={handleNavigate} onSignOut={() => logout()} />
       <TopAppBar
         title={VIEW_TITLES[activeView]}
         nickname={user?.nickname}
