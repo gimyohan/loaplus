@@ -1,4 +1,4 @@
-import { Check, Settings, Sparkles } from 'lucide-react'
+import { Check, Settings } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import type { HalHourglassSummary } from '@/types/halHourglass'
@@ -76,21 +76,17 @@ export function HalHourglassWidget({
         disabled={sandStack >= MAX_SAND_STACK}
         className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:hover:bg-transparent"
       >
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {Array.from({ length: MAX_SAND_STACK }, (_, index) => (
             <span
               key={index}
               className={cn(
-                'h-4 w-4 rounded-sm border border-border transition-colors',
+                'h-6 w-6 rounded-sm border border-border transition-colors',
                 index < sandStack ? 'border-primary bg-primary' : 'bg-background',
               )}
             />
           ))}
         </div>
-        <span className="flex items-center gap-1 font-mono text-xs">
-          <Sparkles className="h-3.5 w-3.5" />
-          완료 시 보상 x{sandStack + 1}
-        </span>
       </button>
     </div>
   )
