@@ -1,4 +1,4 @@
-import type { MarketItemCurrentPrice } from '@prisma/client'
+import type { MarketItemCurrentPrice, MarketItemDailyStat } from '@prisma/client'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -19,6 +19,16 @@ const historyQuerySchema = z.object({
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 })
 
+const searchQuerySchema = z.object({
+  search: z.string().trim().min(1).max(100),
+})
+
+// docs/market_price.typ "구현 전 확인 필요"에서 예고된 검색 엔드포인트. Market_Item_Daily_Stats
+// (파이프라인 A 야간 배치로만 채워지는 일별 시세 통계)만 조회한다 — Market 탭은 이 테이블만
+// 참조해야 하므로(사용자 확정), Open API 키나 실시간 갱신(Market_Item_Current_Prices/파이프라인 B)
+// 없이도 항상 검색 가능하다.
+const MAX_SEARCH_RESULTS = 20
+
 const refreshBatchSchema = z.object({
   itemIds: z.array(z.number().int()).min(1).max(MAX_BATCH_ITEM_IDS),
 })
@@ -33,6 +43,15 @@ function toCurrentPriceResponse(row: MarketItemCurrentPrice) {
     itemName: row.itemName,
     currentMinPrice: row.currentMinPrice,
     updatedAt: row.updatedAt,
+  }
+}
+
+function toSearchResultResponse(row: MarketItemDailyStat) {
+  return {
+    itemId: row.itemId,
+    itemName: row.itemName,
+    avgPrice: row.avgPrice,
+    date: row.date.toISOString().slice(0, 10),
   }
 }
 
@@ -104,6 +123,30 @@ export async function marketRoutes(fastify: FastifyInstance) {
     })
   }
 
+  fastify.get<{ Querystring: { search?: string } }>(
+    '/api/market/items',
+    { preHandler: auth, schema: { tags: ['Market'], summary: '아이템 이름으로 검색 (로컬 캐시 카탈로그, 부분일치)' } },
+    async (request, reply) => {
+      const parsed = searchQuerySchema.safeParse(request.query)
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'invalid_request' })
+      }
+
+      // itemId당 가장 최근 날짜 한 행만 남긴다(distinct는 orderBy의 앞쪽 필드를 기준으로 그룹화하므로
+      // itemId를 먼저 두고, 그 안에서 date desc로 정렬해 최신 행이 뽑히게 한다) — 그 다음 화면
+      // 표시 순서(이름순)로 다시 정렬한다.
+      const rows = await fastify.prisma.marketItemDailyStat.findMany({
+        where: { itemName: { contains: parsed.data.search, mode: 'insensitive' } },
+        orderBy: [{ itemId: 'asc' }, { date: 'desc' }],
+        distinct: ['itemId'],
+        take: MAX_SEARCH_RESULTS,
+      })
+      rows.sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
+
+      return reply.send(rows.map(toSearchResultResponse))
+    },
+  )
+
   fastify.get<{ Params: { itemId: string } }>(
     '/api/market/items/:itemId',
     { preHandler: auth, schema: { tags: ['Market'], summary: '거래소 현재 최소 판매가 조회 (30분 경과 시 암묵적 갱신)' } },
@@ -165,6 +208,7 @@ export async function marketRoutes(fastify: FastifyInstance) {
       return reply.send(
         rows.map((row) => ({
           date: row.date.toISOString().slice(0, 10),
+          itemName: row.itemName,
           avgPrice: row.avgPrice,
           tradeCount: row.tradeCount,
         })),

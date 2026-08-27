@@ -1,24 +1,17 @@
-import { KeyRound, PackageSearch, Plus, RefreshCw, Trash2, TrendingUp } from 'lucide-react'
+import { PackageSearch, Trash2, TrendingUp } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { ComingSoonView } from '@/components/layout/ComingSoonView'
-import { LostarkApiKeyModal } from '@/components/settings/LostarkApiKeyModal'
 import { LineChart, type LineChartSeries } from '@/components/statistics/charts/LineChart'
 import { Button } from '@/components/ui/button'
-import {
-  describeMarketApiError,
-  fetchMarketItem,
-  fetchMarketItemHistory,
-  refreshMarketItem,
-  refreshMarketItemsBatch,
-} from '@/lib/market'
+import { describeMarketApiError, fetchMarketItemHistory, searchMarketItems } from '@/lib/market'
 import { cssVar } from '@/lib/statisticsCategories'
-import { fetchProfile } from '@/lib/user'
-import { cn } from '@/lib/utils'
-import type { MarketItemDailyStat, MarketItemPrice } from '@/types/market'
+import type { MarketItemDailyStat, MarketItemSearchResult } from '@/types/market'
 
 const WATCHLIST_STORAGE_KEY = 'loaplus:market:watchlist'
 const HISTORY_DAYS = 14
+const SEARCH_DEBOUNCE_MS = 300
+const MIN_SEARCH_QUERY_LENGTH = 2
 const HISTORY_SERIES: LineChartSeries[] = [{ key: 'avgPrice', label: '평균 거래가', color: cssVar('--chart-1') }]
 
 const numberFormatter = new Intl.NumberFormat('ko-KR')
@@ -52,92 +45,118 @@ function recentDateRange(days: number): { from: string; to: string } {
 
 interface WatchedItemState {
   itemId: number
-  price: MarketItemPrice | null
-  error: string | null
-  isRefreshing: boolean
+  /** 검색 결과에서 고를 때 즉시 채워진다. 새로고침 뒤 관심 목록만으로 복원한 경우엔 history가
+   * 도착하기 전까지 잠깐 null일 수 있다. */
+  itemName: string | null
+  /** null = 아직 불러오는 중, 빈 배열 = 최근 HISTORY_DAYS일간 데이터 없음. 날짜 오름차순이라
+   * 마지막 원소가 가장 최근 값이다. */
   history: MarketItemDailyStat[] | null
+  error: string | null
   isHistoryOpen: boolean
 }
 
+/** history의 마지막(가장 최근 날짜) 원소 — 화면 상단에 보여줄 "현재" 값으로 쓴다. */
+function latestStat(history: MarketItemDailyStat[] | null): MarketItemDailyStat | null {
+  if (!history || history.length === 0) return null
+  return history[history.length - 1]!
+}
+
 /**
- * 거래소 시세 탭. 로스트아크 Open API 키를 등록한 유저만 사용 가능하다(docs/market_price.typ 참고
- * — 개인 키가 없어도 서버 공용 폴백 키로 조회 자체는 가능하지만, 이 기능은 개인 키 등록자 전용으로
- * 제한한다). 백엔드에 아이템 이름 검색 API가 아직 없어(docs/market_price.typ "구현 전 확인 필요"
- * 참고) 유저가 직접 아이템 ID를 입력해 관심 목록에 추가하는 방식으로 만든다. 관심 목록은 서버에
+ * 거래소 시세 탭. Market_Item_Daily_Stats(일별 시세 통계) *만* 참조한다(사용자 확정) — 매일
+ * 새벽 야간 배치로만 채워지는 전 유저 공용 데이터라, 유저의 로스트아크 API 키나 실시간 새로고침이
+ * 전혀 필요 없다. 아이템은 이름으로 검색해(GET /api/market/items?search=) 관심 목록에 추가하고,
+ * "가격"으로 보여주는 값은 그 아이템의 가장 최근 날짜 일평균 거래가다(실시간 최소 판매가가
+ * 아니다 — Market_Item_Current_Prices/파이프라인 B는 이 탭에서 쓰지 않는다). 관심 목록은 서버에
  * 저장되지 않는 순수 클라이언트 상태라 localStorage에 itemId만 보관한다.
  */
 export function MarketView() {
-  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null)
-  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
-  const [itemIdInput, setItemIdInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<MarketItemSearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [items, setItems] = useState<WatchedItemState[]>([])
-  const [isRefreshingAll, setIsRefreshingAll] = useState(false)
+
+  const loadHistoryFor = (itemId: number) => {
+    const { from, to } = recentDateRange(HISTORY_DAYS)
+    fetchMarketItemHistory(itemId, from, to)
+      .then((history) => {
+        setItems((prev) =>
+          prev.map((it) =>
+            it.itemId === itemId
+              ? { ...it, history, error: null, itemName: it.itemName ?? history[0]?.itemName ?? it.itemName }
+              : it,
+          ),
+        )
+      })
+      .catch((err) => {
+        setItems((prev) =>
+          prev.map((it) => (it.itemId === itemId ? { ...it, error: describeMarketApiError(err) } : it)),
+        )
+      })
+  }
 
   useEffect(() => {
-    fetchProfile()
-      .then((profile) => setHasApiKey(profile.hasLostarkApiKey))
-      .catch((err) => console.error('프로필 조회 실패', err))
-  }, [])
-
-  useEffect(() => {
-    if (!hasApiKey) return
     const itemIds = loadWatchlist()
     if (itemIds.length === 0) return
     setItems(
-      itemIds.map((itemId) => ({
-        itemId,
-        price: null,
-        error: null,
-        isRefreshing: false,
-        history: null,
-        isHistoryOpen: false,
-      })),
+      itemIds.map((itemId) => ({ itemId, itemName: null, history: null, error: null, isHistoryOpen: false })),
     )
-    itemIds.forEach((itemId) => {
-      fetchMarketItem(itemId)
-        .then((price) => {
-          setItems((prev) => prev.map((it) => (it.itemId === itemId ? { ...it, price, error: null } : it)))
-        })
-        .catch((err) => {
-          setItems((prev) =>
-            prev.map((it) => (it.itemId === itemId ? { ...it, error: describeMarketApiError(err) } : it)),
-          )
-        })
-    })
-  }, [hasApiKey])
+    itemIds.forEach(loadHistoryFor)
+    // loadHistoryFor는 매 렌더 새로 만들어지는 함수라 deps에 넣으면 이 이펙트가 렌더마다
+    // 다시 실행돼버린다 — 마운트 시 관심 목록을 한 번만 복원하면 되므로 빈 배열로 둔다.
+  }, [])
 
-  const handleAdd = async (event: FormEvent) => {
-    event.preventDefault()
-    const itemId = Number.parseInt(itemIdInput.trim(), 10)
-    if (!Number.isInteger(itemId) || itemId <= 0) {
-      setAddError('올바른 아이템 ID를 입력해 주세요.')
+  // 타이핑할 때마다 API를 부르지 않도록 300ms 디바운스한다. 두 글자 미만이면 결과가 너무
+  // 많아 아예 조회하지 않는다.
+  useEffect(() => {
+    const query = searchQuery.trim()
+    if (query.length < MIN_SEARCH_QUERY_LENGTH) {
+      setSearchResults([])
+      setIsSearching(false)
       return
     }
-    if (items.some((it) => it.itemId === itemId)) {
+    setIsSearching(true)
+    const timer = window.setTimeout(() => {
+      searchMarketItems(query)
+        .then(setSearchResults)
+        .catch((err) => {
+          console.error('아이템 검색 실패', err)
+          setSearchResults([])
+        })
+        .finally(() => setIsSearching(false))
+    }, SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timer)
+  }, [searchQuery])
+
+  const handleSelectSearchResult = (result: MarketItemSearchResult) => {
+    setSearchQuery('')
+    setSearchResults([])
+    setIsSearchOpen(false)
+
+    if (items.some((it) => it.itemId === result.itemId)) {
       setAddError('이미 추가된 아이템입니다.')
       return
     }
-
-    setIsAdding(true)
     setAddError(null)
-    try {
-      const price = await fetchMarketItem(itemId)
-      setItems((prev) => {
-        const next: WatchedItemState[] = [
-          ...prev,
-          { itemId, price, error: null, isRefreshing: false, history: null, isHistoryOpen: false },
-        ]
-        saveWatchlist(next.map((it) => it.itemId))
-        return next
-      })
-      setItemIdInput('')
-    } catch (err) {
-      setAddError(describeMarketApiError(err))
-    } finally {
-      setIsAdding(false)
-    }
+    setIsAdding(true)
+    setItems((prev) => {
+      const next: WatchedItemState[] = [
+        ...prev,
+        { itemId: result.itemId, itemName: result.itemName, history: null, error: null, isHistoryOpen: false },
+      ]
+      saveWatchlist(next.map((it) => it.itemId))
+      return next
+    })
+    loadHistoryFor(result.itemId)
+    setIsAdding(false)
+  }
+
+  // 결과가 뜬 상태에서 그냥 Enter만 눌러도(마우스 없이) 첫 결과를 추가할 수 있게 한다.
+  const handleSearchSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    if (searchResults.length > 0) handleSelectSearchResult(searchResults[0]!)
   }
 
   const handleRemove = (itemId: number) => {
@@ -148,97 +167,56 @@ export function MarketView() {
     })
   }
 
-  const handleRefreshOne = (itemId: number) => {
-    setItems((prev) => prev.map((it) => (it.itemId === itemId ? { ...it, isRefreshing: true } : it)))
-    refreshMarketItem(itemId)
-      .then((price) => {
-        setItems((prev) =>
-          prev.map((it) => (it.itemId === itemId ? { ...it, price, error: null, isRefreshing: false } : it)),
-        )
-      })
-      .catch((err) => {
-        setItems((prev) =>
-          prev.map((it) =>
-            it.itemId === itemId ? { ...it, error: describeMarketApiError(err), isRefreshing: false } : it,
-          ),
-        )
-      })
-  }
-
-  const handleRefreshAll = async () => {
-    if (items.length === 0) return
-    setIsRefreshingAll(true)
-    try {
-      const refreshed = await refreshMarketItemsBatch(items.map((it) => it.itemId))
-      const byId = new Map(refreshed.map((row) => [row.itemId, row]))
-      setItems((prev) =>
-        prev.map((it) => (byId.has(it.itemId) ? { ...it, price: byId.get(it.itemId)!, error: null } : it)),
-      )
-    } catch (err) {
-      console.error('거래소 일괄 새로고침 실패', err)
-    } finally {
-      setIsRefreshingAll(false)
-    }
-  }
-
-  const handleToggleHistory = (target: WatchedItemState) => {
-    setItems((prev) =>
-      prev.map((it) => (it.itemId === target.itemId ? { ...it, isHistoryOpen: !it.isHistoryOpen } : it)),
-    )
-    if (target.isHistoryOpen || target.history) return
-
-    const { from, to } = recentDateRange(HISTORY_DAYS)
-    fetchMarketItemHistory(target.itemId, from, to)
-      .then((history) => {
-        setItems((prev) => prev.map((it) => (it.itemId === target.itemId ? { ...it, history } : it)))
-      })
-      .catch((err) => console.error('거래소 히스토리 조회 실패', err))
-  }
-
-  if (hasApiKey === null) {
-    return <p className="text-sm text-muted-foreground">불러오는 중...</p>
-  }
-
-  if (!hasApiKey) {
-    return (
-      <div className="flex flex-col items-center gap-4">
-        <ComingSoonView
-          icon={KeyRound}
-          title="로스트아크 API 키가 필요합니다"
-          description="거래소 시세 조회는 로스트아크 Open API 키를 등록한 유저만 이용할 수 있습니다."
-        />
-        <Button onClick={() => setIsKeyModalOpen(true)}>API 키 등록</Button>
-        <LostarkApiKeyModal
-          open={isKeyModalOpen}
-          onClose={() => setIsKeyModalOpen(false)}
-          onRegistered={() => setHasApiKey(true)}
-        />
-      </div>
-    )
+  const handleToggleHistory = (itemId: number) => {
+    setItems((prev) => prev.map((it) => (it.itemId === itemId ? { ...it, isHistoryOpen: !it.isHistoryOpen } : it)))
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <form onSubmit={handleAdd} className="flex items-center gap-2">
+      <div className="relative w-fit">
+        <form onSubmit={handleSearchSubmit}>
           <input
             type="text"
-            inputMode="numeric"
-            value={itemIdInput}
-            onChange={(event) => setItemIdInput(event.target.value)}
-            placeholder="아이템 ID (예: 66102101)"
-            className="w-56 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value)
+              setIsSearchOpen(true)
+            }}
+            onFocus={() => setIsSearchOpen(true)}
+            onBlur={() => setIsSearchOpen(false)}
+            disabled={isAdding}
+            placeholder="아이템 이름 검색 (예: 아비도스 융화 재료)"
+            className="w-72 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           />
-          <Button type="submit" disabled={isAdding}>
-            <Plus className="h-4 w-4" />
-            추가
-          </Button>
         </form>
 
-        <Button variant="outline" onClick={handleRefreshAll} disabled={isRefreshingAll || items.length === 0}>
-          <RefreshCw className={cn('h-4 w-4', isRefreshingAll && 'animate-spin')} />
-          전체 새로고침
-        </Button>
+        {isSearchOpen && searchQuery.trim().length >= MIN_SEARCH_QUERY_LENGTH && (
+          <div className="absolute left-0 top-full z-20 mt-1 max-h-80 w-80 overflow-y-auto rounded-lg border border-border bg-card shadow-xl">
+            {isSearching ? (
+              <p className="p-3 text-sm text-muted-foreground">검색 중...</p>
+            ) : searchResults.length === 0 ? (
+              <p className="p-3 text-sm text-muted-foreground">검색 결과가 없습니다.</p>
+            ) : (
+              searchResults.map((result) => (
+                <button
+                  key={result.itemId}
+                  type="button"
+                  // onMouseDown + preventDefault: input이 blur되기 전에 먼저 잡혀서, 목록을 클릭해도
+                  // input의 onBlur(드롭다운 닫기)가 클릭보다 먼저 실행돼 목록이 사라지는 걸 막는다.
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    handleSelectSearchResult(result)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                >
+                  <span className="flex-1 truncate text-foreground">{result.itemName}</span>
+                  <span className="shrink-0 font-mono text-xs text-secondary">{formatGold(result.avgPrice)}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{result.date}</span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {addError && <p className="text-sm text-red-500">{addError}</p>}
@@ -247,66 +225,67 @@ export function MarketView() {
         <ComingSoonView
           icon={PackageSearch}
           title="관심 아이템이 없습니다"
-          description="위에서 아이템 ID를 입력해 거래소 시세를 추가해 보세요."
+          description="위에서 아이템 이름을 검색해 거래소 시세를 추가해 보세요."
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {items.map((it) => (
-            <div key={it.itemId} className="rounded-xl border border-border bg-card p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{it.price?.itemName ?? `#${it.itemId}`}</p>
-                  <p className="text-xs text-muted-foreground">ID {it.itemId}</p>
-                </div>
-
-                {it.error ? (
-                  <p className="text-sm text-red-500">{it.error}</p>
-                ) : it.price ? (
-                  <div className="text-right">
-                    <p className="font-mono text-base text-secondary">{formatGold(it.price.currentMinPrice)}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(it.price.updatedAt).toLocaleString('ko-KR')} 기준</p>
+          {items.map((it) => {
+            const latest = latestStat(it.history)
+            return (
+              <div key={it.itemId} className="rounded-xl border border-border bg-card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{it.itemName ?? `#${it.itemId}`}</p>
+                    <p className="text-xs text-muted-foreground">ID {it.itemId}</p>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">불러오는 중...</p>
-                )}
 
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" aria-label="히스토리 보기" onClick={() => handleToggleHistory(it)}>
-                    <TrendingUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="새로고침"
-                    onClick={() => handleRefreshOne(it.itemId)}
-                    disabled={it.isRefreshing}
-                  >
-                    <RefreshCw className={cn('h-4 w-4', it.isRefreshing && 'animate-spin')} />
-                  </Button>
-                  <Button variant="ghost" size="icon" aria-label="삭제" onClick={() => handleRemove(it.itemId)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {it.isHistoryOpen && (
-                <div className="mt-4 border-t border-border pt-4">
-                  {it.history === null ? (
-                    <p className="text-sm text-muted-foreground">히스토리 불러오는 중...</p>
-                  ) : it.history.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">최근 {HISTORY_DAYS}일간 데이터가 없습니다.</p>
+                  {it.error ? (
+                    <p className="text-sm text-red-500">{it.error}</p>
+                  ) : it.history === null ? (
+                    <p className="text-sm text-muted-foreground">불러오는 중...</p>
+                  ) : latest ? (
+                    <div className="text-right">
+                      <p className="font-mono text-base text-secondary">{formatGold(latest.avgPrice)}</p>
+                      <p className="text-xs text-muted-foreground">{latest.date} 평균 거래가</p>
+                    </div>
                   ) : (
-                    <LineChart
-                      series={HISTORY_SERIES}
-                      points={it.history.map((h) => ({ label: h.date.slice(5), values: { avgPrice: h.avgPrice } }))}
-                      formatValue={formatGold}
-                      height={200}
-                    />
+                    <p className="text-sm text-muted-foreground">최근 {HISTORY_DAYS}일간 데이터 없음</p>
                   )}
+
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="히스토리 보기"
+                      onClick={() => handleToggleHistory(it.itemId)}
+                    >
+                      <TrendingUp className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" aria-label="삭제" onClick={() => handleRemove(it.itemId)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {it.isHistoryOpen && (
+                  <div className="mt-4 border-t border-border pt-4">
+                    {it.history === null ? (
+                      <p className="text-sm text-muted-foreground">히스토리 불러오는 중...</p>
+                    ) : it.history.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">최근 {HISTORY_DAYS}일간 데이터가 없습니다.</p>
+                    ) : (
+                      <LineChart
+                        series={HISTORY_SERIES}
+                        points={it.history.map((h) => ({ label: h.date.slice(5), values: { avgPrice: h.avgPrice } }))}
+                        formatValue={formatGold}
+                        height={200}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
