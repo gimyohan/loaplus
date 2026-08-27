@@ -58,6 +58,7 @@ import {
 } from '@/lib/homeworks'
 import { notifyHomeworksChanged, subscribeHomeworksChanged } from '@/lib/homeworksEvents'
 import { kurzanTicketTierLabel } from '@/lib/contentStages'
+import { withObjectParticle } from '@/lib/korean'
 import { showToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import raidCatalogData from '@/data/raidCatalog.json'
@@ -232,14 +233,18 @@ function GuardianWidgetBound({
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onClaimShardReward={(item) => {
-          claimGuardianShardReward(characterId, item.id, guardianData.targetName).catch((err) =>
-            console.error('편린 보상 확정 실패', err),
-          )
+          claimGuardianShardReward(characterId, item.id, guardianData.targetName)
+            .then(() => {
+              showToast({ message: `[${characterNameForModal}] ${withObjectParticle(item.name)} 획득했습니다` })
+            })
+            .catch((err) => console.error('편린 보상 확정 실패', err))
         }}
         onClaimAzenaBlessingReward={(item) => {
-          claimGuardianAzenaBlessingReward(characterId, item.id, guardianData.targetName).catch((err) =>
-            console.error('아제나 축복 보상 확정 실패', err),
-          )
+          claimGuardianAzenaBlessingReward(characterId, item.id, guardianData.targetName)
+            .then(() => {
+              showToast({ message: `[${characterNameForModal}] ${withObjectParticle(item.name)} 획득했습니다` })
+            })
+            .catch((err) => console.error('아제나 축복 보상 확정 실패', err))
         }}
       />
       <GuardianSettingsModal
@@ -354,14 +359,18 @@ function KurzanFrontlineWidgetBound({
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onClaimShardReward={(item) => {
-          claimKurzanShardReward(characterId, item.id, kurzanData.targetName).catch((err) =>
-            console.error('편린 보상 확정 실패', err),
-          )
+          claimKurzanShardReward(characterId, item.id, kurzanData.targetName)
+            .then(() => {
+              showToast({ message: `[${characterNameForModal}] ${withObjectParticle(item.name)} 획득했습니다` })
+            })
+            .catch((err) => console.error('편린 보상 확정 실패', err))
         }}
         onClaimAzenaBlessingReward={(item) => {
-          claimKurzanAzenaBlessingReward(characterId, item.id, kurzanData.targetName).catch((err) =>
-            console.error('아제나 축복 보상 확정 실패', err),
-          )
+          claimKurzanAzenaBlessingReward(characterId, item.id, kurzanData.targetName)
+            .then(() => {
+              showToast({ message: `[${characterNameForModal}] ${withObjectParticle(item.name)} 획득했습니다` })
+            })
+            .catch((err) => console.error('아제나 축복 보상 확정 실패', err))
         }}
       />
       <KurzanFrontlineSettingsModal
