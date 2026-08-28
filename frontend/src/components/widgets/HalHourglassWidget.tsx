@@ -81,7 +81,7 @@ export function HalHourglassWidget({
             <span
               key={index}
               className={cn(
-                'h-6 w-6 rounded-sm border border-border transition-colors',
+                'h-6 w-6 rounded-full border border-border transition-colors',
                 index < sandStack ? 'border-primary bg-primary' : 'bg-background',
               )}
             />
