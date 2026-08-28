@@ -18,9 +18,19 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
   { kind: 'halHourglass', label: '할의 모래시계', category: 'default', w: 5, h: 2, group: 'weekly', section: 'weekly' },
   { kind: 'guardian', label: '가디언', category: 'default', w: 5, h: 3, group: 'daily', section: 'daily' },
   { kind: 'kurzanFrontline', label: '쿠르잔 전선', category: 'default', w: 5, h: 3, group: 'daily', section: 'daily' },
-  { kind: 'text', label: '텍스트', category: 'additional', w: 5, h: 1, group: 'custom', section: 'custom' },
-  { kind: 'textCheckbox', label: '루틴', category: 'additional', w: 5, h: 1, group: 'custom', section: 'custom' },
-  { kind: 'image', label: '이미지', category: 'additional', w: 4, h: 4, group: 'custom', section: 'custom' },
+  // 배치 전 위젯 목록 카드에서 미리 칸 수를 골라 배치한다(WidgetPalette의 CatalogCard 참고).
+  // minW는 2칸: 1칸(50px)은 TextWidget의 좌우 패딩(px-7, 56px)보다 좁아 입력창이 그려질 공간이
+  // 아예 없다. maxW는 DEFAULT_COLUMNS(10칸, WidgetDashboard.tsx)까지.
+  { kind: 'text', label: '텍스트', category: 'additional', w: 5, h: 1, group: 'custom', section: 'custom', resizable: true, minW: 2, maxW: 10 },
+  // 루틴(체크박스+텍스트+설정 버튼)도 텍스트와 같은 이유로 minW: 3 — 체크박스(36px)+설정
+  // 버튼(36px)+컨테이너 좌우 패딩(px-5, 40px)+요소 사이 gap(24px)만으로도 136px(≈2.7칸)가
+  // 필요해서 2칸(100px)으로는 아이콘들이 이미 서로 겹친다.
+  { kind: 'textCheckbox', label: '루틴', category: 'additional', w: 5, h: 1, group: 'custom', section: 'custom', resizable: true, minW: 3, maxW: 10 },
+  // 이미지는 실제 사진이 object-cover로 어떤 비율에도 알아서 맞춰지므로 가로·세로 둘 다 자유롭게
+  // 고를 수 있다 — maxW/maxH는 DEFAULT_COLUMNS와 맞춰 대칭으로 10까지만 우선 허용한다(세로는
+  // MAX_ROWS까지 더 늘릴 수 있지만, WidgetDashboard.tsx를 이 파일에서 import하면 순환
+  // 참조가 생겨 이 파일만으로 판단 가능한 값을 쓴다).
+  { kind: 'image', label: '이미지', category: 'additional', w: 4, h: 4, group: 'custom', section: 'custom', resizable: true, minW: 2, maxW: 10, resizableH: true, minH: 2, maxH: 10 },
   { kind: 'linkIcon', label: '링크 & 아이콘', category: 'additional', w: 1, h: 1, group: 'custom', section: 'custom' },
   { kind: 'abilityStone', label: '어빌리티 스톤', category: 'additional', w: 1, h: 1, section: 'tool' },
 ]

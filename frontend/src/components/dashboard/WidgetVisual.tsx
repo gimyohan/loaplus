@@ -77,8 +77,6 @@ import {
   GUARDIAN_NATIVE_WIDTH,
   HAL_HOURGLASS_NATIVE_HEIGHT,
   HAL_HOURGLASS_NATIVE_WIDTH,
-  IMAGE_NATIVE_HEIGHT,
-  IMAGE_NATIVE_WIDTH,
   KURZAN_FRONTLINE_NATIVE_HEIGHT,
   KURZAN_FRONTLINE_NATIVE_WIDTH,
   LINK_ICON_NATIVE_HEIGHT,
@@ -87,10 +85,6 @@ import {
   PARADISE_NATIVE_WIDTH,
   RAID_NATIVE_HEIGHT,
   RAID_NATIVE_WIDTH,
-  TEXT_CHECKBOX_NATIVE_HEIGHT,
-  TEXT_CHECKBOX_NATIVE_WIDTH,
-  TEXT_NATIVE_HEIGHT,
-  TEXT_NATIVE_WIDTH,
   WIDGET_CATALOG,
 } from '@/lib/widgetCatalog'
 import { mockCharacter } from '@/mocks/character'
@@ -905,20 +899,22 @@ export function WidgetVisual({
   }
 
   if (kind === 'text') {
+    // 다른 위젯과 달리 ScaleToFit을 쓰지 않는다 — 텍스트 위젯은 가로 칸 수(w)를 사용자가 자유롭게
+    // 고를 수 있어(WidgetPalette의 CatalogCard 참고) native 비율(5:1)과 실제 배치 비율이 달라질 수
+    // 있는데, ScaleToFit은 폭 기준 배율을 안쪽 콘텐츠 전체(폰트 포함)에 균일하게 곱하므로 폭이
+    // 커질수록 글자도 같이 커지고(넓은 위젯일수록 폰트가 커짐) 좁으면 거의 안 보일 만큼 작아지는
+    // 문제가 있었다. 실제 픽셀 크기 그대로 그리면 폰트는 항상 고정이고 폭만 넓어진다 — 대신
+    // DashboardCard(카드 전체)가 이미 바깥에서 한 번 더 ScaleToFit을 걸고 있으므로(반응형 축소),
+    // 화면 크기에 따라 줄어드는 동작 자체는 그대로 유지된다.
     return (
-      <ScaleToFit
-        nativeWidth={TEXT_NATIVE_WIDTH}
-        nativeHeight={TEXT_NATIVE_HEIGHT}
-        width={width}
-        height={height}
-        className={cn('select-none rounded-xl', disabledClassName, className)}
-      >
+      <div style={{ width, height }} className={cn('select-none', disabledClassName, className)}>
         <TextWidget
           value={textDraft}
           onChange={setTextDraft}
           onBlur={() => onCustomDataChange?.({ text: textDraft })}
+          className="h-full w-full"
         />
-      </ScaleToFit>
+      </div>
     )
   }
 
@@ -930,21 +926,18 @@ export function WidgetVisual({
       typeof customData?.remainingCount === 'number' ? (customData.remainingCount as number) : null
     return (
       <>
-        <ScaleToFit
-          nativeWidth={TEXT_CHECKBOX_NATIVE_WIDTH}
-          nativeHeight={TEXT_CHECKBOX_NATIVE_HEIGHT}
-          width={width}
-          height={height}
-          className={cn('select-none rounded-xl', disabledClassName, className)}
-        >
+        {/* text와 같은 이유로 ScaleToFit을 쓰지 않는다 — 루틴도 가로 칸 수를 자유롭게 고를 수
+            있어(widgetCatalog.ts) native 비율과 실제 배치 비율이 달라질 수 있다. */}
+        <div style={{ width, height }} className={cn('select-none', disabledClassName, className)}>
           <TextCheckboxWidget
             text={text}
             isChecked={isChecked}
             remainingCount={remainingCount}
             onToggleChecked={onCheckboxToggle}
             onOpenSettings={() => setIsTextCheckboxSettingsOpen(true)}
+            className="h-full w-full"
           />
-        </ScaleToFit>
+        </div>
         <TextCheckboxSettingsModal
           open={isTextCheckboxSettingsOpen}
           onClose={() => setIsTextCheckboxSettingsOpen(false)}
@@ -960,16 +953,13 @@ export function WidgetVisual({
 
   if (kind === 'image') {
     const url = (customData?.url as string | null) ?? null
+    // 이미지는 가로·세로 둘 다 자유롭게 고를 수 있어(widgetCatalog.ts) ScaleToFit을 쓰지 않는다 —
+    // 실제 사진은 ImageWidget 내부의 object-cover가 어떤 비율에도 알아서 맞춰주고, URL 입력 폼의
+    // 아이콘/버튼도 text처럼 크기와 무관하게 고정 크기를 유지해야 자연스럽다.
     return (
-      <ScaleToFit
-        nativeWidth={IMAGE_NATIVE_WIDTH}
-        nativeHeight={IMAGE_NATIVE_HEIGHT}
-        width={width}
-        height={height}
-        className={cn('select-none rounded-xl', disabledClassName, className)}
-      >
-        <ImageWidget url={url} onChangeUrl={(nextUrl) => onCustomDataChange?.({ url: nextUrl })} />
-      </ScaleToFit>
+      <div style={{ width, height }} className={cn('select-none', disabledClassName, className)}>
+        <ImageWidget url={url} onChangeUrl={(nextUrl) => onCustomDataChange?.({ url: nextUrl })} className="h-full w-full" />
+      </div>
     )
   }
 

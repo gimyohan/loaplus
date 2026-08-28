@@ -36,12 +36,12 @@ export function TextCheckboxWidget({
         }
       }}
       className={cn(
-        'flex aspect-[5/1] cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-5 shadow-lg transition-colors hover:bg-muted/50',
+        'flex aspect-[5/1] cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 shadow-lg transition-colors hover:bg-muted/50',
         className,
       )}
     >
       <label
-        className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center"
+        className="relative flex h-[18px] w-[18px] shrink-0 cursor-pointer items-center justify-center"
         onClick={(event) => event.stopPropagation()}
       >
         <input
@@ -49,14 +49,14 @@ export function TextCheckboxWidget({
           checked={isChecked}
           onChange={(event) => onToggleChecked?.(event.target.checked)}
           aria-label="완료 여부"
-          className="peer h-9 w-9 shrink-0 cursor-pointer appearance-none rounded-md border border-border bg-background transition-colors checked:border-primary checked:bg-primary"
+          className="peer h-[18px] w-[18px] shrink-0 cursor-pointer appearance-none rounded-md border border-border bg-background transition-colors checked:border-primary checked:bg-primary"
         />
-        <Check className="pointer-events-none absolute h-7 w-7 text-primary-foreground opacity-0 peer-checked:opacity-100" />
+        <Check className="pointer-events-none absolute h-3.5 w-3.5 text-primary-foreground opacity-0 peer-checked:opacity-100" />
       </label>
 
       <span
         className={cn(
-          'ml-3 min-w-0 flex-1 truncate text-3xl',
+          'ml-1.5 min-w-0 flex-1 truncate text-[15px]',
           text ? 'text-foreground' : 'text-muted-foreground',
           isChecked && text && 'text-muted-foreground line-through decoration-2',
         )}
@@ -65,7 +65,7 @@ export function TextCheckboxWidget({
       </span>
 
       {remainingCount !== null && (
-        <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-lg font-semibold text-muted-foreground">
+        <span className="shrink-0 rounded-md bg-muted px-1 py-0.5 text-[9px] font-semibold text-muted-foreground">
           남음 {remainingCount}
         </span>
       )}
@@ -77,9 +77,9 @@ export function TextCheckboxWidget({
           event.stopPropagation()
           onOpenSettings?.()
         }}
-        className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
-        <Settings className="h-7 w-7" />
+        <Settings className="h-3.5 w-3.5" />
       </button>
     </div>
   )

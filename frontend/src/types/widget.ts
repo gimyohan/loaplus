@@ -32,6 +32,16 @@ export interface WidgetCatalogItem {
    * 캐릭터 귀속 여부에 따른 노출 조건에 쓰이고, section은 그 위에 사용자가 보기 편하도록 얹은
    * 5개 그룹(배너/주간 콘텐츠/일일 콘텐츠/커스텀 위젯/툴)이다. */
   section: 'banner' | 'weekly' | 'daily' | 'custom' | 'tool'
+  /** true면 위젯 목록 카드에서 배치 전에 가로 칸 수(w)를 직접 조절할 수 있다(minW~maxW).
+   * 없으면 항상 w 그대로 고정 배치된다. */
+  resizable?: boolean
+  minW?: number
+  maxW?: number
+  /** true면 세로 칸 수(h)도 같은 방식으로 배치 전에 조절할 수 있다(minH~maxH). resizable(가로)과
+   * 서로 독립이다 — 텍스트/루틴처럼 가로만 조절되는 위젯은 이 값 없이 resizable만 켠다. */
+  resizableH?: boolean
+  minH?: number
+  maxH?: number
 }
 
 export interface PlacedWidget {

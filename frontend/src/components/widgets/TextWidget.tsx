@@ -27,7 +27,7 @@ export function TextWidget({
   return (
     <div
       className={cn(
-        'flex aspect-[5/1] items-center overflow-hidden rounded-xl border border-border bg-card px-5 shadow-lg',
+        'flex aspect-[5/1] items-center overflow-hidden rounded-xl border border-border bg-card px-3.5 shadow-lg',
         className,
       )}
     >
@@ -37,7 +37,7 @@ export function TextWidget({
         placeholder={placeholder}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChange?.(event.target.value)}
         onBlur={() => onBlur?.()}
-        className="w-full min-w-0 truncate bg-transparent text-2xl text-foreground placeholder:text-muted-foreground focus:outline-none"
+        className="w-full min-w-0 truncate bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none"
       />
     </div>
   )

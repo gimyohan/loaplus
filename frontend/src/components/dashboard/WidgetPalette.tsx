@@ -1,14 +1,44 @@
 import { ChevronLeft, ChevronRight, HelpCircle } from 'lucide-react'
-import { useState, type PointerEvent } from 'react'
+import { useEffect, useState, type ChangeEvent, type PointerEvent } from 'react'
 
 import { Tooltip } from '@/components/ui/tooltip'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
-import { cn } from '@/lib/utils'
+import { clamp, cn } from '@/lib/utils'
 import { WIDGET_CATALOG } from '@/lib/widgetCatalog'
 import type { WidgetCatalogItem } from '@/types/widget'
 
 function clamp01(value: number): number {
   return Math.min(Math.max(value, 0), 1)
+}
+
+/** 위젯 목록 카드에서 가로(w)·세로(h) 칸 수를 각각 입력창으로 고를 때 쓰는 상태 묶음 — 텍스트/
+ * 루틴(가로만)과 이미지(가로+세로) 둘 다 같은 로직을 쓰므로 축 하나만큼을 여기 모았다.
+ * value는 실제로 배치에 쓰이는 확정값이고, draft는 입력창에 그대로 타이핑 중인 문자열이다 —
+ * 확정값 하나로만 입력창을 그리면 숫자를 다 지웠을 때 즉시 이전 값으로 되돌아가버려 새 값을
+ * 이어서 입력할 수 없다(TextWidget의 textDraft/onBlur 패턴과 동일한 이유).
+ */
+function useDimensionDraft(initial: number, min: number, max: number) {
+  const [value, setValue] = useState(initial)
+  const [draft, setDraft] = useState(String(initial))
+  useEffect(() => {
+    setValue(initial)
+    setDraft(String(initial))
+  }, [initial, min, max])
+
+  // 입력 중엔 숫자가 아닌 문자만 걸러내고, 완전히 비우는 것도 허용한다(새 값을 이어 입력할 수
+  // 있도록) — 실제 확정값(value)은 유효한 숫자가 나올 때만 min~max로 clamp해서 갱신한다.
+  const onChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const digits = event.target.value.replace(/[^0-9]/g, '')
+    setDraft(digits)
+    if (digits === '') return
+    setValue(clamp(Number(digits), min, max))
+  }
+
+  // 포커스를 벗어날 때 입력창 표시를 확정값으로 맞춘다 — 비운 채로 두거나(digits==='') 범위를
+  // 벗어난 값을 입력해 clamp된 경우 모두, 실제로 배치될 값을 그대로 보여주기 위함이다.
+  const onBlur = () => setDraft(String(value))
+
+  return { value, draft, onChange, onBlur }
 }
 
 export type PaletteGrabStartHandler = (
@@ -79,6 +109,16 @@ function CatalogCard({ items, onGrabStart, onGrabMove, onGrabEnd }: { items: Wid
   // 때마다 항목별 이름(item.label)은 미리보기 박스 안에서만 바뀐다.
   const title = SECTION_LABELS[item.section]
 
+  // item.resizable/resizableH일 때만 배치 전 가로(w)·세로(h) 칸 수를 직접 고를 수 있다 — 화살표로
+  // 다른 종류(item)로 넘어가면 그 종류의 기본 w/h로 되돌린다(예전에 고른 값이 다른 위젯 종류에
+  // 남아있으면 혼란스럽다). min/max를 지정하지 않은 축은 item.w/item.h 그대로 고정(제자리)이 된다.
+  const minW = item.minW ?? item.w
+  const maxW = item.maxW ?? item.w
+  const minH = item.minH ?? item.h
+  const maxH = item.maxH ?? item.h
+  const width = useDimensionDraft(item.w, minW, maxW)
+  const height = useDimensionDraft(item.h, minH, maxH)
+
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     // 포인터 캡처: 이후 커서가 이 카드 밖(그리드 위 등)으로 나가도 move/up 이벤트가 계속
     // 이 엘리먼트로 들어온다 — 기존 위젯 이동(handleWidgetPointerDown)과 동일한 방식. 화살표
@@ -87,7 +127,18 @@ function CatalogCard({ items, onGrabStart, onGrabMove, onGrabEnd }: { items: Wid
     const rect = event.currentTarget.getBoundingClientRect()
     const grabX = clamp01((event.clientX - rect.left) / rect.width)
     const grabY = clamp01((event.clientY - rect.top) / rect.height)
-    onGrabStart(item, grabX, grabY, event.clientX, event.clientY)
+    // resizable(H) 위젯은 카드에서 고른 칸 수를 그대로 배치될 크기로 넘긴다 — 실제 배치/미리보기는
+    // 전부 이 item.w/h를 기준으로 계산되므로(WidgetDashboard), 여기서만 값을 바꿔주면 나머지는
+    // 그대로 동작한다.
+    const resolved =
+      item.resizable || item.resizableH
+        ? {
+            ...item,
+            ...(item.resizable ? { w: width.value } : {}),
+            ...(item.resizableH ? { h: height.value } : {}),
+          }
+        : item
+    onGrabStart(resolved, grabX, grabY, event.clientX, event.clientY)
   }
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -118,37 +169,82 @@ function CatalogCard({ items, onGrabStart, onGrabMove, onGrabEnd }: { items: Wid
       {/* 화살표를 미리보기 박스 위에 겹쳐 그리면(예전 방식) 버튼이 작아서 살짝만 빗나가도 박스의
           pointerdown(드래그 시작)이 걸려버린다 — 화살표를 박스 옆 자기 자리로 빼고 크게 키워서
           오클릭을 줄인다. 박스 폭은 그만큼 줄어들지만 카드 폭 안에서 나누는 것이라 넘치지 않는다. */}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="이전 종류"
-          disabled={isFirst}
-          onClick={() => setIndex((prev) => Math.max(prev - 1, 0))}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          className="flex h-24 min-w-0 flex-1 touch-none cursor-grab select-none flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border bg-background/40 px-2 text-center transition-colors hover:bg-muted active:cursor-grabbing"
-        >
-          <span className="text-xs font-medium leading-tight text-foreground">{item.label}</span>
-          <span className="font-mono text-sm font-bold text-primary">
-            {item.w}×{item.h}
-          </span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="이전 종류"
+            disabled={isFirst}
+            onClick={() => setIndex((prev) => Math.max(prev - 1, 0))}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          {/* 위젯 이름/크기는 이 박스 밖(아래 행)으로 뺐다 — 박스 자체는 순전히 드래그 시작
+              지점이라 "끌어서 배치" 안내만 담는다. */}
+          <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            className="flex h-24 min-w-0 flex-1 touch-none cursor-grab select-none items-center justify-center rounded-lg border border-dashed border-border bg-background/40 px-2 text-center transition-colors hover:bg-muted active:cursor-grabbing"
+          >
+            <span className="text-xs font-medium leading-tight text-muted-foreground">끌어서 배치</span>
+          </div>
+          <button
+            type="button"
+            aria-label="다음 종류"
+            disabled={isLast}
+            onClick={() => setIndex((prev) => Math.min(prev + 1, items.length - 1))}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
         </div>
-        <button
-          type="button"
-          aria-label="다음 종류"
-          disabled={isLast}
-          onClick={() => setIndex((prev) => Math.min(prev + 1, items.length - 1))}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+
+        {/* 위 행의 화살표 두 개 바로 아래에 오도록, 그 행과 같은 좌우 폭(화살표 자리 포함)을 그대로
+            맞춘다 — 이름은 왼쪽 화살표 쪽, 크기(또는 크기 조절)는 오른쪽 화살표 쪽. */}
+        <div className="flex items-center justify-between gap-2 px-1">
+          <span className="max-w-[45%] truncate text-left text-[10px] font-medium leading-tight text-foreground">
+            {item.label}
+          </span>
+
+          {item.resizable || item.resizableH ? (
+            <div className="flex items-center gap-0.5">
+              {item.resizable ? (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="가로 칸 수"
+                  value={width.draft}
+                  onChange={width.onChange}
+                  onBlur={width.onBlur}
+                  className="w-7 rounded border border-border bg-background px-1 py-0.5 text-center font-mono text-xs font-bold text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              ) : (
+                <span className="font-mono text-xs font-bold text-primary">{item.w}</span>
+              )}
+              <span className="font-mono text-xs font-bold text-primary">×</span>
+              {item.resizableH ? (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="세로 칸 수"
+                  value={height.draft}
+                  onChange={height.onChange}
+                  onBlur={height.onBlur}
+                  className="w-7 rounded border border-border bg-background px-1 py-0.5 text-center font-mono text-xs font-bold text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              ) : (
+                <span className="font-mono text-xs font-bold text-primary">{item.h}</span>
+              )}
+            </div>
+          ) : (
+            <span className="font-mono text-xs font-bold text-primary">
+              {item.w}×{item.h}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
