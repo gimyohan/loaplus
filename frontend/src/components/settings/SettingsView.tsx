@@ -1,10 +1,15 @@
-import { CheckCircle2, Crown, KeyRound } from 'lucide-react'
+import { Check, CheckCircle2, Coffee, Copy, Crown, KeyRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { LostarkApiKeyModal } from '@/components/settings/LostarkApiKeyModal'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirmModal'
 import { deleteLostarkApiKey, fetchProfile } from '@/lib/user'
+
+// 실제 계좌 정보
+const DONATION_BANK_NAME = '국민'
+const DONATION_ACCOUNT_NUMBER = '037402-04-302368'
+const DONATION_ACCOUNT_HOLDER = '최준'
 
 /**
  * premiumExpiresAt(절대 시각)과 현재 시각을 매초 비교해 남은 초를 계산한다. 서버는 "남은 초"를
@@ -42,9 +47,12 @@ export function SettingsView() {
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null)
   const [isPremium, setIsPremium] = useState(false)
   const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null)
+  const [depositCode, setDepositCode] = useState<string | null>(null)
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [copiedAccount, setCopiedAccount] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
 
   const remainingSeconds = usePremiumCountdown(premiumExpiresAt)
   const showPremiumCountdown = isPremium && remainingSeconds !== null && remainingSeconds > 0
@@ -57,12 +65,25 @@ export function SettingsView() {
         setHasApiKey(profile.hasLostarkApiKey)
         setIsPremium(profile.isPremium)
         setPremiumExpiresAt(profile.premiumExpiresAt)
+        setDepositCode(profile.depositCode)
       })
       .catch((err) => console.error('프로필 조회 실패', err))
     return () => {
       cancelled = true
     }
   }, [])
+
+  // 계좌번호/무통장입금 코드 복사 버튼 — TemplatePanel의 "코드 복사"와 동일한 패턴(복사 성공
+  // 표시를 1.5초 후 되돌림).
+  const copyText = async (text: string, onCopied: (copied: boolean) => void) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      onCopied(true)
+      setTimeout(() => onCopied(false), 1500)
+    } catch (err) {
+      console.error('클립보드 복사 실패', err)
+    }
+  }
 
   const handleRemove = async () => {
     setIsRemoving(true)
@@ -123,6 +144,54 @@ export function SettingsView() {
                 <Button onClick={() => setIsKeyModalOpen(true)}>등록</Button>
               </>
             )}
+          </div>
+        )}
+      </section>
+
+      {/* 프리미엄 결제 창구가 아니다 — 그냥 마음에 들면 커피 한 잔 사달라는 정도의 가벼운 후원
+          요청이다(docs/subscription.typ의 프리미엄 무통장입금과는 별개 목적). deposit_code는
+          같은 값을 재사용한다 — 입금자명에 적어두면 누가 보낸 후원인지 알 수 있다는 점만
+          공유할 뿐, 여기서 프리미엄을 언급하거나 광고하지 않는다. */}
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2">
+          <Coffee className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">개발자에게 커피 한 잔</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          LoaPlus는 개인 개발자가 취미로 만들고 있는 서비스예요. 잘 쓰고 계시다면, 부담 없이 커피 한 잔 값만 보내주셔도
+          큰 힘이 됩니다.
+        </p>
+
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3">
+          <span className="text-sm text-foreground">
+            {DONATION_BANK_NAME} {DONATION_ACCOUNT_NUMBER} ({DONATION_ACCOUNT_HOLDER})
+          </span>
+          <button
+            type="button"
+            aria-label={copiedAccount ? '복사됨' : '계좌번호 복사'}
+            onClick={() => copyText(DONATION_ACCOUNT_NUMBER, setCopiedAccount)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {copiedAccount ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+
+        {depositCode && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3">
+            <div>
+              <span className="text-sm text-foreground">
+                입금자명에 <span className="font-mono font-semibold text-primary">{depositCode}</span> 적어주시면 감사하겠습니다
+              </span>
+              <p className="mt-0.5 text-xs text-muted-foreground">누가 보내주셨는지 알 수 있는 내 코드예요.</p>
+            </div>
+            <button
+              type="button"
+              aria-label={copiedCode ? '복사됨' : '코드 복사'}
+              onClick={() => copyText(depositCode, setCopiedCode)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {copiedCode ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
           </div>
         )}
       </section>

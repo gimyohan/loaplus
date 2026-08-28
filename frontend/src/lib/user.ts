@@ -4,6 +4,8 @@ export interface UserProfile {
   userId: string
   nickname: string | null
   hasLostarkApiKey: boolean
+  /** 무통장입금 시 입금자명에 적는 6자리 식별 코드. 비밀정보가 아니다(docs/subscription.typ 참고). */
+  depositCode: string
   /** 응답을 만든 시점의 판정 스냅샷 — 남은 시간 카운트다운은 premiumExpiresAt으로 직접 계산한다(docs/subscription.typ 참고). */
   isPremium: boolean
   /** ISO 8601 절대 만료 시각. 서버는 "남은 초"를 계산해 내려주지 않는다 — 응답 시점에 이미 과거가 되므로, 클라이언트가 이 값과 현재 시각을 비교해 매초 다시 계산한다. */
