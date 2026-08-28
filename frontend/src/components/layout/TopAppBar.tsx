@@ -15,7 +15,7 @@ export interface TopAppBarProps {
 
 export function TopAppBar({ title, nickname, isDark, onToggleDark }: TopAppBarProps) {
   return (
-    <header className="fixed right-0 top-0 z-10 flex h-16 w-full items-center justify-between border-b border-border bg-background px-4 md:w-[calc(100%-240px)] md:px-8">
+    <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 md:ml-[240px] md:px-8">
       <div className="hidden md:block">
         <h2 className="text-lg font-semibold text-foreground">{title}</h2>
       </div>
