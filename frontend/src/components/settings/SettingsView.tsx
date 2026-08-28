@@ -155,7 +155,7 @@ export function SettingsView() {
       <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
         <div className="flex items-center gap-2">
           <Coffee className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">개발자에게 커피 한 잔</h3>
+          <h3 className="text-sm font-semibold text-foreground">커피 한 잔 할래요~</h3>
         </div>
         <p className="text-xs text-muted-foreground">
           LoaPlus는 개인 개발자가 취미로 만들고 있는 서비스예요. 잘 쓰고 계시다면, 부담 없이 커피 한 잔 값만 보내주셔도
