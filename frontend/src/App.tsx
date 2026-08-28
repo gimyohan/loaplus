@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { fetchCardOrder } from '@/lib/dashboards'
 import { cn } from '@/lib/utils'
+import { fetchProfile } from '@/lib/user'
 import type { NavView } from '@/types/navigation'
 
 const VIEW_TITLES: Record<NavView, string> = {
@@ -48,10 +49,30 @@ function App() {
   // 나갈 때 스크롤 위치를 기억해뒀다가, 대시보드로 돌아왔을 때만 복원한다(새로고침 시엔 사라지는
   // 임시 기억이라 상태로 두지 않고 ref로 충분하다).
   const dashboardScrollY = useRef(0)
+  // Market 탭 노출 여부(사이드바)와 접근 권한(MarketView 자체 게이트) 둘 다 이 값 하나로
+  // 판단한다 — null(조회 전)이면 우선 숨겨둔다(fail-closed, 잠깐이라도 비프리미엄 유저에게
+  // 노출되지 않도록). docs/subscription.typ "기능 제한 대상" 참고.
+  const [isPremium, setIsPremium] = useState<boolean | null>(null)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
   }, [isDark])
+
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    let cancelled = false
+    fetchProfile()
+      .then((profile) => {
+        if (!cancelled) setIsPremium(profile.isPremium)
+      })
+      .catch((err) => {
+        console.error('프로필 조회 실패', err)
+        if (!cancelled) setIsPremium(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [status])
 
   useEffect(() => {
     if (status !== 'authenticated') return
@@ -165,7 +186,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Sidebar activeView={activeView} onNavigate={handleNavigate} onSignOut={() => logout()} />
+      <Sidebar activeView={activeView} onNavigate={handleNavigate} onSignOut={() => logout()} isPremium={isPremium ?? false} />
       <TopAppBar
         title={VIEW_TITLES[activeView]}
         nickname={user?.nickname}
@@ -210,7 +231,7 @@ function App() {
         {activeView === 'logs' && <LogsView />}
         {activeView === 'roster' && <RosterView onRosterChanged={refreshCardOrder} />}
         {activeView === 'statistics' && <StatisticsView />}
-        {activeView === 'market' && <MarketView />}
+        {activeView === 'market' && <MarketView isPremium={isPremium ?? false} />}
         {activeView === 'settings' && <SettingsView />}
       </main>
 

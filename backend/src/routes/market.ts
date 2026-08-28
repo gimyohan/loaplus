@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { LostarkApiError } from '../lib/lostarkApi.js'
 import { checkSharedKeyThrottle, resolveLostarkApiKey } from '../lib/lostarkKeyResolution.js'
 import { findMarketItemByNameInCategory, searchMarketItems } from '../lib/marketApi.js'
-import { requireAuth } from '../lib/session.js'
+import { requireAuth, requirePremium } from '../lib/session.js'
 
 // docs/market_price.typ 파이프라인 B: 30분을 넘기면 조회 시점에 암묵적 갱신을 트리거한다.
 const STALE_THRESHOLD_MS = 30 * 60 * 1000
@@ -46,17 +46,37 @@ function toCurrentPriceResponse(row: MarketItemCurrentPrice) {
   }
 }
 
-function toSearchResultResponse(row: MarketItemDailyStat) {
+function toSearchResultResponse(row: MarketItemDailyStat, icon: string | null) {
   return {
     itemId: row.itemId,
     itemName: row.itemName,
     avgPrice: row.avgPrice,
     date: row.date.toISOString().slice(0, 10),
+    icon,
   }
 }
 
 export async function marketRoutes(fastify: FastifyInstance) {
   const auth = requireAuth(fastify)
+  // Market 탭(검색·히스토리)은 프리미엄 유저 전용이다 — 로스트아크 API 키 등록 여부와 무관하게
+  // isPremium만 확인한다(사용자 확정, docs/subscription.typ·docs/api.typ "거래소 시세" 참고).
+  // 아래 현재가/새로고침 세 라우트는 Market 탭이 쓰지 않으므로(주석 참고) 프리미엄 게이트를 걸지 않는다.
+  const premiumGate = [auth, requirePremium(fastify)]
+
+  /**
+   * Market_Item_Daily_Stats에는 icon 컬럼이 없다(Market 탭은 이 테이블만 참조해야 하므로 —
+   * 사용자 확정) — 이미지만 예외적으로 Market_Item_Current_Prices.icon을 itemId로 조회해
+   * 붙인다(사용자 확정: "이 컬럼만 사용"). 캐시 행이 없으면(파이프라인 A/B가 아직 안 다룬
+   * 아이템) null.
+   */
+  async function iconsByItemId(itemIds: number[]): Promise<Map<number, string | null>> {
+    if (itemIds.length === 0) return new Map()
+    const rows = await fastify.prisma.marketItemCurrentPrice.findMany({
+      where: { itemId: { in: itemIds } },
+      select: { itemId: true, icon: true },
+    })
+    return new Map(rows.map((row) => [row.itemId, row.icon]))
+  }
 
   /**
    * 암묵적 갱신(GET .../items/{itemId})용 — 실패(키 없음/공용 키 쓰로틀)는 조용히 null을
@@ -125,7 +145,10 @@ export async function marketRoutes(fastify: FastifyInstance) {
 
   fastify.get<{ Querystring: { search?: string } }>(
     '/api/market/items',
-    { preHandler: auth, schema: { tags: ['Market'], summary: '아이템 이름으로 검색 (로컬 캐시 카탈로그, 부분일치)' } },
+    {
+      preHandler: premiumGate,
+      schema: { tags: ['Market'], summary: '아이템 이름으로 검색 (로컬 캐시 카탈로그, 부분일치, 프리미엄 전용)' },
+    },
     async (request, reply) => {
       const parsed = searchQuerySchema.safeParse(request.query)
       if (!parsed.success) {
@@ -143,7 +166,8 @@ export async function marketRoutes(fastify: FastifyInstance) {
       })
       rows.sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
 
-      return reply.send(rows.map(toSearchResultResponse))
+      const icons = await iconsByItemId(rows.map((row) => row.itemId))
+      return reply.send(rows.map((row) => toSearchResultResponse(row, icons.get(row.itemId) ?? null)))
     },
   )
 
@@ -185,7 +209,7 @@ export async function marketRoutes(fastify: FastifyInstance) {
 
   fastify.get<{ Params: { itemId: string }; Querystring: { from?: string; to?: string } }>(
     '/api/market/items/:itemId/history',
-    { preHandler: auth, schema: { tags: ['Market'], summary: '거래소 일자별 시세 히스토리 조회' } },
+    { preHandler: premiumGate, schema: { tags: ['Market'], summary: '거래소 일자별 시세 히스토리 조회 (프리미엄 전용)' } },
     async (request, reply) => {
       const itemId = Number.parseInt(request.params.itemId, 10)
       if (!Number.isInteger(itemId)) {
@@ -205,12 +229,14 @@ export async function marketRoutes(fastify: FastifyInstance) {
         orderBy: { date: 'asc' },
       })
 
+      const icon = (await iconsByItemId([itemId])).get(itemId) ?? null
       return reply.send(
         rows.map((row) => ({
           date: row.date.toISOString().slice(0, 10),
           itemName: row.itemName,
           avgPrice: row.avgPrice,
           tradeCount: row.tradeCount,
+          icon,
         })),
       )
     },

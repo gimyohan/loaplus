@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 
 import { encryptLostarkApiKey } from '../lib/lostarkKeyCrypto.js'
-import { requireAuth, SESSION_COOKIE_NAME } from '../lib/session.js'
+import { isPremium, requireAuth, SESSION_COOKIE_NAME } from '../lib/session.js'
 
 const updateProfileSchema = z.object({
   nickname: z.string().trim().min(1).max(50),
@@ -11,15 +11,6 @@ const updateProfileSchema = z.object({
 const updateLostarkKeySchema = z.object({
   apiKey: z.string().trim().min(1),
 })
-
-/**
- * "지금 프리미엄인가"는 별도 컬럼 없이 premium_expires_at과 현재 시각을 비교해 매번 계산한다
- * — 세션 등에 캐싱하지 않는다(만료 시각이 지나도 다음 로그인 전까지 프리미엄으로 남는 문제를
- * 막기 위함). docs/subscription.typ 참고.
- */
-function isPremium(premiumExpiresAt: Date | null): boolean {
-  return premiumExpiresAt !== null && premiumExpiresAt.getTime() > Date.now()
-}
 
 function toProfileResponse(user: {
   id: string
