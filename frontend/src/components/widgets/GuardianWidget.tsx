@@ -176,13 +176,11 @@ export function GuardianWidget({
         ))}
       </div>
 
-      {/* 휴식 중 오버레이: 반투명 막 + 침대 아이콘으로 쉬는 느낌을 준다. 설정 버튼만 위 스택이라 가려지지 않는다 */}
+      {/* 휴식 중 오버레이: 반투명 막 + 침대 아이콘(기존 h-10 w-10의 1.5배)만으로 쉬는 느낌을 준다.
+          설정 버튼만 위 스택이라 가려지지 않는다 */}
       {isResting && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-[2px]">
-          <Bed className="h-10 w-10 text-muted-foreground" />
-          <span className="font-mono text-sm uppercase tracking-wide text-muted-foreground">
-            휴식 중
-          </span>
+          <Bed className="h-[60px] w-[60px] text-muted-foreground" />
         </div>
       )}
 
