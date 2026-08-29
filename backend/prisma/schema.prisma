@@ -70,6 +70,9 @@ model Character {
   abilityStone Json @map("ability_stone")
   /// 팔찌 효과(텍스트+색상) 목록.
   bracelet     Json @map("bracelet")
+  /// 완갑(팔찌 다음 슬롯) — 재련 단계·아이템 이름·효과 목록. 팔찌보다 나중에 추가된 장비라
+  /// 캐릭터에 따라 없을 수 있다(그 경우 빈 기본값). armoryDetailParsing.ts의 WristGuardDetail 참고.
+  wristGuard   Json @map("wrist_guard")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

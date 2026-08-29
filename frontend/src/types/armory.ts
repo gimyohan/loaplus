@@ -9,6 +9,9 @@ export interface EquipmentSlotDetail {
   itemName: string
   /** 아이템 아이콘 이미지 URL. 상세 배너에서 직업 아이콘 대신 실제 장비 이미지를 보여주는 데 쓴다. */
   iconUrl: string
+  /** 아이템 등급 — 일반/고급/희귀/영웅/전설/유물/고대/에스더 중 하나. 아이콘 배경색을 등급별로
+   * 통일해 정하는 데 쓴다(lib/armoryColors.ts의 gradeBackgroundColor 참고). */
+  grade: string
 }
 
 export interface EquipmentDetail {
@@ -28,6 +31,11 @@ export interface PolishEffect {
 
 export interface AccessorySlotDetail {
   polishEffects: PolishEffect[]
+  /** 아이템 아이콘 이미지 URL. EquipmentSlotDetail.iconUrl과 동일한 용도 — 상세 배너에서 lucide
+   * 아이콘 대신 실제 장신구 이미지를 보여주는 데 쓴다. */
+  iconUrl: string
+  /** 아이템 등급. EquipmentSlotDetail.grade와 동일한 용도. */
+  grade: string
 }
 
 export interface AccessoryDetail {
@@ -45,8 +53,30 @@ export interface AbilityStoneEngraving {
 
 export interface AbilityStoneDetail {
   engravings: AbilityStoneEngraving[]
+  /** 아이템 아이콘 이미지 URL. 어빌리티 스톤은 슬롯이 하나뿐이라 engravings와 달리 값 하나만 갖는다. */
+  iconUrl: string
+  /** 아이템 등급. EquipmentSlotDetail.grade와 동일한 용도. */
+  grade: string
 }
 
 export interface BraceletDetail {
   effects: PolishEffect[]
+  /** 아이템 아이콘 이미지 URL. */
+  iconUrl: string
+  /** 아이템 등급. EquipmentSlotDetail.grade와 동일한 용도. */
+  grade: string
+}
+
+/** 완갑(팔찌 다음에 추가된 장비 슬롯) — 팔찌와 달리 재련 단계가 있고, 효과 텍스트는 색상 정보가
+ * 없어 PolishEffect가 아니라 문자열 배열이다(백엔드 armoryDetailParsing.ts의 WristGuardDetail
+ * 주석 참고). 캐릭터에 따라 없을 수 있다(그 경우 모든 필드가 빈 기본값). */
+export interface WristGuardDetail {
+  /** 재련 접두사("+15 ")를 뗀 아이템 이름. EquipmentSlotDetail.itemName과 동일한 용도. */
+  itemName: string
+  refineLevel: number
+  /** 아이템 아이콘 이미지 URL. */
+  iconUrl: string
+  effects: string[]
+  /** 아이템 등급. EquipmentSlotDetail.grade와 동일한 용도. */
+  grade: string
 }

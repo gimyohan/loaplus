@@ -2,6 +2,7 @@ import {
   Circle,
   Crown,
   Footprints,
+  Gem,
   Hand,
   Headphones,
   Shield,
@@ -18,7 +19,7 @@ import { CharacterBanner } from '@/components/character/CharacterBanner'
 import {
   advancedRefineLevelColor,
   engravingLevelColor,
-  equipmentBackgroundColor,
+  gradeBackgroundColor,
   hasAdvancedRefine,
   isJeonyulItem,
   qualityColor,
@@ -99,6 +100,25 @@ function EffectDetailList({ title, effects }: { title: string; effects: PolishEf
   )
 }
 
+/** 완갑 "기본 효과"/"추가 효과"처럼 게임이 색상을 따로 주지 않는 줄글 목록을 보여준다 —
+ * EffectDetailList와 달리 PolishEffect.color가 없어 전부 같은 색(text-muted-foreground)이다. */
+function PlainEffectList({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <div className="flex flex-col gap-2 text-base">
+      <p className="font-semibold text-foreground">{title}</p>
+      {lines.length === 0 ? (
+        <p className="text-muted-foreground">정보 없음</p>
+      ) : (
+        lines.map((line, index) => (
+          <p key={index} className="text-muted-foreground">
+            {line}
+          </p>
+        ))
+      )}
+    </div>
+  )
+}
+
 /** 연마/팔찌 효과를 실제 게임 색상(PolishEffect.color) 점으로 요약한다. */
 function EffectDots({ effects }: { effects: PolishEffect[] }) {
   if (effects.length === 0) {
@@ -129,7 +149,7 @@ export function CharacterBannerDetailed({
   isRefreshing = false,
   className,
 }: CharacterBannerDetailedProps) {
-  const { imageUrl, job, equipment, accessories, abilityStone, bracelet } = character
+  const { imageUrl, job, equipment, accessories, abilityStone, bracelet, wristGuard } = character
   const bannerPosition = getBannerImagePosition(job)
   const [stoneA, stoneB] = abilityStone.engravings
 
@@ -169,10 +189,12 @@ export function CharacterBannerDetailed({
         className="relative z-10 aspect-auto flex-[2] rounded-none border-0 shadow-none"
       />
 
-      {/* 5줄 중 3줄: 장비/장신구/어빌리티 스톤/팔찌 요약 */}
-      <div className="relative z-10 flex flex-[3]">
+      {/* 5줄 중 3줄: 장비/장신구/어빌리티 스톤/팔찌 요약. 세 블록(장비/스톤·팔찌·완갑/장신구)
+          사이 간격을 gap-3 하나로 통일한다 — 각 블록이 자기 padding까지 따로 가지면 블록 경계의
+          간격이 장비 내부 두 열 사이 간격(gap-x-3)의 두 배로 겹쳐 보인다. */}
+      <div className="relative z-10 flex flex-[3] gap-3">
         {/* 장비 6종 */}
-        <div className="grid flex-[5] grid-cols-2 grid-rows-3 gap-x-3 gap-y-1.5 p-3">
+        <div className="grid flex-[5] grid-cols-2 grid-rows-3 gap-x-3 gap-y-1.5 py-3 pl-3">
           {EQUIPMENT_SLOTS.map(({ key, label, icon: Icon }) => {
             const slot = equipment[key]
             const qualityColorValue = qualityColor(slot.quality)
@@ -181,7 +203,7 @@ export function CharacterBannerDetailed({
             const showAdvancedRefine = hasAdvancedRefine(slot.itemName)
             const isWeapon = key === 'weapon'
             const isJeonyul = isJeonyulItem(slot.itemName)
-            const backgroundColor = equipmentBackgroundColor(slot.itemName)
+            const backgroundColor = gradeBackgroundColor(slot.grade)
             return (
               <HoverDetail
                 key={key}
@@ -254,31 +276,15 @@ export function CharacterBannerDetailed({
           })}
         </div>
 
-        {/* 장신구 5종 */}
-        <div className="flex flex-[3] flex-col justify-between px-4 py-3">
-          {ACCESSORY_SLOTS.map(({ key, label, icon: Icon }) => {
-            const slot = accessories[key]
-            return (
-              <HoverDetail
-                key={key}
-                align="center"
-                content={<EffectDetailList title={`${label} 연마 효과`} effects={slot.polishEffects} />}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
-                    <Icon className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <EffectDots effects={slot.polishEffects} />
-                </div>
-              </HoverDetail>
-            )
-          })}
-        </div>
-
-        {/* 어빌리티 스톤 / 팔찌 */}
-        <div className="flex flex-[2] flex-col gap-2 p-3">
+        {/* 어빌리티 스톤 / 팔찌 / 완갑 — 장비와 같은 grid-rows-3 + gap-y-1.5를 써서 행이 장비
+            쪽과 나란히 맞는다(1열짜리 그리드). 좌우 padding은 안 두고 바깥 flex 컨테이너의
+            gap-3(장비 내부 두 열 사이 gap-x-3과 같은 값)에만 기대 — 그래야 장비 두 열 사이
+            간격과 장비↔이 블록 사이 간격이 똑같아진다. 이미지 크기(h-14)·아이콘+텍스트 줄
+            정렬(items-center)도 장비 셀과 동일하게 맞추고, 품질 개념이 없는 항목들이라 품질
+            게이지 바는 아예 두지 않는다. */}
+        <div className="grid flex-[3] grid-cols-1 grid-rows-3 gap-y-1.5 py-3">
           <HoverDetail
-            align="end"
+            align="center"
             content={
               <div className="flex flex-col gap-2 text-base">
                 <p className="font-semibold text-foreground">어빌리티 스톤 전투 각인</p>
@@ -294,26 +300,90 @@ export function CharacterBannerDetailed({
               </div>
             }
           >
-            <div className="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background py-2">
-              <Triangle className="h-5 w-5 text-primary" fill="currentColor" fillOpacity={0.2} />
-              <div className="flex items-baseline gap-1">
-                <span className="font-mono text-lg font-bold leading-none text-foreground">
-                  {stoneA ? `+${stoneA.level}` : '-'}
-                </span>
-                <span className="text-xs text-muted-foreground">/</span>
-                <span className="font-mono text-lg font-bold leading-none text-secondary">
-                  {stoneB ? `+${stoneB.level}` : '-'}
-                </span>
+            <div className="flex items-center gap-2">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
+                style={{ backgroundColor: gradeBackgroundColor(abilityStone.grade) ?? undefined }}
+              >
+                {abilityStone.iconUrl ? (
+                  <img src={abilityStone.iconUrl} alt="어빌리티 스톤" className="h-full w-full object-cover" />
+                ) : (
+                  <Triangle className="h-7 w-7 text-primary" fill="currentColor" fillOpacity={0.2} />
+                )}
               </div>
+              <span className="font-mono text-xl font-bold leading-none whitespace-nowrap">
+                <span className="text-foreground">{stoneA ? `+${stoneA.level}` : '-'}</span>
+                <span className="text-sm text-muted-foreground">/</span>
+                <span className="text-secondary">{stoneB ? `+${stoneB.level}` : '-'}</span>
+              </span>
             </div>
           </HoverDetail>
 
-          <HoverDetail align="end" content={<EffectDetailList title="팔찌 효과" effects={bracelet.effects} />}>
-            <div className="flex flex-1 flex-col items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-2">
-              <Watch className="h-5 w-5 text-secondary" />
+          <HoverDetail align="center" content={<EffectDetailList title="팔찌 효과" effects={bracelet.effects} />}>
+            <div className="flex items-center gap-2">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
+                style={{ backgroundColor: gradeBackgroundColor(bracelet.grade) ?? undefined }}
+              >
+                {bracelet.iconUrl ? (
+                  <img src={bracelet.iconUrl} alt="팔찌" className="h-full w-full object-cover" />
+                ) : (
+                  <Watch className="h-7 w-7 text-secondary" />
+                )}
+              </div>
               <EffectDots effects={bracelet.effects} />
             </div>
           </HoverDetail>
+
+          {/* 완갑 — 팔찌보다 나중에 추가된 슬롯이라 캐릭터에 따라 미착용일 수 있다(itemName이
+              빈 문자열). 그 경우 어빌리티 스톤의 "-" 표시와 같은 방식으로 빈 상태를 보여준다. */}
+          <HoverDetail align="center" content={<PlainEffectList title="완갑 효과" lines={wristGuard.effects} />}>
+            <div className="flex items-center gap-2">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
+                style={{ backgroundColor: gradeBackgroundColor(wristGuard.grade) ?? undefined }}
+              >
+                {wristGuard.iconUrl ? (
+                  <img src={wristGuard.iconUrl} alt="완갑" className="h-full w-full object-cover" />
+                ) : (
+                  <Gem className="h-7 w-7 text-primary" />
+                )}
+              </div>
+              <span className="font-mono text-xl font-bold leading-none whitespace-nowrap text-foreground">
+                {wristGuard.itemName ? `+${wristGuard.refineLevel}` : '-'}
+              </span>
+            </div>
+          </HoverDetail>
+        </div>
+
+        {/* 장신구 5종 — 가장 오른쪽으로 배치. */}
+        <div className="flex flex-[2] flex-col justify-between py-3 pr-4">
+          {ACCESSORY_SLOTS.map(({ key, label, icon: Icon }) => {
+            const slot = accessories[key]
+            return (
+              <HoverDetail
+                key={key}
+                align="end"
+                content={<EffectDetailList title={`${label} 연마 효과`} effects={slot.polishEffects} />}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
+                    style={{ backgroundColor: gradeBackgroundColor(slot.grade) ?? undefined }}
+                  >
+                    {/* 장비와 동일하게, 실제 아이템 이미지가 있으면 우선 쓰고 없으면(구 저장 데이터
+                        등) 부위별 lucide 아이콘으로 대체한다. */}
+                    {slot.iconUrl ? (
+                      <img src={slot.iconUrl} alt={label} className="h-full w-full object-cover" />
+                    ) : (
+                      <Icon className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <EffectDots effects={slot.polishEffects} />
+                </div>
+              </HoverDetail>
+            )
+          })}
         </div>
       </div>
     </div>

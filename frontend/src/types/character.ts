@@ -1,4 +1,4 @@
-import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail } from '@/types/armory'
+import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail, WristGuardDetail } from '@/types/armory'
 
 // docs/widgets.typ - 배너(Banner) 위젯 표시 정보: 캐릭터 이미지, 서버 이름, 캐릭터 이름, 아이템 레벨, 전투력 레벨
 export interface CharacterSummary {
@@ -15,6 +15,7 @@ export interface CharacterSummary {
   accessories: AccessoryDetail
   abilityStone: AbilityStoneDetail
   bracelet: BraceletDetail
+  wristGuard: WristGuardDetail
 }
 
 /** 원정대 일괄 조회(GET /api/characters/lookup/{characterName}/siblings) 결과 항목.

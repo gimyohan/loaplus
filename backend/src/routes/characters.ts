@@ -99,6 +99,7 @@ function toCharacterResponse(character: {
   accessories: unknown
   abilityStone: unknown
   bracelet: unknown
+  wristGuard: unknown
 }) {
   return {
     id: character.id,
@@ -109,11 +110,12 @@ function toCharacterResponse(character: {
     className: character.className,
     imageUrl: character.imageUrl,
     // 상세 배너(BANNER_DETAILED, 10x4)용 필드. banner/bannerCompact는 위 필드까지만 쓰고
-    // 이 4개는 무시한다 (docs/widgets.typ "배너" 참고).
+    // 이 5개는 무시한다 (docs/widgets.typ "배너" 참고).
     equipment: character.equipment,
     accessories: character.accessories,
     abilityStone: character.abilityStone,
     bracelet: character.bracelet,
+    wristGuard: character.wristGuard,
   }
 }
 
@@ -223,6 +225,7 @@ export async function characterRoutes(fastify: FastifyInstance) {
         accessories: banner.accessories as unknown as Prisma.InputJsonValue,
         abilityStone: banner.abilityStone as unknown as Prisma.InputJsonValue,
         bracelet: banner.bracelet as unknown as Prisma.InputJsonValue,
+        wristGuard: banner.wristGuard as unknown as Prisma.InputJsonValue,
       },
     })
 
@@ -290,6 +293,7 @@ export async function characterRoutes(fastify: FastifyInstance) {
           accessories: banner.accessories as unknown as Prisma.InputJsonValue,
           abilityStone: banner.abilityStone as unknown as Prisma.InputJsonValue,
           bracelet: banner.bracelet as unknown as Prisma.InputJsonValue,
+          wristGuard: banner.wristGuard as unknown as Prisma.InputJsonValue,
         },
       })
 

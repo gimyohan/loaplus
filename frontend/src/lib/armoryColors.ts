@@ -116,22 +116,21 @@ export function refineLevelColor(refineLevel: number, itemName: string): string 
   return colorForLevel(refineLevel, set.buckets)
 }
 
-// 장비 슬롯 아이콘의 배경색 — 세트별 고유색(사용자 확정). 원본 아이콘 이미지가 투명 배경이라
-// 이 색이 아이템 뒤로 그대로 비친다. 목걸이 등 장신구나 아직 색이 없는 세트는 null을 반환해
-// 호출부가 기본 배경(bg-background)을 그대로 쓰게 한다.
-interface EquipmentBackgroundColorSet {
-  nameIncludes: string
-  color: string
+// 아이템 등급별 아이콘 배경색(사용자 확정) — 원본 아이콘 이미지가 투명 배경이라 이 색이 아이템
+// 뒤로 그대로 비친다. 장비/장신구/어빌리티 스톤/팔찌/완갑 전부 이 하나의 매핑을 공유한다 —
+// 예전엔 세트 이름(itemName)으로 장비만 따로 배경색을 정했는데(EQUIPMENT_BACKGROUND_COLORS),
+// Open API가 모든 아이템에 공통으로 내려주는 Grade로 일반화했다. 아직 색이 정해지지 않은 등급
+// (일반/고급/희귀/영웅)은 매핑에 없으므로 null을 반환해 호출부가 기본 배경(bg-background)을
+// 그대로 쓰게 한다.
+const GRADE_BACKGROUND_COLORS: Record<string, string> = {
+  전설: '#F99200',
+  유물: '#FA5D00',
+  고대: '#E3C7A1',
+  에스더: '#3CF2E6',
 }
 
-const EQUIPMENT_BACKGROUND_COLORS: EquipmentBackgroundColorSet[] = [
-  { nameIncludes: '결단', color: '#7d2b03' },
-  { nameIncludes: '업화', color: '#e9d099' },
-  { nameIncludes: '전율', color: '#bea371' },
-]
-
-export function equipmentBackgroundColor(itemName: string): string | null {
-  return EQUIPMENT_BACKGROUND_COLORS.find((set) => itemName?.includes(set.nameIncludes))?.color ?? null
+export function gradeBackgroundColor(grade: string): string | null {
+  return GRADE_BACKGROUND_COLORS[grade] ?? null
 }
 
 /** "전율" 세트는 장비 칸 테두리를 secondary 색으로 강조한다(사용자 확정). */

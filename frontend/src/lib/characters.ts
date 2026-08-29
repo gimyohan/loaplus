@@ -1,5 +1,5 @@
 import { ApiError, apiFetch } from '@/lib/api'
-import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail } from '@/types/armory'
+import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail, WristGuardDetail } from '@/types/armory'
 import type { CharacterSibling, CharacterSummary } from '@/types/character'
 
 // 한 유저가 등록할 수 있는 캐릭터 카드 최대 개수. 백엔드
@@ -37,6 +37,7 @@ interface CharacterResponse {
   accessories: AccessoryDetail
   abilityStone: AbilityStoneDetail
   bracelet: BraceletDetail
+  wristGuard: WristGuardDetail
 }
 
 function toCharacterSummary(dto: CharacterResponse): CharacterSummary {
@@ -52,6 +53,7 @@ function toCharacterSummary(dto: CharacterResponse): CharacterSummary {
     accessories: dto.accessories,
     abilityStone: dto.abilityStone,
     bracelet: dto.bracelet,
+    wristGuard: dto.wristGuard,
   }
 }
 

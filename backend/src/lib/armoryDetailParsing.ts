@@ -1,8 +1,8 @@
 // docs/api.typ "상세 배너 필드 매핑" 참고. Open API GET /armories/characters/{characterName}
 // 응답의 ArmoryEquipment 배열을 파싱해 docs/db_schema.typ의 Characters 상세 배너용 컬럼
-// (equipment/accessories/ability_stone/bracelet) 형태로 변환한다. Tooltip 필드는 문서화되지
-// 않은 내부 UI 렌더링용 JSON 문자열이라, 실제 응답을 까본 결과를 바탕으로 정규식/구조 탐색으로
-// 필요한 값만 뽑아낸다 — Tooltip 원문 자체는 저장하지 않는다.
+// (equipment/accessories/ability_stone/bracelet/wrist_guard) 형태로 변환한다. Tooltip 필드는
+// 문서화되지 않은 내부 UI 렌더링용 JSON 문자열이라, 실제 응답을 까본 결과를 바탕으로 정규식/구조
+// 탐색으로 필요한 값만 뽑아낸다 — Tooltip 원문 자체는 저장하지 않는다.
 
 export interface RawArmoryEquipmentItem {
   Type: string
@@ -30,6 +30,11 @@ export interface EquipmentSlotDetail {
   /** 아이템 아이콘 이미지 URL(ArmoryEquipment[].Icon 그대로). 상세 배너에서 직업별 lucide
    * 아이콘 대신 실제 장비 이미지를 보여주는 데 쓴다. */
   iconUrl: string
+  /** 아이템 등급(ArmoryEquipment[].Grade 그대로) — 일반/고급/희귀/영웅/전설/유물/고대/에스더 중
+   * 하나. 아이콘 배경색을 등급별로 통일해 정하는 데 쓴다(workspace/frontend/src/lib/armoryColors.ts
+   * 참고) — 예전에는 세트 이름(itemName)으로 장비만 따로 배경색을 정했는데, 등급 하나로 장비/
+   * 장신구/어빌리티 스톤/팔찌/완갑 전부를 통일했다. */
+  grade: string
 }
 
 export interface EquipmentDetail {
@@ -48,6 +53,11 @@ export interface PolishEffect {
 
 export interface AccessorySlotDetail {
   polishEffects: PolishEffect[]
+  /** 아이템 아이콘 이미지 URL(ArmoryEquipment[].Icon 그대로). EquipmentSlotDetail.iconUrl과 동일한
+   * 용도 — 상세 배너에서 lucide 아이콘 대신 실제 장신구 이미지를 보여주는 데 쓴다. */
+  iconUrl: string
+  /** 아이템 등급(ArmoryEquipment[].Grade 그대로). EquipmentSlotDetail.grade와 동일한 용도. */
+  grade: string
 }
 
 export interface AccessoryDetail {
@@ -65,10 +75,37 @@ export interface AbilityStoneEngraving {
 
 export interface AbilityStoneDetail {
   engravings: AbilityStoneEngraving[]
+  /** 아이템 아이콘 이미지 URL(ArmoryEquipment[].Icon 그대로). 어빌리티 스톤은 슬롯이 하나뿐이라
+   * engravings와 달리 값 하나만 갖는다. */
+  iconUrl: string
+  /** 아이템 등급(ArmoryEquipment[].Grade 그대로). EquipmentSlotDetail.grade와 동일한 용도. */
+  grade: string
 }
 
 export interface BraceletDetail {
   effects: PolishEffect[]
+  /** 아이템 아이콘 이미지 URL(ArmoryEquipment[].Icon 그대로). */
+  iconUrl: string
+  /** 아이템 등급(ArmoryEquipment[].Grade 그대로). EquipmentSlotDetail.grade와 동일한 용도. */
+  grade: string
+}
+
+// 완갑(팔찌보다 나중에 추가된 장비 슬롯)은 팔찌/장신구와 달리 재련 단계가 있고(이름 접두사
+// "+15 " 형식, EquipmentSlotDetail과 동일), 그 대신 품질(quality)·상급 재련은 없다(Tooltip의
+// ItemTitle.qualityValue가 항상 -1이고 "상급 재련" SingleTextBox 자체가 없음 — 실제 응답으로
+// 확인함). 효과 텍스트도 장신구/팔찌의 "연마 효과"/"팔찌 효과"(줄마다 <FONT COLOR>로 색이 있는
+// PolishEffect 형식)와 달리 "기본 효과"/"추가 효과" 두 ItemPartBox에 색 없는 일반 텍스트로만
+// 나온다 — 그래서 PolishEffect가 아니라 문자열 배열로 둔다.
+export interface WristGuardDetail {
+  /** 재련 접두사("+15 ")를 뗀 아이템 이름. EquipmentSlotDetail.itemName과 동일한 용도. */
+  itemName: string
+  refineLevel: number
+  /** 아이템 아이콘 이미지 URL(ArmoryEquipment[].Icon 그대로). */
+  iconUrl: string
+  /** "기본 효과" + "추가 효과" 텍스트를 순서대로 이어붙인 목록. 색상 정보는 없다. */
+  effects: string[]
+  /** 아이템 등급(ArmoryEquipment[].Grade 그대로). EquipmentSlotDetail.grade와 동일한 용도. */
+  grade: string
 }
 
 export interface ArmoryDetail {
@@ -76,6 +113,7 @@ export interface ArmoryDetail {
   accessories: AccessoryDetail
   abilityStone: AbilityStoneDetail
   bracelet: BraceletDetail
+  wristGuard: WristGuardDetail
 }
 
 const EMPTY_EQUIPMENT_SLOT: EquipmentSlotDetail = {
@@ -84,8 +122,9 @@ const EMPTY_EQUIPMENT_SLOT: EquipmentSlotDetail = {
   quality: 0,
   itemName: '',
   iconUrl: '',
+  grade: '',
 }
-const EMPTY_ACCESSORY_SLOT: AccessorySlotDetail = { polishEffects: [] }
+const EMPTY_ACCESSORY_SLOT: AccessorySlotDetail = { polishEffects: [], iconUrl: '', grade: '' }
 
 const EQUIPMENT_SLOT_BY_TYPE: Record<string, keyof EquipmentDetail> = {
   무기: 'weapon',
@@ -153,7 +192,7 @@ function parseEffectLines(html: string): PolishEffect[] {
   return effects
 }
 
-function parseEquipmentSlot(name: string, iconUrl: string, tooltip: Tooltip): EquipmentSlotDetail {
+function parseEquipmentSlot(name: string, iconUrl: string, grade: string, tooltip: Tooltip): EquipmentSlotDetail {
   // 이름 앞 "+13 " 접두사에서 재련 단계를 얻는다. 접두사가 없으면(미재련) 0단계다.
   const refineMatch = name.match(/^\+(\d+)\s/)
   const refineLevel = refineMatch ? Number.parseInt(refineMatch[1], 10) : 0
@@ -177,7 +216,32 @@ function parseEquipmentSlot(name: string, iconUrl: string, tooltip: Tooltip): Eq
       if (match) advancedRefineLevel = Number.parseInt(match[1], 10)
     }
   }
-  return { refineLevel, advancedRefineLevel, quality, itemName, iconUrl }
+  return { refineLevel, advancedRefineLevel, quality, itemName, iconUrl, grade }
+}
+
+/** `<br>`로 이어진 줄을 태그만 벗겨낸 일반 텍스트 목록으로 바꾼다. 완갑의 "기본 효과"/"추가
+ * 효과"처럼 색상 태그 없이 그냥 텍스트만 나오는 형식에 쓴다(parseEffectLines와 달리 <FONT COLOR>
+ * 매칭을 요구하지 않는다). */
+function parsePlainEffectLines(html: string): string[] {
+  return html
+    .split(/<br>/i)
+    .map((line) => line.replace(/<[^>]+>/g, '').trim())
+    .filter((line) => line.length > 0)
+}
+
+function parseWristGuardSlot(name: string, iconUrl: string, grade: string, tooltip: Tooltip): WristGuardDetail {
+  // 이름 접두사에서 재련 단계를 얻는 방식은 parseEquipmentSlot과 동일하다 — 완갑도 "+15 " 형식의
+  // 접두사를 쓴다. 다만 품질/상급 재련 개념이 없어(위 WristGuardDetail 주석 참고) 그 부분은 뺐다.
+  const refineMatch = name.match(/^\+(\d+)\s/)
+  const refineLevel = refineMatch ? Number.parseInt(refineMatch[1], 10) : 0
+  const itemName = refineMatch ? name.slice(refineMatch[0].length) : name
+
+  const effects = [
+    ...parsePlainEffectLines(findItemPartBoxText(tooltip, '기본 효과') ?? ''),
+    ...parsePlainEffectLines(findItemPartBoxText(tooltip, '추가 효과') ?? ''),
+  ]
+
+  return { itemName, refineLevel, iconUrl, effects, grade }
 }
 
 function parseAbilityStoneEngravings(tooltip: Tooltip): AbilityStoneEngraving[] {
@@ -206,8 +270,8 @@ function parseAbilityStoneEngravings(tooltip: Tooltip): AbilityStoneEngraving[] 
 }
 
 /**
- * Open API 응답의 ArmoryEquipment 배열 하나를 파싱해 상세 배너 4개 컬럼(equipment/accessories/
- * ability_stone/bracelet) 형태로 변환한다. 슬롯이 비어 있으면(미착용) 해당 슬롯은 빈 기본값을
+ * Open API 응답의 ArmoryEquipment 배열 하나를 파싱해 상세 배너 5개 컬럼(equipment/accessories/
+ * ability_stone/bracelet/wrist_guard) 형태로 변환한다. 슬롯이 비어 있으면(미착용) 해당 슬롯은 빈 기본값을
  * 그대로 둔다 — 저레벨 갓 등록한 캐릭터도 실패 없이 등록/새로고침되어야 하기 때문이다.
  * 귀걸이/반지처럼 같은 Type이 2개씩 나오는 슬롯은 응답에 등장하는 순서 그대로 1번/2번을 배정한다
  * (Open API가 좌우를 구분하는 필드를 따로 주지 않음).
@@ -215,8 +279,9 @@ function parseAbilityStoneEngravings(tooltip: Tooltip): AbilityStoneEngraving[] 
 export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | null | undefined): ArmoryDetail {
   const equipment = emptyEquipmentDetail()
   const accessories = emptyAccessoryDetail()
-  const abilityStone: AbilityStoneDetail = { engravings: [] }
-  const bracelet: BraceletDetail = { effects: [] }
+  const abilityStone: AbilityStoneDetail = { engravings: [], iconUrl: '', grade: '' }
+  const bracelet: BraceletDetail = { effects: [], iconUrl: '', grade: '' }
+  let wristGuard: WristGuardDetail = { itemName: '', refineLevel: 0, iconUrl: '', effects: [], grade: '' }
 
   let earringCount = 0
   let ringCount = 0
@@ -231,23 +296,35 @@ export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | nul
 
     const equipmentSlot = EQUIPMENT_SLOT_BY_TYPE[item.Type]
     if (equipmentSlot) {
-      equipment[equipmentSlot] = parseEquipmentSlot(item.Name, item.Icon, tooltip)
+      equipment[equipmentSlot] = parseEquipmentSlot(item.Name, item.Icon, item.Grade, tooltip)
       continue
     }
 
     switch (item.Type) {
       case '목걸이':
-        accessories.necklace = { polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? '') }
+        accessories.necklace = {
+          polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? ''),
+          iconUrl: item.Icon,
+          grade: item.Grade,
+        }
         break
       case '귀걸이': {
-        const detail = { polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? '') }
+        const detail = {
+          polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? ''),
+          iconUrl: item.Icon,
+          grade: item.Grade,
+        }
         if (earringCount === 0) accessories.earring1 = detail
         else if (earringCount === 1) accessories.earring2 = detail
         earringCount += 1
         break
       }
       case '반지': {
-        const detail = { polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? '') }
+        const detail = {
+          polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? ''),
+          iconUrl: item.Icon,
+          grade: item.Grade,
+        }
         if (ringCount === 0) accessories.ring1 = detail
         else if (ringCount === 1) accessories.ring2 = detail
         ringCount += 1
@@ -255,14 +332,21 @@ export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | nul
       }
       case '어빌리티 스톤':
         abilityStone.engravings = parseAbilityStoneEngravings(tooltip)
+        abilityStone.iconUrl = item.Icon
+        abilityStone.grade = item.Grade
         break
       case '팔찌':
         bracelet.effects = parseEffectLines(findItemPartBoxText(tooltip, '팔찌 효과') ?? '')
+        bracelet.iconUrl = item.Icon
+        bracelet.grade = item.Grade
+        break
+      case '완갑':
+        wristGuard = parseWristGuardSlot(item.Name, item.Icon, item.Grade, tooltip)
         break
       default:
         break
     }
   }
 
-  return { equipment, accessories, abilityStone, bracelet }
+  return { equipment, accessories, abilityStone, bracelet, wristGuard }
 }

@@ -1,4 +1,4 @@
-import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail } from '@/types/armory'
+import type { AbilityStoneDetail, AccessoryDetail, BraceletDetail, EquipmentDetail, WristGuardDetail } from '@/types/armory'
 import type { CharacterSummary } from '@/types/character'
 
 const mockEquipmentSlot = {
@@ -7,9 +7,17 @@ const mockEquipmentSlot = {
   quality: 82,
   itemName: '운명의 업화 방어구',
   iconUrl: '',
+  grade: '고대',
 }
 const mockEquipment: EquipmentDetail = {
-  weapon: { refineLevel: 17, advancedRefineLevel: 8, quality: 95, itemName: '운명의 업화 무기', iconUrl: '' },
+  weapon: {
+    refineLevel: 17,
+    advancedRefineLevel: 8,
+    quality: 95,
+    itemName: '운명의 업화 무기',
+    iconUrl: '',
+    grade: '고대',
+  },
   head: mockEquipmentSlot,
   chest: mockEquipmentSlot,
   pants: mockEquipmentSlot,
@@ -22,7 +30,7 @@ const mockPolishEffects = [
   { text: '무기 공격력 +1.60%', color: '#99DFFF' },
   { text: '깨달음 +6', color: '#F9CF56' },
 ]
-const mockAccessorySlot = { polishEffects: mockPolishEffects }
+const mockAccessorySlot = { polishEffects: mockPolishEffects, iconUrl: '', grade: '고대' }
 const mockAccessories: AccessoryDetail = {
   necklace: mockAccessorySlot,
   earring1: mockAccessorySlot,
@@ -36,6 +44,8 @@ const mockAbilityStone: AbilityStoneDetail = {
     { name: '예리한 둔기', level: 3 },
     { name: '결투의 대가', level: 2 },
   ],
+  iconUrl: '',
+  grade: '유물',
 }
 
 const mockBracelet: BraceletDetail = {
@@ -44,6 +54,16 @@ const mockBracelet: BraceletDetail = {
     { text: '치명 +80', color: '#99DFFF' },
     { text: '공격력 +2.00%', color: '#F9CF56' },
   ],
+  iconUrl: '',
+  grade: '고대',
+}
+
+const mockWristGuard: WristGuardDetail = {
+  itemName: '운명의 전율 완갑',
+  refineLevel: 15,
+  iconUrl: '',
+  effects: ['무기 공격력 +14817', '힘 +47268', '기본 공격력 +1.00%'],
+  grade: '전설',
 }
 
 // 백엔드/Open API 연동 전까지 사용하는 로컬 목업 데이터.
@@ -64,4 +84,5 @@ export const mockCharacter: CharacterSummary = {
   accessories: mockAccessories,
   abilityStone: mockAbilityStone,
   bracelet: mockBracelet,
+  wristGuard: mockWristGuard,
 }
