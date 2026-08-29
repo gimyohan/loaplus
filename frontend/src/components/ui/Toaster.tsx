@@ -27,16 +27,18 @@ export function Toaster() {
           key={toast.id}
           role="status"
           className={cn(
-            'relative flex items-start gap-2.5 overflow-hidden rounded-lg border bg-card p-3.5 text-sm shadow-2xl',
-            toast.variant === 'warning' ? 'border-amber-500/40' : 'border-border',
+            // animate-toast-in: 등장할 때 살짝 떠오르며 페이드인 — 정적으로 툭 나타나기만 하면
+            // 우측 하단이라 시선을 못 끈다. border-2 + ring + shadow로 카드 배경과의 대비도 키웠다.
+            'animate-toast-in relative flex items-start gap-2.5 overflow-hidden rounded-lg border-2 bg-card p-4 text-sm shadow-2xl ring-1 ring-black/5',
+            toast.variant === 'warning' ? 'border-amber-500' : 'border-primary/70',
           )}
         >
           {toast.variant === 'warning' ? (
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
           ) : (
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           )}
-          <p className="leading-relaxed text-foreground">{toast.message}</p>
+          <p className="font-medium leading-relaxed text-foreground">{toast.message}</p>
           {/* 자동으로 사라지기까지 남은 시간 표시 — 왼쪽에서 시작해 durationMs 동안 줄어든다. */}
           <div
             className={cn(
