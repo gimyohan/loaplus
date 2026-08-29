@@ -11,6 +11,8 @@ export interface PlacedWidgetContentProps {
   onCustomDataChange?: (customData: Record<string, unknown>) => void
   /** textCheckbox 위젯의 체크 토글(interactive일 때만 의미 있음) */
   onCheckboxToggle?: (isChecked: boolean) => void
+  /** counter 위젯 카드 클릭(숫자 1 감소, interactive일 때만 의미 있음) */
+  onCounterDecrement?: () => void
   /** 이미 다른 레이드 위젯이 쓰고 있는 레이드 키 목록(이 위젯 자신은 제외). WidgetVisual로 그대로 전달한다 */
   raidExcludedKeys?: string[]
   /** 레이드 관문 완료 체크박스 토글(interactive일 때만 의미 있음) */
@@ -29,6 +31,7 @@ export function PlacedWidgetContent({
   characterName,
   onCustomDataChange,
   onCheckboxToggle,
+  onCounterDecrement,
   raidExcludedKeys,
   onRaidGateToggle,
   onRaidMoreRewardToggle,
@@ -45,6 +48,7 @@ export function PlacedWidgetContent({
       customData={widget.customData}
       onCustomDataChange={onCustomDataChange}
       onCheckboxToggle={onCheckboxToggle}
+      onCounterDecrement={onCounterDecrement}
       raid={widget.raid}
       raidExcludedKeys={raidExcludedKeys}
       onRaidGateToggle={onRaidGateToggle}

@@ -26,6 +26,9 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
   // 버튼(36px)+컨테이너 좌우 패딩(px-5, 40px)+요소 사이 gap(24px)만으로도 136px(≈2.7칸)가
   // 필요해서 2칸(100px)으로는 아이콘들이 이미 서로 겹친다.
   { kind: 'textCheckbox', label: '루틴', category: 'additional', w: 5, h: 1, group: 'custom', section: 'custom', resizable: true, minW: 3, maxW: 10 },
+  // 카운터도 루틴과 같은 이유로 minW: 3 — 숫자 배지 + 설정 버튼 + 컨테이너 좌우 패딩만으로도
+  // 비슷한 최소 폭이 필요하다.
+  { kind: 'counter', label: '카운터', category: 'additional', w: 5, h: 1, group: 'custom', section: 'custom', resizable: true, minW: 3, maxW: 10 },
   // 이미지는 실제 사진이 object-cover로 어떤 비율에도 알아서 맞춰지므로 가로·세로 둘 다 자유롭게
   // 고를 수 있다 — maxW/maxH는 DEFAULT_COLUMNS와 맞춰 대칭으로 10까지만 우선 허용한다(세로는
   // MAX_ROWS까지 더 늘릴 수 있지만, WidgetDashboard.tsx를 이 파일에서 import하면 순환
@@ -82,6 +85,10 @@ export const TEXT_NATIVE_HEIGHT = 100
 /** 루틴(텍스트 · 체크박스, 5x1)의 디자인 원본 크기. */
 export const TEXT_CHECKBOX_NATIVE_WIDTH = 500
 export const TEXT_CHECKBOX_NATIVE_HEIGHT = 100
+
+/** 카운터(텍스트 · 숫자, 5x1)의 디자인 원본 크기. */
+export const COUNTER_NATIVE_WIDTH = 500
+export const COUNTER_NATIVE_HEIGHT = 100
 
 /** 이미지(4x4)의 디자인 원본 크기. */
 export const IMAGE_NATIVE_WIDTH = 400

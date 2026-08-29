@@ -164,4 +164,35 @@ export async function customWidgetRoutes(fastify: FastifyInstance) {
       return reply.send(toWidgetResponse(updated))
     },
   )
+
+  fastify.patch<{ Params: { widgetId: string } }>(
+    '/api/widgets/custom/:widgetId/decrement',
+    { preHandler: auth, schema: { tags: ['CustomWidgets'], summary: '카운터 위젯 값 1 감소' } },
+    async (request, reply) => {
+      const widget = await requireOwnedWidget(request.params.widgetId, request.userId!, reply)
+      if (!widget) return
+
+      if (widget.widgetType !== 'COUNTER') {
+        return reply.code(400).send({ error: 'not_a_counter_widget' })
+      }
+
+      // 서버에 저장된 값을 기준으로 계산한다 — 클릭할 때마다 이 엔드포인트만 부르면 되고(값을
+      // 직접 계산해 보낼 필요 없음), 프론트가 낙관적으로 먼저 반영한 값이 실제 저장값과
+      // 어긋나 있어도(예: 다른 탭에서 동시에 클릭) 항상 서버 값 기준으로 정확히 1만 줄어든다.
+      const existingCustomData = (widget.customData as Record<string, unknown> | null) ?? {}
+      const currentCount = typeof existingCustomData.count === 'number' ? existingCustomData.count : 0
+
+      const updated = await fastify.prisma.dashboardWidget.update({
+        where: { id: widget.id },
+        data: {
+          customData: {
+            ...existingCustomData,
+            count: Math.max(currentCount - 1, 0),
+          } satisfies Prisma.InputJsonValue,
+        },
+      })
+
+      return reply.send(toWidgetResponse(updated))
+    },
+  )
 }

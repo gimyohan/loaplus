@@ -25,3 +25,8 @@ export async function checkCustomWidget(widgetId: string, isChecked: boolean): P
     body: JSON.stringify({ isChecked }),
   })
 }
+
+/** 카운터 위젯의 숫자만 서버 저장값 기준으로 1 감소시킨다(customData의 text는 그대로 유지). */
+export async function decrementCounterWidget(widgetId: string): Promise<PlacedWidget> {
+  return apiFetch<PlacedWidget>(`/api/widgets/custom/${widgetId}/decrement`, { method: 'PATCH' })
+}

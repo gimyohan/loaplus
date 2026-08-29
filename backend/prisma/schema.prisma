@@ -348,6 +348,7 @@ enum WidgetType {
   TEXT_CHECKBOX
   LINK_ICON
   IMAGE
+  COUNTER
 }
 
 model DashboardWidget {
@@ -362,8 +363,8 @@ model DashboardWidget {
   /// 명시하며(RAID는 캐릭터당 여러 슬롯을 가질 수 있어 character_id만으로 유일하지 않음),
   /// Character_Raids 행이 삭제되면 이 행도 함께 삭제된다(onDelete: Cascade).
   raidId      String?    @unique @map("raid_id") @db.Uuid
-  /// Additional Value 위젯(TEXT/TEXT_CHECKBOX/LINK_ICON/IMAGE)에만 값이 들어간다. Default Value
-  /// 위젯은 항상 null (실제 상태는 각자의 전용 테이블에 있음).
+  /// Additional Value 위젯(TEXT/TEXT_CHECKBOX/LINK_ICON/IMAGE/COUNTER)에만 값이 들어간다. Default
+  /// Value 위젯은 항상 null (실제 상태는 각자의 전용 테이블에 있음).
   customData  Json?      @map("custom_data")
 
   character Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)

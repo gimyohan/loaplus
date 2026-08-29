@@ -16,6 +16,7 @@ export const KIND_TO_WIDGET_TYPE = {
   textCheckbox: 'TEXT_CHECKBOX',
   linkIcon: 'LINK_ICON',
   image: 'IMAGE',
+  counter: 'COUNTER',
 } as const satisfies Record<string, WidgetType>
 
 export type WidgetKind = keyof typeof KIND_TO_WIDGET_TYPE
@@ -27,7 +28,13 @@ export const WIDGET_TYPE_TO_KIND = Object.fromEntries(
 // Additional Value 위젯(위젯 자체에 종속되는 커스텀 데이터를 갖는 kind). /api/widgets/custom은
 // 이 kind들만 다룬다 — Default Value 위젯(banner/guardian/kurzanFrontline/paradise/raid)은
 // PUT /api/dashboards/{characterId}/widgets로만 배치한다 (docs/api.typ 참고).
-export const ADDITIONAL_VALUE_KINDS = ['text', 'textCheckbox', 'linkIcon', 'image'] as const satisfies WidgetKind[]
+export const ADDITIONAL_VALUE_KINDS = [
+  'text',
+  'textCheckbox',
+  'linkIcon',
+  'image',
+  'counter',
+] as const satisfies WidgetKind[]
 
 export function toWidgetResponse(widget: {
   id: string

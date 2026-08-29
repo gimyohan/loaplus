@@ -6,6 +6,8 @@ import { CharacterBannerDetailed } from '@/components/character/CharacterBannerD
 import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { AbilityStoneModal } from '@/components/widgets/AbilityStoneModal'
 import { AbilityStoneWidget } from '@/components/widgets/AbilityStoneWidget'
+import { CounterSettingsModal } from '@/components/widgets/CounterSettingsModal'
+import { CounterWidget } from '@/components/widgets/CounterWidget'
 import { EbonyCubeSettingsModal } from '@/components/widgets/EbonyCubeSettingsModal'
 import { EbonyCubeWidget } from '@/components/widgets/EbonyCubeWidget'
 import { GuardianSettingsModal } from '@/components/widgets/GuardianSettingsModal'
@@ -126,6 +128,8 @@ export interface WidgetVisualProps {
   onCustomDataChange?: (customData: Record<string, unknown>) => void
   /** textCheckbox 위젯의 체크 토글(interactive일 때만 호출됨) */
   onCheckboxToggle?: (isChecked: boolean) => void
+  /** counter 위젯 카드 클릭(숫자 1 감소, interactive일 때만 호출됨) */
+  onCounterDecrement?: () => void
   /** kind === 'raid'일 때 이 위젯 인스턴스가 가리키는 레이드 슬롯의 목표/관문 상태 */
   raid?: RaidTargetSummary | null
   /** 이미 다른 레이드 위젯이 쓰고 있는 레이드 키 목록(이 위젯 자신은 제외) — 목표 변경 모달에서
@@ -630,6 +634,7 @@ export function WidgetVisual({
   customData,
   onCustomDataChange,
   onCheckboxToggle,
+  onCounterDecrement,
   raid,
   raidExcludedKeys,
   onRaidGateToggle,
@@ -672,6 +677,7 @@ export function WidgetVisual({
   }, [customData?.text])
 
   const [isTextCheckboxSettingsOpen, setIsTextCheckboxSettingsOpen] = useState(false)
+  const [isCounterSettingsOpen, setIsCounterSettingsOpen] = useState(false)
   const [isLinkIconSettingsOpen, setIsLinkIconSettingsOpen] = useState(false)
   const [isAbilityStoneOpen, setIsAbilityStoneOpen] = useState(false)
 
@@ -945,6 +951,34 @@ export function WidgetVisual({
           text={text}
           resetDays={resetDays}
           remainingCount={remainingCount}
+          onSave={(value) => onCustomDataChange?.({ ...customData, ...value })}
+        />
+      </>
+    )
+  }
+
+  if (kind === 'counter') {
+    const text = (customData?.text as string | undefined) ?? ''
+    const count = typeof customData?.count === 'number' ? (customData.count as number) : 0
+    return (
+      <>
+        {/* text/textCheckbox와 같은 이유로 ScaleToFit을 쓰지 않는다 — 카운터도 가로 칸 수를
+            자유롭게 고를 수 있다(widgetCatalog.ts). */}
+        <div style={{ width, height }} className={cn('select-none', disabledClassName, className)}>
+          <CounterWidget
+            text={text}
+            count={count}
+            onDecrement={onCounterDecrement}
+            onOpenSettings={() => setIsCounterSettingsOpen(true)}
+            className="h-full w-full"
+          />
+        </div>
+        <CounterSettingsModal
+          open={isCounterSettingsOpen}
+          onClose={() => setIsCounterSettingsOpen(false)}
+          characterName={bannerCharacter.characterName}
+          text={text}
+          count={count}
           onSave={(value) => onCustomDataChange?.({ ...customData, ...value })}
         />
       </>

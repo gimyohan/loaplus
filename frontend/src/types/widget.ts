@@ -13,6 +13,7 @@ export type WidgetKind =
   | 'halHourglass'
   | 'text'
   | 'textCheckbox'
+  | 'counter'
   | 'image'
   | 'linkIcon'
   | 'abilityStone'
@@ -52,7 +53,7 @@ export interface PlacedWidget {
   y: number
   w: number
   h: number
-  /** Additional Value 위젯(text/textCheckbox/image/linkIcon)의 위젯별 데이터. Default Value 위젯은 null. */
+  /** Additional Value 위젯(text/textCheckbox/counter/image/linkIcon)의 위젯별 데이터. Default Value 위젯은 null. */
   customData?: Record<string, unknown> | null
   /** kind === 'raid'일 때만 값이 있다(Character_Raids 참조, docs/api.typ 참고). */
   raidId?: string | null

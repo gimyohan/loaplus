@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
-import { checkCustomWidget, updateCustomWidget } from '@/lib/customWidgets'
+import { checkCustomWidget, decrementCounterWidget, updateCustomWidget } from '@/lib/customWidgets'
 import { fetchWidgetLayout, saveWidgetLayout } from '@/lib/dashboards'
 import { useElementWidth } from '@/hooks/useElementWidth'
 import {
@@ -59,6 +59,7 @@ function describeRaidTarget(raidKey: string, difficultyKey: string): string {
 const DEFAULT_CUSTOM_DATA: Partial<Record<WidgetKind, Record<string, unknown>>> = {
   text: { text: '' },
   textCheckbox: { text: '', isChecked: false, resetDays: 0 },
+  counter: { text: '', count: 0 },
   image: { url: null },
   linkIcon: { url: null, label: null },
 }
@@ -254,6 +255,23 @@ export function WidgetDashboard({
       }),
     )
     checkCustomWidget(widgetId, isChecked).catch((err) => console.error('체크박스 저장 실패', err))
+  }
+
+  // 카운터 위젯 카드 클릭 — 숫자를 1 줄인다(0 미만 방지). 연달아 눌러도 정확히 순서대로
+  // 줄어들도록 setWidgets의 함수형 업데이트로 매번 최신 상태를 기준으로 계산하고, 서버는
+  // 저장된 값 기준으로 다시 계산해 응답하므로(routes/customWidgets.ts) 그 응답으로 최종 값을
+  // 맞춘다 — 텍스트 등 다른 필드는 건드리지 않는다.
+  const decrementWidgetCounter = (widgetId: string) => {
+    setWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== widgetId) return w
+        const currentCount = typeof w.customData?.count === 'number' ? (w.customData.count as number) : 0
+        return { ...w, customData: { ...w.customData, count: Math.max(currentCount - 1, 0) } }
+      }),
+    )
+    decrementCounterWidget(widgetId)
+      .then((updated) => setWidgets((prev) => prev.map((w) => (w.id === widgetId ? updated : w))))
+      .catch((err) => console.error('카운터 감소 저장 실패', err))
   }
 
   // 레이드 관문 완료 체크박스 토글. 체크(완료)는 서버가 앞선 미완료 관문까지 연쇄 완료하고,
@@ -594,6 +612,7 @@ export function WidgetDashboard({
                 characterName={characterName}
                 onCustomDataChange={(customData) => updateWidgetCustomData(widget.id, customData)}
                 onCheckboxToggle={(isChecked) => toggleWidgetChecked(widget.id, isChecked)}
+                onCounterDecrement={() => decrementWidgetCounter(widget.id)}
                 raidExcludedKeys={raidExcludedKeysFor(widget.id)}
                 onRaidGateToggle={(gateIndex, cleared) => toggleRaidGateCleared(widget.id, gateIndex, cleared)}
                 onRaidMoreRewardToggle={(gateIndex, enabled) =>
