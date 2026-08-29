@@ -35,6 +35,14 @@ export interface EquipmentSlotDetail {
    * 참고) — 예전에는 세트 이름(itemName)으로 장비만 따로 배경색을 정했는데, 등급 하나로 장비/
    * 장신구/어빌리티 스톤/팔찌/완갑 전부를 통일했다. */
   grade: string
+  /** Tooltip.ItemTitle.leftStr2에 "티어" 표기가 있는지(현재 확인된 값은 전부 "티어 4") — 참이면
+   * 아크 패시브 프레임(bg_equipment_arkpassive*.png)을 씌운다. "4"로 고정하지 않고 "티어"
+   * 포함 여부만 보는 이유는, 나중에 티어 5가 나와도 코드를 안 고치고 그대로 동작하게 하기
+   * 위함이다(workspace/frontend/src/lib/armoryColors.ts 참고). */
+  isTierGear: boolean
+  /** Tooltip.ItemTitle.slotData.petBorder 그대로 — 0이면 없음, 지금까지 확인된 0이 아닌 값은
+   * 6(전율 세트)뿐이다. 0이 아니면 전율 전용 프레임(bg_equipment_petBorder.png)을 씌운다. */
+  petBorder: number
 }
 
 export interface EquipmentDetail {
@@ -58,6 +66,12 @@ export interface AccessorySlotDetail {
   iconUrl: string
   /** 아이템 등급(ArmoryEquipment[].Grade 그대로). EquipmentSlotDetail.grade와 동일한 용도. */
   grade: string
+  /** EquipmentSlotDetail.isTierGear와 동일한 용도 — 참이면 아크 패시브 프레임(장신구는
+   * bg_equipment_arkpassive2.png)을 씌운다. */
+  isTierGear: boolean
+  /** EquipmentSlotDetail.petBorder와 동일한 용도. 장신구는 지금까지 0이 아닌 값이 확인된 적
+   * 없지만("전율 목걸이" 같은 아이템 자체가 없음), 다른 슬롯과 같은 구조를 유지하려고 둔다. */
+  petBorder: number
 }
 
 export interface AccessoryDetail {
@@ -88,6 +102,11 @@ export interface BraceletDetail {
   iconUrl: string
   /** 아이템 등급(ArmoryEquipment[].Grade 그대로). EquipmentSlotDetail.grade와 동일한 용도. */
   grade: string
+  /** EquipmentSlotDetail.isTierGear와 동일한 용도 — 참이면 아크 패시브 프레임(팔찌는
+   * bg_equipment_arkpassive3.png)을 씌운다. */
+  isTierGear: boolean
+  /** EquipmentSlotDetail.petBorder와 동일한 용도(팔찌는 지금까지 0이 아닌 값 확인된 적 없음). */
+  petBorder: number
 }
 
 // 완갑(팔찌보다 나중에 추가된 장비 슬롯)은 팔찌/장신구와 달리 재련 단계가 있고(이름 접두사
@@ -106,6 +125,13 @@ export interface WristGuardDetail {
   effects: string[]
   /** 아이템 등급(ArmoryEquipment[].Grade 그대로). EquipmentSlotDetail.grade와 동일한 용도. */
   grade: string
+  /** 완갑은 아크 패시브(진화/깨달음/도약) 3분류 어디에도 안 속해 티어 여부와 무관하게 아크
+   * 패시브 프레임을 씌우지 않는다(사용자 확인) — 그래서 이 필드는 저장만 하고 렌더링에는 안
+   * 쓴다. EquipmentSlotDetail.isTierGear와 동일한 값이다. */
+  isTierGear: boolean
+  /** EquipmentSlotDetail.petBorder와 동일한 용도 — 완갑은 "전율" 세트일 때만 0이 아니며(확인된
+   * 값 6), 이때만 전율 전용 프레임을 씌운다. 완갑에서 실제로 프레임을 붙이는 유일한 조건이다. */
+  petBorder: number
 }
 
 export interface ArmoryDetail {
@@ -123,8 +149,16 @@ const EMPTY_EQUIPMENT_SLOT: EquipmentSlotDetail = {
   itemName: '',
   iconUrl: '',
   grade: '',
+  isTierGear: false,
+  petBorder: 0,
 }
-const EMPTY_ACCESSORY_SLOT: AccessorySlotDetail = { polishEffects: [], iconUrl: '', grade: '' }
+const EMPTY_ACCESSORY_SLOT: AccessorySlotDetail = {
+  polishEffects: [],
+  iconUrl: '',
+  grade: '',
+  isTierGear: false,
+  petBorder: 0,
+}
 
 const EQUIPMENT_SLOT_BY_TYPE: Record<string, keyof EquipmentDetail> = {
   무기: 'weapon',
@@ -176,6 +210,21 @@ function findItemPartBoxText(tooltip: Tooltip, labelSubstring: string): string |
   return null
 }
 
+/** ItemTitle 엘리먼트의 leftStr2(티어 표기)·slotData.petBorder를 뽑아 프레임 판정에 쓴다.
+ * 장비/장신구/팔찌/완갑이 전부 같은 구조를 공유한다(실제 응답으로 확인함) — 어느 아이템 종류든
+ * 이 함수 하나로 처리한다. */
+function parseItemTitleFrame(tooltip: Tooltip): { isTierGear: boolean; petBorder: number } {
+  for (const element of tooltipElements(tooltip)) {
+    if (element.type !== 'ItemTitle') continue
+    const value = element.value as { leftStr2?: string; slotData?: { petBorder?: number } }
+    return {
+      isTierGear: Boolean(value.leftStr2?.includes('티어')),
+      petBorder: value.slotData?.petBorder ?? 0,
+    }
+  }
+  return { isTierGear: false, petBorder: 0 }
+}
+
 /**
  * `<img .../>효과 텍스트 <FONT color='RRGGBB'>+값</FONT>` 형식의 줄이 `<br>`로 이어진 문자열을
  * { text, color } 목록으로 변환한다. 장신구 "연마 효과"와 팔찌 "팔찌 효과"가 같은 형식을 쓴다.
@@ -216,7 +265,7 @@ function parseEquipmentSlot(name: string, iconUrl: string, grade: string, toolti
       if (match) advancedRefineLevel = Number.parseInt(match[1], 10)
     }
   }
-  return { refineLevel, advancedRefineLevel, quality, itemName, iconUrl, grade }
+  return { refineLevel, advancedRefineLevel, quality, itemName, iconUrl, grade, ...parseItemTitleFrame(tooltip) }
 }
 
 /** `<br>`로 이어진 줄을 태그만 벗겨낸 일반 텍스트 목록으로 바꾼다. 완갑의 "기본 효과"/"추가
@@ -241,7 +290,7 @@ function parseWristGuardSlot(name: string, iconUrl: string, grade: string, toolt
     ...parsePlainEffectLines(findItemPartBoxText(tooltip, '추가 효과') ?? ''),
   ]
 
-  return { itemName, refineLevel, iconUrl, effects, grade }
+  return { itemName, refineLevel, iconUrl, effects, grade, ...parseItemTitleFrame(tooltip) }
 }
 
 function parseAbilityStoneEngravings(tooltip: Tooltip): AbilityStoneEngraving[] {
@@ -280,8 +329,16 @@ export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | nul
   const equipment = emptyEquipmentDetail()
   const accessories = emptyAccessoryDetail()
   const abilityStone: AbilityStoneDetail = { engravings: [], iconUrl: '', grade: '' }
-  const bracelet: BraceletDetail = { effects: [], iconUrl: '', grade: '' }
-  let wristGuard: WristGuardDetail = { itemName: '', refineLevel: 0, iconUrl: '', effects: [], grade: '' }
+  const bracelet: BraceletDetail = { effects: [], iconUrl: '', grade: '', isTierGear: false, petBorder: 0 }
+  let wristGuard: WristGuardDetail = {
+    itemName: '',
+    refineLevel: 0,
+    iconUrl: '',
+    effects: [],
+    grade: '',
+    isTierGear: false,
+    petBorder: 0,
+  }
 
   let earringCount = 0
   let ringCount = 0
@@ -306,6 +363,7 @@ export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | nul
           polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? ''),
           iconUrl: item.Icon,
           grade: item.Grade,
+          ...parseItemTitleFrame(tooltip),
         }
         break
       case '귀걸이': {
@@ -313,6 +371,7 @@ export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | nul
           polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? ''),
           iconUrl: item.Icon,
           grade: item.Grade,
+          ...parseItemTitleFrame(tooltip),
         }
         if (earringCount === 0) accessories.earring1 = detail
         else if (earringCount === 1) accessories.earring2 = detail
@@ -324,6 +383,7 @@ export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | nul
           polishEffects: parseEffectLines(findItemPartBoxText(tooltip, '연마 효과') ?? ''),
           iconUrl: item.Icon,
           grade: item.Grade,
+          ...parseItemTitleFrame(tooltip),
         }
         if (ringCount === 0) accessories.ring1 = detail
         else if (ringCount === 1) accessories.ring2 = detail
@@ -339,6 +399,7 @@ export function parseArmoryEquipmentDetail(items: RawArmoryEquipmentItem[] | nul
         bracelet.effects = parseEffectLines(findItemPartBoxText(tooltip, '팔찌 효과') ?? '')
         bracelet.iconUrl = item.Icon
         bracelet.grade = item.Grade
+        Object.assign(bracelet, parseItemTitleFrame(tooltip))
         break
       case '완갑':
         wristGuard = parseWristGuardSlot(item.Name, item.Icon, item.Grade, tooltip)

@@ -12,6 +12,12 @@ export interface EquipmentSlotDetail {
   /** 아이템 등급 — 일반/고급/희귀/영웅/전설/유물/고대/에스더 중 하나. 아이콘 배경색을 등급별로
    * 통일해 정하는 데 쓴다(lib/armoryColors.ts의 gradeBackgroundColor 참고). */
   grade: string
+  /** 아이템 티어 표기(현재까지 확인된 값은 전부 "티어 4") 여부 — 참이면 아크 패시브 프레임을
+   * 씌운다(components/character/CharacterBannerDetailed.tsx의 ItemFrames 참고). */
+  isTierGear: boolean
+  /** 0이면 없음, 지금까지 확인된 0이 아닌 값은 6(전율 세트)뿐 — 0이 아니면 전율 전용 프레임을
+   * 씌운다. */
+  petBorder: number
 }
 
 export interface EquipmentDetail {
@@ -36,6 +42,10 @@ export interface AccessorySlotDetail {
   iconUrl: string
   /** 아이템 등급. EquipmentSlotDetail.grade와 동일한 용도. */
   grade: string
+  /** EquipmentSlotDetail.isTierGear와 동일한 용도(장신구는 아크 패시브 프레임 2번). */
+  isTierGear: boolean
+  /** EquipmentSlotDetail.petBorder와 동일한 용도(장신구는 지금까지 0이 아닌 값 확인된 적 없음). */
+  petBorder: number
 }
 
 export interface AccessoryDetail {
@@ -65,6 +75,10 @@ export interface BraceletDetail {
   iconUrl: string
   /** 아이템 등급. EquipmentSlotDetail.grade와 동일한 용도. */
   grade: string
+  /** EquipmentSlotDetail.isTierGear와 동일한 용도(팔찌는 아크 패시브 프레임 3번). */
+  isTierGear: boolean
+  /** EquipmentSlotDetail.petBorder와 동일한 용도(팔찌는 지금까지 0이 아닌 값 확인된 적 없음). */
+  petBorder: number
 }
 
 /** 완갑(팔찌 다음에 추가된 장비 슬롯) — 팔찌와 달리 재련 단계가 있고, 효과 텍스트는 색상 정보가
@@ -79,4 +93,9 @@ export interface WristGuardDetail {
   effects: string[]
   /** 아이템 등급. EquipmentSlotDetail.grade와 동일한 용도. */
   grade: string
+  /** 완갑은 아크 패시브 3분류 어디에도 안 속해 렌더링에는 안 쓴다(사용자 확인) — 데이터만 저장.
+   * EquipmentSlotDetail.isTierGear와 동일한 값. */
+  isTierGear: boolean
+  /** EquipmentSlotDetail.petBorder와 동일한 용도 — 완갑에서 실제로 프레임을 붙이는 유일한 조건. */
+  petBorder: number
 }

@@ -133,11 +133,6 @@ export function gradeBackgroundColor(grade: string): string | null {
   return GRADE_BACKGROUND_COLORS[grade] ?? null
 }
 
-/** "전율" 세트는 장비 칸 테두리를 secondary 색으로 강조한다(사용자 확정). */
-export function isJeonyulItem(itemName: string): boolean {
-  return Boolean(itemName?.includes('전율'))
-}
-
 /** 어빌리티 스톤 전투 각인 레벨(1~3)을 색상으로 구분한다(별도 색 정보 없음 — 이 앱 차트 팔레트 재사용). */
 export function engravingLevelColor(level: number): string {
   if (level >= 3) return chartColor(2)

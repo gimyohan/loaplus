@@ -21,7 +21,6 @@ import {
   engravingLevelColor,
   gradeBackgroundColor,
   hasAdvancedRefine,
-  isJeonyulItem,
   qualityColor,
   refineLevelColor,
 } from '@/lib/armoryColors'
@@ -56,6 +55,78 @@ const ACCESSORY_SLOTS: { key: keyof AccessoryDetail; label: string; icon: Lucide
   { key: 'ring1', label: '반지1', icon: Circle },
   { key: 'ring2', label: '반지2', icon: Circle },
 ]
+
+// 공식 로스트아크 클라이언트가 쓰는 장식 프레임 원본 에셋 — 아이콘 아틀라스(efui_iconatlas)와는
+// 다른 CDN 경로(2018/obt/assets/...)에 있다. 실제 응답으로 확인한 규칙(docs 대화 참고):
+// - 아크 패시브 프레임(종류별로 파일이 다름): ItemTitle.leftStr2에 "티어" 표기가 있을 때만 —
+//   장비는 번호 없는 파일, 장신구는 2, 팔찌는 3. 완갑은 아크 패시브(진화/깨달음/도약) 3분류
+//   어디에도 안 속해 절대 안 뜬다.
+// - 전율 전용 프레임: ItemTitle.slotData.petBorder가 0이 아닐 때(확인된 값은 6=전율) — 장비와
+//   완갑에서만 실제로 나타난다(장신구/팔찌엔 "전율" 세트 자체가 없음).
+const FRAME_ASSET_BASE = 'https://cdn-lostark.game.onstove.com/2018/obt/assets/images/common/game'
+const PET_BORDER_FRAME_URL = `${FRAME_ASSET_BASE}/bg_equipment_petBorder.png`
+const ARK_PASSIVE_FRAME_URL = {
+  equipment: `${FRAME_ASSET_BASE}/bg_equipment_arkpassive.png`,
+  accessory: `${FRAME_ASSET_BASE}/bg_equipment_arkpassive2.png`,
+  bracelet: `${FRAME_ASSET_BASE}/bg_equipment_arkpassive3.png`,
+} as const
+
+// 프레임을 아이콘 박스보다 얼마나 더 크게 그릴지(각 변 기준, px 단위) — 0이면 아이콘과 완전히
+// 같은 크기(기본값, 갭 없이 딱 맞음). 늘리면 프레임이 그만큼 아이콘 바깥으로 삐져나온다. 아이콘
+// 실제 크기(현재 h-11=44px)와 무관하게 항상 "부모 relative 박스 크기 + 이 값"으로 계산되므로
+// (calc(100% + Npx)), 아이콘 크기를 나중에 바꿔도 이 값만 그대로 유지하면 된다. 장비 쪽은 너무
+// 키우면 품질 게이지 바와 겹칠 수 있다(281번째 줄 근처 gap-4로 여유 조절).
+const FRAME_OVERHANG_PX = 12
+
+/**
+ * 아이콘 박스 위에 겹치는 장식 프레임(들) — 실제 공식 사이트 레이어 순서는 아래부터 배경, 장비
+ * 이미지, 아크 패시브 테두리, 전율(petBorder) 테두리 순이다(사용자 확인) — 즉 프레임은 아이콘을
+ * "감싸는 더 큰 액자"가 아니라 아이콘 위에 얹히는 오버레이다. 두 프레임 다 가운데가 완전히
+ * 투명이라(실제 PNG를 픽셀 단위로 까서 확인함) 아이콘과 같은 크기로 겹쳐도 가운데로 아이콘이
+ * 그대로 비쳐 보이고, 테두리 장식만 아이콘 가장자리 위에 그려진다. 아크 패시브 테두리만
+ * FRAME_OVERHANG_PX만큼 아이콘보다 키울 수 있고, 전율 테두리는 이 값과 무관하게 항상 아이콘과
+ * 정확히 같은 크기(100%)로 고정한다(사용자 확인 — "전율 프레임의 크기는 프레임에 맞추지 말고
+ * 내부 이미지의 크기와 맞춰줘"). 두 조건은 서로 독립이라 동시에 뜰 수 있다(전율 장비는 티어
+ * 4이면서 petBorder도 있음) — 이때 전율 테두리가 맨 위(마지막)에 오도록 아크 패시브보다 나중에
+ * 그린다. width/height를 직접 지정하고 top/left 50% + translate(-50%,-50%)로 중심을 맞춘다 —
+ * inset의 음수값만으로 크기를 늘리려 하면(대체 요소인 img라) 브라우저가 원본 고유 크기를 그대로
+ * 쓰고 top/left만 반영해버려 중심이 어긋나는 문제가 있었다(사용자 확인).
+ */
+function ItemFrames({
+  arkPassiveKind,
+  isTierGear,
+  petBorder,
+}: {
+  arkPassiveKind: keyof typeof ARK_PASSIVE_FRAME_URL | null
+  isTierGear: boolean
+  petBorder: number
+}) {
+  const overlayClassName = 'pointer-events-none absolute left-1/2 top-1/2 max-w-none -translate-x-1/2 -translate-y-1/2 select-none'
+  const arkPassiveSize = `calc(100% + ${FRAME_OVERHANG_PX}px)`
+  const arkPassiveStyle = { width: arkPassiveSize, height: arkPassiveSize }
+  // 전율 프레임은 FRAME_OVERHANG_PX와 무관하게 항상 아이콘(내부 이미지) 크기에 딱 맞춘다(사용자
+  // 확인) — 아크 패시브 프레임을 키워도 전율 프레임은 그대로 100%.
+  const petBorderStyle = { width: '100%', height: '100%' }
+  return (
+    <>
+      {arkPassiveKind && isTierGear && (
+        <img
+          src={ARK_PASSIVE_FRAME_URL[arkPassiveKind]}
+          alt=""
+          aria-hidden
+          className={overlayClassName}
+          style={arkPassiveStyle}
+        />
+      )}
+      {/* !!petBorder(Boolean 캐스팅): 새로고침 전(구 저장 데이터)엔 이 필드 자체가 없어
+          undefined인데, undefined !== 0은 true라 매번 뜰 뻔했다 — undefined/0 둘 다 "없음"으로
+          다룬다. 아크 패시브 테두리보다 나중에(DOM 뒤쪽) 둬서 항상 맨 위에 그려지게 한다. */}
+      {!!petBorder && (
+        <img src={PET_BORDER_FRAME_URL} alt="" aria-hidden className={overlayClassName} style={petBorderStyle} />
+      )}
+    </>
+  )
+}
 
 type Align = 'start' | 'center' | 'end'
 
@@ -202,7 +273,6 @@ export function CharacterBannerDetailed({
             const advancedRefineColor = advancedRefineLevelColor(slot.advancedRefineLevel)
             const showAdvancedRefine = hasAdvancedRefine(slot.itemName)
             const isWeapon = key === 'weapon'
-            const isJeonyul = isJeonyulItem(slot.itemName)
             const backgroundColor = gradeBackgroundColor(slot.grade)
             return (
               <HoverDetail
@@ -231,24 +301,28 @@ export function CharacterBannerDetailed({
                     상급 재련 텍스트가 없는 슬롯만 블록이 좁아져 품질 게이지 바(quality%만큼 채우는
                     바)의 실제 픽셀 길이가 다른 슬롯보다 짧아 보이는 문제가 있었다. 모든 슬롯이 같은
                     너비를 쓰면 품질 값이 같을 때 바 길이도 항상 같아진다. */}
-                <div className="grid w-full gap-1.5">
+                <div className="grid w-full gap-4">
                   <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-background',
-                        // box-sizing: border-box라 두께를 키워도 바깥 크기(h-14 w-14)는 그대로고
-                        // 안쪽 콘텐츠 영역만 줄어든다 — "안쪽으로 굵어지는" 테두리.
-                        isJeonyul ? 'border-4 border-secondary' : isWeapon ? 'border border-primary' : 'border border-border',
-                      )}
-                      style={{ backgroundColor: backgroundColor ?? undefined }}
-                    >
-                      {/* Open API가 내려주는 실제 장비 아이콘 이미지를 우선 쓰고, 없으면(구 저장
-                          데이터 등) 부위별 lucide 아이콘으로 대체한다. */}
-                      {slot.iconUrl ? (
-                        <img src={slot.iconUrl} alt={label} className="h-full w-full object-cover" />
-                      ) : (
-                        <Icon className={cn('h-7 w-7', isWeapon ? 'text-primary' : 'text-muted-foreground')} />
-                      )}
+                    <div className="relative h-11 w-11 shrink-0">
+                      <div
+                        className={cn(
+                          'flex h-11 w-11 items-center justify-center overflow-hidden bg-background',
+                          isWeapon ? 'border border-primary' : 'border border-border',
+                        )}
+                        style={{ backgroundColor: backgroundColor ?? undefined }}
+                      >
+                        {/* Open API가 내려주는 실제 장비 아이콘 이미지를 우선 쓰고, 없으면(구 저장
+                            데이터 등) 부위별 lucide 아이콘으로 대체한다. */}
+                        {slot.iconUrl ? (
+                          <img src={slot.iconUrl} alt={label} className="h-full w-full object-cover" />
+                        ) : (
+                          <Icon className={cn('h-5 w-5', isWeapon ? 'text-primary' : 'text-muted-foreground')} />
+                        )}
+                      </div>
+                      {/* 프레임은 아이콘 위에 겹치는 오버레이라 아이콘과 같은 크기(부모 relative
+                          박스에 꽉 채움)로 마지막에 그린다 — overflow-hidden으로 자르지 않도록
+                          아이콘을 감싸는 div 밖(이 relative 박스 안)에 둔다. */}
+                      <ItemFrames arkPassiveKind="equipment" isTierGear={slot.isTierGear} petBorder={slot.petBorder} />
                     </div>
                     <span
                       className="font-mono text-xl font-bold leading-none whitespace-nowrap"
@@ -302,13 +376,13 @@ export function CharacterBannerDetailed({
           >
             <div className="flex items-center gap-2">
               <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
+                className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
                 style={{ backgroundColor: gradeBackgroundColor(abilityStone.grade) ?? undefined }}
               >
                 {abilityStone.iconUrl ? (
                   <img src={abilityStone.iconUrl} alt="어빌리티 스톤" className="h-full w-full object-cover" />
                 ) : (
-                  <Triangle className="h-7 w-7 text-primary" fill="currentColor" fillOpacity={0.2} />
+                  <Triangle className="h-5 w-5 text-primary" fill="currentColor" fillOpacity={0.2} />
                 )}
               </div>
               <span className="font-mono text-xl font-bold leading-none whitespace-nowrap">
@@ -321,15 +395,18 @@ export function CharacterBannerDetailed({
 
           <HoverDetail align="center" content={<EffectDetailList title="팔찌 효과" effects={bracelet.effects} />}>
             <div className="flex items-center gap-2">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
-                style={{ backgroundColor: gradeBackgroundColor(bracelet.grade) ?? undefined }}
-              >
-                {bracelet.iconUrl ? (
-                  <img src={bracelet.iconUrl} alt="팔찌" className="h-full w-full object-cover" />
-                ) : (
-                  <Watch className="h-7 w-7 text-secondary" />
-                )}
+              <div className="relative h-11 w-11 shrink-0">
+                <div
+                  className="flex h-11 w-11 items-center justify-center overflow-hidden border border-border bg-background"
+                  style={{ backgroundColor: gradeBackgroundColor(bracelet.grade) ?? undefined }}
+                >
+                  {bracelet.iconUrl ? (
+                    <img src={bracelet.iconUrl} alt="팔찌" className="h-full w-full object-cover" />
+                  ) : (
+                    <Watch className="h-5 w-5 text-secondary" />
+                  )}
+                </div>
+                <ItemFrames arkPassiveKind="bracelet" isTierGear={bracelet.isTierGear} petBorder={0} />
               </div>
               <EffectDots effects={bracelet.effects} />
             </div>
@@ -339,15 +416,20 @@ export function CharacterBannerDetailed({
               빈 문자열). 그 경우 어빌리티 스톤의 "-" 표시와 같은 방식으로 빈 상태를 보여준다. */}
           <HoverDetail align="center" content={<PlainEffectList title="완갑 효과" lines={wristGuard.effects} />}>
             <div className="flex items-center gap-2">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
-                style={{ backgroundColor: gradeBackgroundColor(wristGuard.grade) ?? undefined }}
-              >
-                {wristGuard.iconUrl ? (
-                  <img src={wristGuard.iconUrl} alt="완갑" className="h-full w-full object-cover" />
-                ) : (
-                  <Gem className="h-7 w-7 text-primary" />
-                )}
+              <div className="relative h-11 w-11 shrink-0">
+                <div
+                  className="flex h-11 w-11 items-center justify-center overflow-hidden border border-border bg-background"
+                  style={{ backgroundColor: gradeBackgroundColor(wristGuard.grade) ?? undefined }}
+                >
+                  {wristGuard.iconUrl ? (
+                    <img src={wristGuard.iconUrl} alt="완갑" className="h-full w-full object-cover" />
+                  ) : (
+                    <Gem className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+                {/* 완갑은 아크 패시브 3분류(진화/깨달음/도약) 어디에도 안 속해 arkPassiveKind를
+                    null로 둔다 — 전율 전용(petBorder) 프레임만 뜬다(사용자 확인). */}
+                <ItemFrames arkPassiveKind={null} isTierGear={false} petBorder={wristGuard.petBorder} />
               </div>
               <span className="font-mono text-xl font-bold leading-none whitespace-nowrap text-foreground">
                 {wristGuard.itemName ? `+${wristGuard.refineLevel}` : '-'}
@@ -367,17 +449,20 @@ export function CharacterBannerDetailed({
                 content={<EffectDetailList title={`${label} 연마 효과`} effects={slot.polishEffects} />}
               >
                 <div className="flex items-center justify-center gap-2">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background"
-                    style={{ backgroundColor: gradeBackgroundColor(slot.grade) ?? undefined }}
-                  >
-                    {/* 장비와 동일하게, 실제 아이템 이미지가 있으면 우선 쓰고 없으면(구 저장 데이터
-                        등) 부위별 lucide 아이콘으로 대체한다. */}
-                    {slot.iconUrl ? (
-                      <img src={slot.iconUrl} alt={label} className="h-full w-full object-cover" />
-                    ) : (
-                      <Icon className="h-5 w-5 text-muted-foreground" />
-                    )}
+                  <div className="relative h-11 w-11 shrink-0">
+                    <div
+                      className="flex h-11 w-11 items-center justify-center overflow-hidden border border-border bg-background"
+                      style={{ backgroundColor: gradeBackgroundColor(slot.grade) ?? undefined }}
+                    >
+                      {/* 장비와 동일하게, 실제 아이템 이미지가 있으면 우선 쓰고 없으면(구 저장 데이터
+                          등) 부위별 lucide 아이콘으로 대체한다. */}
+                      {slot.iconUrl ? (
+                        <img src={slot.iconUrl} alt={label} className="h-full w-full object-cover" />
+                      ) : (
+                        <Icon className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <ItemFrames arkPassiveKind="accessory" isTierGear={slot.isTierGear} petBorder={0} />
                   </div>
                   <EffectDots effects={slot.polishEffects} />
                 </div>

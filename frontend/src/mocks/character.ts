@@ -8,6 +8,8 @@ const mockEquipmentSlot = {
   itemName: '운명의 업화 방어구',
   iconUrl: '',
   grade: '고대',
+  isTierGear: true,
+  petBorder: 0,
 }
 const mockEquipment: EquipmentDetail = {
   weapon: {
@@ -17,6 +19,8 @@ const mockEquipment: EquipmentDetail = {
     itemName: '운명의 업화 무기',
     iconUrl: '',
     grade: '고대',
+    isTierGear: true,
+    petBorder: 0,
   },
   head: mockEquipmentSlot,
   chest: mockEquipmentSlot,
@@ -30,7 +34,13 @@ const mockPolishEffects = [
   { text: '무기 공격력 +1.60%', color: '#99DFFF' },
   { text: '깨달음 +6', color: '#F9CF56' },
 ]
-const mockAccessorySlot = { polishEffects: mockPolishEffects, iconUrl: '', grade: '고대' }
+const mockAccessorySlot = {
+  polishEffects: mockPolishEffects,
+  iconUrl: '',
+  grade: '고대',
+  isTierGear: true,
+  petBorder: 0,
+}
 const mockAccessories: AccessoryDetail = {
   necklace: mockAccessorySlot,
   earring1: mockAccessorySlot,
@@ -56,6 +66,8 @@ const mockBracelet: BraceletDetail = {
   ],
   iconUrl: '',
   grade: '고대',
+  isTierGear: true,
+  petBorder: 0,
 }
 
 const mockWristGuard: WristGuardDetail = {
@@ -64,6 +76,8 @@ const mockWristGuard: WristGuardDetail = {
   iconUrl: '',
   effects: ['무기 공격력 +14817', '힘 +47268', '기본 공격력 +1.00%'],
   grade: '전설',
+  isTierGear: true,
+  petBorder: 6,
 }
 
 // 백엔드/Open API 연동 전까지 사용하는 로컬 목업 데이터.
