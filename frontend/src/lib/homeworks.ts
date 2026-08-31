@@ -284,13 +284,6 @@ export async function adjustEbonyCubeTicket(
   })
 }
 
-/** 시련의 모래 획득 클릭. 스택 +1(최대 5, 이미 5면 그대로). 로그를 남기지 않는다. */
-export async function collectHalHourglassSand(characterId: string): Promise<HalHourglassSummary> {
-  return apiFetch<HalHourglassSummary>(`/api/characters/${characterId}/hal-hourglass/sand/collect`, {
-    method: 'POST',
-  })
-}
-
 /** 주간 완료 체크박스. 현재 스택 N에 따라 (N+1)배 보상을 지급하고 스택을 0으로 소진한다. */
 export async function completeHalHourglass(
   characterId: string,

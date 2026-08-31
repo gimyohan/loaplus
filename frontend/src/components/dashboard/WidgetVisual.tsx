@@ -40,7 +40,6 @@ import {
   claimKurzanAzenaBlessingReward,
   claimKurzanShardReward,
   clearEbonyCube,
-  collectHalHourglassSand,
   collectKurzanTicket,
   completeHalHourglass,
   consumeParadiseKey,
@@ -572,11 +571,6 @@ function HalHourglassWidgetBound({ characterId, characterNameForModal }: HalHour
     <>
       <HalHourglassWidget
         data={hourglassData}
-        onCollectSand={() => {
-          collectHalHourglassSand(characterId)
-            .then(setHourglassData)
-            .catch((err) => console.error('시련의 모래 획득 실패', err))
-        }}
         onToggleCompleted={(checked) => {
           if (checked) {
             completeHalHourglass(characterId)

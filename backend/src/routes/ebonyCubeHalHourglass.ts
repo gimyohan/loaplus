@@ -13,7 +13,7 @@ import {
   TICKET_TYPES,
 } from '../lib/ebonyCubeCatalog.js'
 import type { TicketType } from '../lib/ebonyCubeCatalog.js'
-import { collectHalHourglassSand, getOrCreateEbonyCube, getOrCreateHalHourglass } from '../lib/homeworkDefaults.js'
+import { getOrCreateEbonyCube, getOrCreateHalHourglass } from '../lib/homeworkDefaults.js'
 import { buildHalHourglassCompleteRewards, findHalHourglassLevel } from '../lib/halHourglassCatalog.js'
 import { requireAuth } from '../lib/session.js'
 import { toEbonyCubeSummary, toHalHourglassSummary } from '../lib/widgetSummaries.js'
@@ -177,18 +177,10 @@ export async function ebonyCubeHalHourglassRoutes(fastify: FastifyInstance) {
   )
 
   // === 할의 모래시계 ==========================================================
-
-  fastify.post<{ Params: { characterId: string } }>(
-    '/api/characters/:characterId/hal-hourglass/sand/collect',
-    { preHandler: auth, schema: { tags: ['HalHourglass'], summary: '시련의 모래 획득 클릭 (스택 +1, 최대 5)' } },
-    async (request, reply) => {
-      const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
-      if (!character) return
-
-      const updated = await collectHalHourglassSand(fastify.prisma, character.id, character.itemLevel)
-      return reply.send(toHalHourglassSummary(updated))
-    },
-  )
+  // 위젯 자체의 "모래 획득" 클릭 요소는 제거됐다(사용자 확인) — 시련의 모래 스택은 이제 쿠르잔
+  // 전선 티켓 클릭(목표가 혼돈의 균열 구간일 때, 아래 kurzan/ticket/collect 참고)과 설정 모달의
+  // 수동 조절(PATCH .../hal-hourglass/sand)로만 늘어난다. 공용 함수 collectHalHourglassSand
+  // (lib/homeworkDefaults.ts)는 그 쿠르잔 경로가 계속 쓰므로 그대로 둔다.
 
   fastify.post<{ Params: { characterId: string } }>(
     '/api/characters/:characterId/hal-hourglass/complete',
