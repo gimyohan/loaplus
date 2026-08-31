@@ -225,9 +225,10 @@ model CharacterStatistic {
   kurzanShardRewardCount            Int    @default(0) @map("kurzan_shard_reward_count")
   guardianAzenaBlessingRewardCount  Int    @default(0) @map("guardian_azena_blessing_reward_count")
   kurzanAzenaBlessingRewardCount    Int    @default(0) @map("kurzan_azena_blessing_reward_count")
-  /// 에브니 큐브 클리어(EBONY_CUBE_CLEAR)로 누적 획득한 4티어 보석 수량. 골드/귀속골드가 아닌
-  /// 별도 재화라 위 골드 카테고리 컬럼들에는 포함되지 않는다(docs/ebony_cube_hal_hourglass.typ 참고).
-  cubeGemEarned                     Int    @default(0) @map("cube_gem_earned")
+  /// 에브니 큐브 클리어(EBONY_CUBE_CLEAR)·할의 모래시계 완료(HAL_HOURGLASS_COMPLETE)로 누적
+  /// 획득한 4티어 보석 수량. 골드/귀속골드가 아닌 별도 재화라 위 골드 카테고리 컬럼들에는
+  /// 포함되지 않는다(docs/ebony_cube_hal_hourglass.typ 참고).
+  gemstoneTier4Earned                Int    @default(0) @map("gemstone_tier4_earned")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
@@ -256,7 +257,7 @@ model CharacterStatisticWeekly {
   kurzanShardRewardCount            Int      @default(0) @map("kurzan_shard_reward_count")
   guardianAzenaBlessingRewardCount  Int      @default(0) @map("guardian_azena_blessing_reward_count")
   kurzanAzenaBlessingRewardCount    Int      @default(0) @map("kurzan_azena_blessing_reward_count")
-  cubeGemEarned                     Int      @default(0) @map("cube_gem_earned")
+  gemstoneTier4Earned                Int      @default(0) @map("gemstone_tier4_earned")
   updatedAt                         DateTime @updatedAt @map("updated_at")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)

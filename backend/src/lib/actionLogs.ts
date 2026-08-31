@@ -34,7 +34,7 @@ type StatisticDelta = Partial<{
   kurzanShardRewardCount: number
   guardianAzenaBlessingRewardCount: number
   kurzanAzenaBlessingRewardCount: number
-  cubeGemEarned: number
+  gemstoneTier4Earned: number
 }>
 
 interface ItemRewardDelta {
@@ -142,16 +142,21 @@ function computeStatisticDelta(actionType: ActionType, rewards: RewardEntry[], s
     case 'EBONY_CUBE_CLEAR': {
       const gemstoneAmount = rewards.find((reward) => reward.categoryKey === 'gemstone')?.amount ?? 0
       return {
-        statDelta: gemstoneAmount !== 0 ? { cubeGemEarned: sign * gemstoneAmount } : {},
+        statDelta: gemstoneAmount !== 0 ? { gemstoneTier4Earned: sign * gemstoneAmount } : {},
         itemRewardDelta: null,
       }
     }
-    // 할의 모래시계 완료는 Character_Statistics 갱신표(docs/db_schema.typ)에 대상 컬럼이 없다 —
-    // 보상은 로그에만 기록되고 누적 통계에는 반영되지 않는다(확정). 스택 수동 조절
-    // (PATCH .../hal-hourglass/sand)은 보상을 지급하지 않는 단순 상태 조정이라 애초에 로그를
-    // 남기지 않으므로 이 스위치에 해당 case가 없다.
-    case 'HAL_HOURGLASS_COMPLETE':
-      return { statDelta: {}, itemRewardDelta: null }
+    // 할의 모래시계 완료도 에브니 큐브와 같은 4티어 보석(gemstone)을 지급하므로 같은 컬럼에
+    // 합산한다(사용자 확인 — 과거엔 "대상 컬럼 없음, 확정"이었으나 gemstoneTier4Earned로 통합).
+    // 스택 수동 조절(PATCH .../hal-hourglass/sand)은 보상을 지급하지 않는 단순 상태 조정이라
+    // 애초에 로그를 남기지 않으므로 이 스위치에 해당 case가 없다.
+    case 'HAL_HOURGLASS_COMPLETE': {
+      const gemstoneAmount = rewards.find((reward) => reward.categoryKey === 'gemstone')?.amount ?? 0
+      return {
+        statDelta: gemstoneAmount !== 0 ? { gemstoneTier4Earned: sign * gemstoneAmount } : {},
+        itemRewardDelta: null,
+      }
+    }
   }
 }
 
@@ -551,7 +556,14 @@ export async function createEbonyCubeClearLog(
 
 /**
  * 할의 모래시계 주간 완료(POST .../hal-hourglass/complete). 현재 스택(N)으로 (N+1)배 보상을
- * 계산해 지급하고, is_completed를 true로, sand_stack을 0으로 만든다(스택 소진 — 확정).
+ * 계산해 지급하고, is_completed를 true로, sand_stack을 0으로 만든다(스택 소진 — 확정). 지급되는
+ * 4티어 보석은 gemstoneTier4Earned에 반영된다(사용자 확인 — 이 컬럼은 과거 "에브니 큐브 전용"
+ * 이었다가 이 변경으로 두 컨텐츠 공용이 됐다).
+ *
+ * *소급 적용 없음(사용자 확인)*: 이 변경 이전에 생성된 HAL_HOURGLASS_COMPLETE 로그는 당시
+ * 통계를 갱신하지 않았으므로, 그 로그를 지금 롤백(`DELETE /api/logs/{logId}`)하면 애초에
+ * 더해진 적 없는 gemstoneTier4Earned를 차감해버리는 불일치가 생길 수 있다 — 드문 경우로 보고
+ * 별도 마이그레이션 없이 감수하기로 함.
  */
 export async function createHalHourglassCompleteLog(
   prisma: PrismaClient,
@@ -583,7 +595,8 @@ export async function createHalHourglassCompleteLog(
       } satisfies ActionLogCreateInput,
     })
 
-    // HAL_HOURGLASS_COMPLETE는 Character_Statistics 갱신표에 대상 컬럼이 없다 — 로그에만 남는다.
+    const { statDelta } = computeStatisticDelta('HAL_HOURGLASS_COMPLETE', params.rewards, 1)
+    await applyStatisticDelta(tx, params.characterId, statDelta, now)
     await enforceActionLogCap(tx, params.userId)
 
     return updatedHourglass

@@ -22,9 +22,9 @@ export interface StatFields {
   azenaBlessingRewardCount: number
   guardianAzenaBlessingRewardCount: number
   kurzanAzenaBlessingRewardCount: number
-  /** 에브니 큐브 클리어로 누적된 4티어 보석 수량(docs/ebony_cube_hal_hourglass.typ 참고). 골드
-   * 카테고리 5종과는 별개 재화라 골드/귀속골드 합산에는 포함되지 않는다. */
-  cubeGemEarned: number
+  /** 에브니 큐브 클리어·할의 모래시계 완료로 누적된 4티어 보석 수량(docs/ebony_cube_hal_hourglass.typ
+   * 참고). 골드 카테고리 5종과는 별개 재화라 골드/귀속골드 합산에는 포함되지 않는다. */
+  gemstoneTier4Earned: number
 }
 
 export interface CharacterStatistics extends StatFields {

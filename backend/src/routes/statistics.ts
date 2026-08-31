@@ -20,7 +20,7 @@ interface StatColumns {
   kurzanShardRewardCount: number
   guardianAzenaBlessingRewardCount: number
   kurzanAzenaBlessingRewardCount: number
-  cubeGemEarned: number
+  gemstoneTier4Earned: number
 }
 
 const ZERO_COLUMNS: StatColumns = {
@@ -40,7 +40,7 @@ const ZERO_COLUMNS: StatColumns = {
   kurzanShardRewardCount: 0,
   guardianAzenaBlessingRewardCount: 0,
   kurzanAzenaBlessingRewardCount: 0,
-  cubeGemEarned: 0,
+  gemstoneTier4Earned: 0,
 }
 
 // Character_Statistics/Character_Statistics_Weekly 둘 다 이 컬럼 집합을 그대로 공유한다
@@ -70,7 +70,7 @@ function toStatFields(row: StatColumns | null) {
     azenaBlessingRewardCount: r.guardianAzenaBlessingRewardCount + r.kurzanAzenaBlessingRewardCount,
     guardianAzenaBlessingRewardCount: r.guardianAzenaBlessingRewardCount,
     kurzanAzenaBlessingRewardCount: r.kurzanAzenaBlessingRewardCount,
-    cubeGemEarned: r.cubeGemEarned,
+    gemstoneTier4Earned: r.gemstoneTier4Earned,
   }
 }
 

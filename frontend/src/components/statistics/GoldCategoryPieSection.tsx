@@ -37,7 +37,7 @@ const ZERO_STAT_FIELDS: StatFields = {
   azenaBlessingRewardCount: 0,
   guardianAzenaBlessingRewardCount: 0,
   kurzanAzenaBlessingRewardCount: 0,
-  cubeGemEarned: 0,
+  gemstoneTier4Earned: 0,
 }
 
 function sumFields(rows: StatFields[]): StatFields {

@@ -19,7 +19,7 @@ type SortableColumn =
   | 'totalBoundGoldEarned'
   | 'shardRewardCount'
   | 'azenaBlessingRewardCount'
-  | 'cubeGemEarned'
+  | 'gemstoneTier4Earned'
 
 const COLUMNS: { key: SortableColumn; label: string }[] = [
   { key: 'characterName', label: '캐릭터' },
@@ -27,7 +27,7 @@ const COLUMNS: { key: SortableColumn; label: string }[] = [
   { key: 'totalBoundGoldEarned', label: '귀속 골드 획득량' },
   { key: 'shardRewardCount', label: '편린 획득량' },
   { key: 'azenaBlessingRewardCount', label: '아제나의 축복 획득량' },
-  { key: 'cubeGemEarned', label: '4티어 보석 획득량' },
+  { key: 'gemstoneTier4Earned', label: '4티어 보석 획득량' },
 ]
 
 /** 캐릭터별 전체 기간 누적 통계 테이블 — 헤더 클릭으로 컬럼별 정렬. */
@@ -93,7 +93,7 @@ export function StatisticsTable({ characters }: StatisticsTableProps) {
               <td className="px-4 py-3 text-right font-mono text-secondary">{formatNumber(character.totalBoundGoldEarned)}</td>
               <td className="px-4 py-3 text-right font-mono text-muted-foreground">{formatNumber(character.shardRewardCount)}</td>
               <td className="px-4 py-3 text-right font-mono text-muted-foreground">{formatNumber(character.azenaBlessingRewardCount)}</td>
-              <td className="px-4 py-3 text-right font-mono text-muted-foreground">{formatNumber(character.cubeGemEarned)}</td>
+              <td className="px-4 py-3 text-right font-mono text-muted-foreground">{formatNumber(character.gemstoneTier4Earned)}</td>
             </tr>
           ))}
         </tbody>
