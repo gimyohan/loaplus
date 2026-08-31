@@ -1,3 +1,4 @@
+import type { CharacterSummary } from '@/types/character'
 import type { RaidTargetSummary } from '@/types/raid'
 
 // docs/widgets.typ 기준 위젯 종류.
@@ -43,6 +44,10 @@ export interface WidgetCatalogItem {
   resizableH?: boolean
   minH?: number
   maxH?: number
+  /** ScaleToFit으로 그릴 때 쓰는 디자인 원본 픽셀 크기. 가로/세로 칸 수를 자유롭게 고를 수 있는
+   * 위젯(text/textCheckbox/counter/image)은 ScaleToFit을 쓰지 않으므로 비워둔다. */
+  nativeWidth?: number
+  nativeHeight?: number
 }
 
 export interface PlacedWidget {
@@ -58,4 +63,41 @@ export interface PlacedWidget {
   /** kind === 'raid'일 때만 값이 있다(Character_Raids 참조, docs/api.typ 참고). */
   raidId?: string | null
   raid?: RaidTargetSummary | null
+}
+
+/**
+ * `WidgetVisual`이 kind별 카드 컴포넌트(`components/widgets/*Card.tsx`)에 내려주는 공통 props.
+ * 모든 카드가 이 타입 하나를 받고, 자기 kind에 필요한 필드만 골라 쓴다(WidgetVisual이 원래 갖고
+ * 있던 props + 카드 렌더링 전에 미리 계산해두는 파생값들을 합친 것). kind별로 필요한 필드가 크게
+ * 달라서(raid 전용 props, customData 전용 props 등) 대부분 선택 필드다 — 카드마다 자기가 실제로
+ * 쓰는 필드만 destructure해서 쓰면 된다.
+ */
+export interface WidgetCardProps {
+  width: number
+  height: number
+  interactive: boolean
+  disabledClassName: string | false
+  className?: string
+  catalogItem?: WidgetCatalogItem
+  /** placeholder(캐릭터 미배정) 분기를 통과한 뒤의 표시용 캐릭터. 실제 카드 데이터가 있으면 그 값,
+   * 없으면(팔레트 미리보기 등) mockCharacter. */
+  bannerCharacter: CharacterSummary
+  isRefreshing: boolean
+  onRefresh: () => void
+  /** 카드에 귀속된 실제 캐릭터 레코드. Default Value 위젯(guardian/kurzanFrontline/paradise/
+   * ebonyCube/halHourglass)은 WidgetVisual의 placeholder 분기를 통과한 뒤에만 렌더링되므로 항상
+   * 값이 있다고 가정한다(non-null assertion으로 사용). */
+  record?: CharacterSummary
+  /** Additional Value 위젯의 위젯별 데이터(text/textCheckbox/counter/image/linkIcon). */
+  customData?: Record<string, unknown> | null
+  onCustomDataChange?: (customData: Record<string, unknown>) => void
+  onCheckboxToggle?: (isChecked: boolean) => void
+  onCounterDecrement?: () => void
+  /** kind === 'raid'일 때 이 위젯 인스턴스가 가리키는 레이드 슬롯의 목표/관문 상태 */
+  raid?: RaidTargetSummary | null
+  raidExcludedKeys?: string[]
+  onRaidGateToggle?: (gateIndex: number, cleared: boolean) => void
+  onRaidMoreRewardToggle?: (gateIndex: number, enabled: boolean) => void
+  onRaidTargetChange?: (raidKey: string, difficultyKey: string) => void
+  onRaidGoldRewardChange?: (enabled: boolean) => void
 }

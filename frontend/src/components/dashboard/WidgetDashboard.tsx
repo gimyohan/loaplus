@@ -6,20 +6,11 @@ import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { checkCustomWidget, decrementCounterWidget, updateCustomWidget } from '@/lib/customWidgets'
 import { fetchWidgetLayout, saveWidgetLayout } from '@/lib/dashboards'
 import { useElementWidth } from '@/hooks/useElementWidth'
-import {
-  clearRaidGate,
-  createRaidWidget,
-  deleteRaidWidget,
-  setRaidGateMoreReward,
-  undoRaidGateClear,
-  updateRaidGoldReward,
-  updateRaidPosition,
-  updateRaidTarget,
-} from '@/lib/raids'
+import { useRaidWidgetActions } from '@/hooks/useRaidWidgetActions'
+import { runOptimistic } from '@/lib/optimistic'
 import { cn } from '@/lib/utils'
 import { CELL_SIZE, WIDGET_CATALOG } from '@/lib/widgetCatalog'
 import { collidesWithAny } from '@/lib/widgetLayout'
-import raidCatalogData from '@/data/raidCatalog.json'
 import { CharacterNameForm } from '@/components/dashboard/CharacterNameForm'
 import { WidgetGrid } from '@/components/dashboard/WidgetGrid'
 import {
@@ -33,7 +24,6 @@ import { TemplatePanel } from '@/components/dashboard/TemplatePanel'
 import { PlacedWidgetContent } from '@/components/dashboard/PlacedWidgetContent'
 import { GridSettingsButton } from '@/components/dashboard/GridSettingsButton'
 import { GridSettingsModal } from '@/components/dashboard/GridSettingsModal'
-import type { RaidTargetSummary } from '@/types/raid'
 import type { TemplateLayout } from '@/types/template'
 import type { PlacedWidget, WidgetCatalogItem, WidgetKind } from '@/types/widget'
 
@@ -44,15 +34,6 @@ export const DEFAULT_COLUMNS = 10
 export const DEFAULT_ROWS = 16
 export const MIN_ROWS = 8
 export const MAX_ROWS = 32
-
-const RAID_CATALOG = raidCatalogData.raids
-
-/** raidKey/difficultyKey를 "{레이드명} {난이도명}" 표시 문구로 바꾼다. 카탈로그에 없으면 원본 키를 그대로 쓴다. */
-function describeRaidTarget(raidKey: string, difficultyKey: string): string {
-  const raid = RAID_CATALOG.find((candidate) => candidate.key === raidKey)
-  const difficulty = raid?.difficulties.find((candidate) => candidate.key === difficultyKey)
-  return `${raid?.name ?? raidKey} ${difficulty?.name ?? difficultyKey}`
-}
 
 // 새로 배치된 Additional Value 위젯이 처음부터 갖고 있어야 하는 customData (docs/widgets.typ 참고).
 // Default Value 위젯은 customData가 없다(undefined).
@@ -144,6 +125,7 @@ export function WidgetDashboard({
   // 귀속된 실제 캐릭터가 있을 때만 위젯 배치를 서버에 조회/저장한다. 아직 이름을 검색해
   // 귀속시키기 전에는 characterId가 없으므로 로컬 state로만 동작한다(위 initialCharacterName 참고).
   const boundCharacterId = characterName ? findByName(characterName)?.id : undefined
+  const raidActions = useRaidWidgetActions(widgets, setWidgets, boundCharacterId)
 
   const setCharacterName = (name: string, characterId?: string) => {
     setCharacterNameState(name)
@@ -228,160 +210,70 @@ export function WidgetDashboard({
 
   // textCheckbox 위젯의 체크 토글 전용 — customData의 다른 필드는 서버가 그대로 유지한다.
   // remainingCount(카운터)도 백엔드(routes/customWidgets.ts)와 동일한 규칙으로 낙관적으로 갱신한다:
-  // 실제로 값이 바뀔 때만, 미체크→체크는 -1(0 미만 방지), 체크→미체크는 +1. 그렇지 않으면 카드에
-  // 표시되는 "남음 N"이 다음 새로고침 전까지 한 번의 토글만큼 뒤처져 보인다.
+  // 실제로 값이 바뀔 때만, 미체크→체크는 -1(0 미만 방지), 체크→미체크는 +1. optimisticUpdate가
+  // (바깥 클로저가 아니라) 매번 넘어오는 prev에서 직접 읽는 이유는, 연달아 빠르게 눌러도 각
+  // 호출이 그 시점 최신 상태를 기준으로 계산되게 하기 위함이다 — 그 과정에서 "되돌릴 값"도 함께
+  // capturedPrevCustomData에 담아둔다(실패 시 revertUpdate가 그 값으로 되돌린다). runOptimistic
+  // 기본값(실패 시 되돌림 + 성공 시 재조정) 그대로 쓴다 — checkCustomWidget이 최종 customData를
+  // 돌려주므로 재조정도 자연스럽게 된다(lib/optimistic.ts 참고).
   const toggleWidgetChecked = (widgetId: string, isChecked: boolean) => {
-    setWidgets((prev) =>
-      prev.map((w) => {
-        if (w.id !== widgetId) return w
-        const prevCustomData = w.customData ?? {}
-        const wasChecked = Boolean(prevCustomData.isChecked)
-        const currentRemainingCount =
-          typeof prevCustomData.remainingCount === 'number' ? prevCustomData.remainingCount : null
-        const nextRemainingCount =
-          currentRemainingCount === null || isChecked === wasChecked
-            ? currentRemainingCount
-            : isChecked
-              ? Math.max(currentRemainingCount - 1, 0)
-              : currentRemainingCount + 1
-        return {
-          ...w,
-          customData: {
-            ...prevCustomData,
-            isChecked,
-            ...(currentRemainingCount === null ? {} : { remainingCount: nextRemainingCount }),
-          },
-        }
-      }),
+    let capturedPrevCustomData: Record<string, unknown> | undefined
+
+    void runOptimistic<PlacedWidget[], PlacedWidget>(
+      setWidgets,
+      (prev) =>
+        prev.map((w) => {
+          if (w.id !== widgetId) return w
+          const prevCustomData = w.customData ?? {}
+          capturedPrevCustomData = prevCustomData
+          const wasChecked = Boolean(prevCustomData.isChecked)
+          const currentRemainingCount =
+            typeof prevCustomData.remainingCount === 'number' ? prevCustomData.remainingCount : null
+          const nextRemainingCount =
+            currentRemainingCount === null || isChecked === wasChecked
+              ? currentRemainingCount
+              : isChecked
+                ? Math.max(currentRemainingCount - 1, 0)
+                : currentRemainingCount + 1
+          return {
+            ...w,
+            customData: {
+              ...prevCustomData,
+              isChecked,
+              ...(currentRemainingCount === null ? {} : { remainingCount: nextRemainingCount }),
+            },
+          }
+        }),
+      (prev) =>
+        prev.map((w) => (w.id === widgetId ? { ...w, customData: capturedPrevCustomData ?? w.customData } : w)),
+      () => checkCustomWidget(widgetId, isChecked),
+      (response) => (prev) => prev.map((w) => (w.id === widgetId ? response : w)),
+      { errorLabel: '체크박스 저장 실패' },
     )
-    checkCustomWidget(widgetId, isChecked).catch((err) => console.error('체크박스 저장 실패', err))
   }
 
-  // 카운터 위젯 카드 클릭 — 숫자를 1 줄인다(0 미만 방지). 연달아 눌러도 정확히 순서대로
-  // 줄어들도록 setWidgets의 함수형 업데이트로 매번 최신 상태를 기준으로 계산하고, 서버는
-  // 저장된 값 기준으로 다시 계산해 응답하므로(routes/customWidgets.ts) 그 응답으로 최종 값을
-  // 맞춘다 — 텍스트 등 다른 필드는 건드리지 않는다.
+  // 카운터 위젯 카드 클릭 — 숫자를 1 줄인다(0 미만 방지). optimisticUpdate가 매번 prev에서
+  // count를 직접 읽는 이유는 위 toggleWidgetChecked와 동일 — 연달아 눌러도 정확히 순서대로
+  // 줄어들게 하기 위함이다. 서버는 저장된 값 기준으로 다시 계산해 응답하므로
+  // (routes/customWidgets.ts) runOptimistic 기본값의 재조정이 그 응답으로 최종 값을 맞춰준다.
   const decrementWidgetCounter = (widgetId: string) => {
-    setWidgets((prev) =>
-      prev.map((w) => {
-        if (w.id !== widgetId) return w
-        const currentCount = typeof w.customData?.count === 'number' ? (w.customData.count as number) : 0
-        return { ...w, customData: { ...w.customData, count: Math.max(currentCount - 1, 0) } }
-      }),
+    let capturedPrevCustomData: Record<string, unknown> | undefined
+
+    void runOptimistic<PlacedWidget[], PlacedWidget>(
+      setWidgets,
+      (prev) =>
+        prev.map((w) => {
+          if (w.id !== widgetId) return w
+          capturedPrevCustomData = w.customData ?? {}
+          const currentCount = typeof w.customData?.count === 'number' ? (w.customData.count as number) : 0
+          return { ...w, customData: { ...w.customData, count: Math.max(currentCount - 1, 0) } }
+        }),
+      (prev) =>
+        prev.map((w) => (w.id === widgetId ? { ...w, customData: capturedPrevCustomData ?? w.customData } : w)),
+      () => decrementCounterWidget(widgetId),
+      (response) => (prev) => prev.map((w) => (w.id === widgetId ? response : w)),
+      { errorLabel: '카운터 감소 저장 실패' },
     )
-    decrementCounterWidget(widgetId)
-      .then((updated) => setWidgets((prev) => prev.map((w) => (w.id === widgetId ? updated : w))))
-      .catch((err) => console.error('카운터 감소 저장 실패', err))
-  }
-
-  // 레이드 관문 완료 체크박스 토글. 체크(완료)는 서버가 앞선 미완료 관문까지 연쇄 완료하고,
-  // 해제(미완료)는 전용 엔드포인트가 없어 로그 롤백을 재사용한다(뒤 관문도 함께 미완료가 됨) —
-  // 두 경우 모두 서버 응답을 기다리지 않고 먼저 연쇄 규칙대로 로컬 상태를 낙관적으로 갱신한다.
-  // 서버 호출이 실패하면(예: 되돌릴 로그를 못 찾음) 낙관적 갱신을 그대로 두지 않고 원래 gates로
-  // 되돌린다 — 안 그러면 체크박스가 당장은 바뀐 것처럼 보이다가 다음 새로고침에서야 원상태로
-  // "저장이 안 된" 것처럼 보이는 혼란이 생긴다.
-  const toggleRaidGateCleared = (widgetId: string, gateIndex: number, cleared: boolean) => {
-    const widget = widgets.find((w) => w.id === widgetId)
-    if (!widget?.raidId || !widget.raid || !widget.raid.raidKey || !widget.raid.difficultyKey || !boundCharacterId) return
-    const raidId = widget.raidId
-    const raidKey = widget.raid.raidKey
-    const difficultyKey = widget.raid.difficultyKey
-    const previousGates = widget.raid.gates
-
-    const revertOptimisticUpdate = () => {
-      setWidgets((prev) =>
-        prev.map((w) => (w.id === widgetId && w.raid ? { ...w, raid: { ...w.raid, gates: previousGates } } : w)),
-      )
-    }
-
-    if (cleared) {
-      setWidgets((prev) =>
-        prev.map((w) =>
-          w.id === widgetId && w.raid
-            ? { ...w, raid: { ...w.raid, gates: w.raid.gates.map((g, i) => (i <= gateIndex ? { ...g, cleared: true } : g)) } }
-            : w,
-        ),
-      )
-      // 연쇄 완료(gateIndex보다 앞선 미완료 관문까지 함께 완료)는 서버가 아니라 FE가 계산한다 —
-      // 서버는 관문 하나만 처리하는 단순 연산이고(앞선 관문이 미완료면 409로 거부), 관문 순서대로
-      // 이 호출을 여러 번 반복해서 연쇄를 구현한다. 그래야 관문마다 Action_Logs가 자기 번호가
-      // 정확히 담긴 description으로 하나씩 남는다(docs/widgets.typ "레이드" 참고).
-      const pendingIndexes = previousGates
-        .map((gate, index) => ({ gate, index }))
-        .filter(({ gate, index }) => index <= gateIndex && !gate.cleared)
-        .map(({ index }) => index)
-
-      void (async () => {
-        try {
-          let latestRaid: RaidTargetSummary | undefined
-          for (const index of pendingIndexes) {
-            const description = `${describeRaidTarget(raidKey, difficultyKey)} ${index + 1}관문`
-            const raid = await clearRaidGate(boundCharacterId, raidId, index, description)
-            if (raid) latestRaid = raid
-          }
-          if (latestRaid) {
-            const finalRaid = latestRaid
-            setWidgets((prev) => prev.map((w) => (w.id === widgetId ? { ...w, raid: finalRaid } : w)))
-          }
-        } catch (err) {
-          console.error('레이드 관문 완료 처리 실패', err)
-          revertOptimisticUpdate()
-        }
-      })()
-      return
-    }
-
-    setWidgets((prev) =>
-      prev.map((w) =>
-        w.id === widgetId && w.raid
-          ? { ...w, raid: { ...w.raid, gates: w.raid.gates.map((g, i) => (i >= gateIndex ? { ...g, cleared: false } : g)) } }
-          : w,
-      ),
-    )
-    undoRaidGateClear(boundCharacterId, raidId, gateIndex).catch((err) => {
-      console.error('레이드 관문 되돌리기 실패', err)
-      revertOptimisticUpdate()
-    })
-  }
-
-  // 레이드 관문 '더보기' 토글. 완료 여부와 무관한 단순 플래그라 연쇄 규칙이 없다.
-  const toggleRaidGateMoreReward = (widgetId: string, gateIndex: number, enabled: boolean) => {
-    const widget = widgets.find((w) => w.id === widgetId)
-    if (!widget?.raidId || !widget.raid || !boundCharacterId) return
-    const raidId = widget.raidId
-    setWidgets((prev) =>
-      prev.map((w) =>
-        w.id === widgetId && w.raid
-          ? {
-              ...w,
-              raid: { ...w.raid, gates: w.raid.gates.map((g, i) => (i === gateIndex ? { ...g, moreRewardEnabled: enabled } : g)) },
-            }
-          : w,
-      ),
-    )
-    setRaidGateMoreReward(boundCharacterId, raidId, gateIndex, enabled)
-      .then((raid) => setWidgets((prev) => prev.map((w) => (w.id === widgetId ? { ...w, raid } : w))))
-      .catch((err) => console.error('레이드 더보기 설정 저장 실패', err))
-  }
-
-  // 레이드 목표(레이드/난이도) 변경. 완료된 관문이 있으면 서버가 409를 반환하므로 그대로 던져
-  // RaidTargetModal이 실패를 알 수 있게 한다.
-  const changeRaidTarget = (widgetId: string, raidKey: string, difficultyKey: string) => {
-    const widget = widgets.find((w) => w.id === widgetId)
-    if (!widget?.raidId || !boundCharacterId) return
-    updateRaidTarget(boundCharacterId, widget.raidId, { raidKey, difficultyKey })
-      .then((raid) => setWidgets((prev) => prev.map((w) => (w.id === widgetId ? { ...w, raid } : w))))
-      .catch((err) => console.error('레이드 목표 변경 실패', err))
-  }
-
-  // 골드 획득 허용/거부 토글. 목표 변경과 동일하게 완료된 관문이 있으면 서버가 409를 반환하므로
-  // (RaidTargetModal이 locked일 때 스위치를 비활성화해 평소엔 이 경로를 안 타지만) 별도로 즉시 저장한다.
-  const changeRaidGoldReward = (widgetId: string, enabled: boolean) => {
-    const widget = widgets.find((w) => w.id === widgetId)
-    if (!widget?.raidId || !boundCharacterId) return
-    updateRaidGoldReward(boundCharacterId, widget.raidId, enabled)
-      .then((raid) => setWidgets((prev) => prev.map((w) => (w.id === widgetId ? { ...w, raid } : w))))
-      .catch((err) => console.error('레이드 골드 획득 설정 변경 실패', err))
   }
 
   const [paletteDrag, setPaletteDrag] = useState<PaletteDragState | null>(null)
@@ -416,10 +308,7 @@ export function WidgetDashboard({
   // 바로 추가한 뒤, 톱니바퀴(RaidTargetModal, WidgetVisual 참고)에서 원하는 목표로 바꾸게 한다.
   const placeWidgetAt = (item: WidgetCatalogItem, x: number, y: number) => {
     if (item.kind === 'raid') {
-      if (!boundCharacterId) return
-      createRaidWidget(boundCharacterId, { x, y, w: item.w, h: item.h })
-        .then((widget) => setWidgets((prev) => [...prev, widget]))
-        .catch((err) => console.error('레이드 위젯 생성 실패', err))
+      raidActions.createRaidAt(x, y, item.w, item.h)
       return
     }
 
@@ -468,12 +357,8 @@ export function WidgetDashboard({
     const next = widgets.map((w) => (w.id === widget.id ? { ...w, x, y } : w))
     setWidgets(next)
 
-    // 레이드는 bulk 저장(persistLayout)이 아예 body에서 제외하므로(docs/api.typ 참고),
-    // 위치 이동은 전용 PATCH .../raids/{raidId}/position로 저장한다.
-    if (widget.kind === 'raid' && widget.raidId && boundCharacterId) {
-      updateRaidPosition(boundCharacterId, widget.raidId, { x, y, w: widget.w, h: widget.h })
-        .then((updated) => setWidgets((prev) => prev.map((w) => (w.id === widget.id ? updated : w))))
-        .catch((err) => console.error('레이드 위치 저장 실패', err))
+    if (widget.kind === 'raid') {
+      raidActions.moveRaid(widget, x, y)
       return
     }
 
@@ -531,22 +416,13 @@ export function WidgetDashboard({
     const next = widgets.filter((w) => w.id !== id)
     setWidgets(next)
 
-    // 레이드는 bulk 저장이 아니라 전용 DELETE로만 슬롯(Character_Raids 행)이 실제로 지워진다
-    // (docs/api.typ 참고) — persistLayout은 raid kind를 body에서 아예 제외하기 때문이다.
-    if (widget?.kind === 'raid' && widget.raidId && boundCharacterId) {
-      deleteRaidWidget(boundCharacterId, widget.raidId).catch((err) => console.error('레이드 위젯 삭제 실패', err))
+    if (widget?.kind === 'raid') {
+      raidActions.deleteRaid(widget)
       return
     }
 
     persistLayout(next)
   }
-
-  // 위젯 자신을 뺀, 이미 다른 레이드 위젯이 쓰고 있는 레이드 키 목록. 같은 레이드를 난이도만
-  // 바꿔서 중복으로 추가하지 못하게 RaidTargetModal에 넘긴다.
-  const raidExcludedKeysFor = (widgetId: string) =>
-    widgets
-      .filter((w) => w.kind === 'raid' && w.id !== widgetId && w.raid?.raidKey)
-      .map((w) => w.raid!.raidKey!)
 
   // TemplatePanel에서 붙여넣은 배치 코드를 실제로 반영한다. "적용"은 덮어쓰기다 — 코드에 없는
   // 위젯은 사라지고, 코드에 있는 위젯만 남는다. raid가 아닌 위젯은 코드 내용으로 통째로 교체
@@ -575,8 +451,9 @@ export function WidgetDashboard({
           customData: DEFAULT_CUSTOM_DATA[kind],
         })),
       }),
-      Promise.all(existingRaidWidgets.map((w) => deleteRaidWidget(boundCharacterId, w.raidId!))).then(() =>
-        Promise.all(raidEntries.map((w) => createRaidWidget(boundCharacterId, { x: w.x, y: w.y, w: w.w, h: w.h }))),
+      raidActions.recreateRaidWidgets(
+        existingRaidWidgets,
+        raidEntries.map((w) => ({ x: w.x, y: w.y, w: w.w, h: w.h })),
       ),
     ]).then(([savedLayout, newRaidWidgets]) => {
       setWidgets([...newRaidWidgets, ...savedLayout.widgets])
@@ -613,13 +490,13 @@ export function WidgetDashboard({
                 onCustomDataChange={(customData) => updateWidgetCustomData(widget.id, customData)}
                 onCheckboxToggle={(isChecked) => toggleWidgetChecked(widget.id, isChecked)}
                 onCounterDecrement={() => decrementWidgetCounter(widget.id)}
-                raidExcludedKeys={raidExcludedKeysFor(widget.id)}
-                onRaidGateToggle={(gateIndex, cleared) => toggleRaidGateCleared(widget.id, gateIndex, cleared)}
+                raidExcludedKeys={raidActions.raidExcludedKeysFor(widget.id)}
+                onRaidGateToggle={(gateIndex, cleared) => raidActions.toggleRaidGateCleared(widget.id, gateIndex, cleared)}
                 onRaidMoreRewardToggle={(gateIndex, enabled) =>
-                  toggleRaidGateMoreReward(widget.id, gateIndex, enabled)
+                  raidActions.toggleRaidGateMoreReward(widget.id, gateIndex, enabled)
                 }
-                onRaidTargetChange={(raidKey, difficultyKey) => changeRaidTarget(widget.id, raidKey, difficultyKey)}
-                onRaidGoldRewardChange={(enabled) => changeRaidGoldReward(widget.id, enabled)}
+                onRaidTargetChange={(raidKey, difficultyKey) => raidActions.changeRaidTarget(widget.id, raidKey, difficultyKey)}
+                onRaidGoldRewardChange={(enabled) => raidActions.changeRaidGoldReward(widget.id, enabled)}
               />
             </div>
           ))}
