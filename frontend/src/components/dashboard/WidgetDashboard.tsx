@@ -365,13 +365,18 @@ export function WidgetDashboard({
     setPaletteDrag((prev) => (prev ? { ...prev, clientX, clientY } : prev))
   }
 
+  // setState 업데이터 함수는 부수효과가 없어야 한다 — StrictMode(개발 모드)가 순수성 검증을 위해
+  // 두 번 호출하는데, 여기서처럼 업데이터 안에서 placeWidgetAt(API 호출)을 실행하면 두 번 다
+  // 그대로 실행된다. 레이드는 runOptimistic이 함수형 setWidgets로 낙관적 갱신을 쌓기 때문에 두
+  // 호출의 결과(placeholder 두 개)가 전부 살아남아, 같은 자리에 레이드 위젯이 두 개 겹쳐서
+  // 생성됐다(사용자 확인) — 그래서 부수효과는 업데이터 밖(일반 함수 본문)에서 paletteDrag를
+  // 클로저로 직접 읽어 한 번만 실행하고, setPaletteDrag(null)은 부수효과 없는 값 대입만 한다.
   const handlePaletteGrabEnd: PaletteGrabEndHandler = (clientX, clientY) => {
-    setPaletteDrag((prev) => {
-      if (!prev) return null
-      const cell = computeDropCell(prev.item, prev.grabX, prev.grabY, clientX, clientY)
-      if (cell?.valid) placeWidgetAt(prev.item, cell.x, cell.y)
-      return null
-    })
+    if (paletteDrag) {
+      const cell = computeDropCell(paletteDrag.item, paletteDrag.grabX, paletteDrag.grabY, clientX, clientY)
+      if (cell?.valid) placeWidgetAt(paletteDrag.item, cell.x, cell.y)
+    }
+    setPaletteDrag(null)
   }
 
   // 드래그 중 실시간으로 스냅 미리보기를 그리기 위한 파생값 — paletteDrag가 바뀔 때마다 다시 계산한다.
@@ -413,18 +418,26 @@ export function WidgetDashboard({
     )
   }
 
+  // handlePaletteGrabEnd와 같은 이유(StrictMode 이중 호출)로, 부수효과(moveWidgetTo)는 업데이터
+  // 밖에서 existingDrag를 클로저로 직접 읽어 한 번만 실행한다.
   const handleWidgetPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.releasePointerCapture(event.pointerId)
-    setExistingDrag((prev) => {
-      if (!prev) return null
-      const cell = computeDropCell(prev.widget, prev.grabX, prev.grabY, prev.clientX, prev.clientY, prev.widget.id)
+    if (existingDrag) {
+      const cell = computeDropCell(
+        existingDrag.widget,
+        existingDrag.grabX,
+        existingDrag.grabY,
+        existingDrag.clientX,
+        existingDrag.clientY,
+        existingDrag.widget.id,
+      )
       // 클릭만 한 경우(가디언/쿠르잔 전선처럼 내부에 체크박스가 많은 위젯은 클릭할 때마다
       // pointerdown/up이 걸린다)나, 겹침 등으로 놓을 수 없는 자리면 원래 자리를 그대로 둔다.
-      if (cell?.valid && (cell.x !== prev.widget.x || cell.y !== prev.widget.y)) {
-        moveWidgetTo(prev.widget, cell.x, cell.y)
+      if (cell?.valid && (cell.x !== existingDrag.widget.x || cell.y !== existingDrag.widget.y)) {
+        moveWidgetTo(existingDrag.widget, cell.x, cell.y)
       }
-      return null
-    })
+    }
+    setExistingDrag(null)
   }
 
   // 이미 놓인 위젯을 옮기는 동안의 스냅 미리보기 — paletteDropPreview와 동일한 계산이되, 자기

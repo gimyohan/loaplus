@@ -155,14 +155,27 @@ export function useRaidWidgetActions(
       .filter((w) => w.kind === 'raid' && w.id !== widgetId && w.raid?.raidKey)
       .map((w) => w.raid!.raidKey!)
 
-  // 레이드는 서버가 raidId를 생성해줘야 위젯이 성립하므로(POST .../raids) 다른 위젯처럼 임시
-  // uuid로 즉시 로컬 생성할 수 없다 — 목표는 일단 고르지 않고(서버가 아이템 레벨 기준 자동 추천)
-  // 바로 추가한 뒤, 톱니바퀴(RaidTargetModal)에서 원하는 목표로 바꾸게 한다.
+  // 레이드는 서버가 raidId를 생성해줘야 위젯이 성립하므로(POST .../raids) 다른 위젯처럼 진짜
+  // raidId를 클라이언트가 미리 지어낼 수는 없다 — 목표는 일단 고르지 않고 바로 추가한 뒤,
+  // 톱니바퀴(RaidTargetModal)에서 원하는 목표로 바꾸게 한다. 다만 응답이 오기 전까지 widgets에
+  // 아예 안 보이면, 그 사이 그리드 충돌 검사(computeDropCell의 collidesWithAny)가 이 자리를
+  // "비어있다"고 오판해서 다른 레이드 위젯을 겹쳐 놓을 수 있다(사용자 확인) — 그래서
+  // raidId/raid는 비워둔 채 위치·크기만 담은 placeholder를 낙관적으로 먼저 넣어 충돌 검사가
+  // 이 자리를 즉시 인식하게 한다. placeholder는 서버 API를 전혀 안 타므로 "raidId는 서버만
+  // 만든다"는 원칙은 그대로 지켜지고, 응답이 오면 진짜 raidId가 담긴 위젯으로 통째로 교체된다.
   const createRaidAt = (x: number, y: number, w: number, h: number) => {
     if (!boundCharacterId) return
-    createRaidWidget(boundCharacterId, { x, y, w, h })
-      .then((widget) => setWidgets((prev) => [...prev, widget]))
-      .catch((err) => console.error('레이드 위젯 생성 실패', err))
+    const placeholderId = crypto.randomUUID()
+    const placeholder: PlacedWidget = { id: placeholderId, kind: 'raid', x, y, w, h }
+
+    void runOptimistic<PlacedWidget[], PlacedWidget>(
+      setWidgets,
+      (prev) => [...prev, placeholder],
+      (prev) => prev.filter((w) => w.id !== placeholderId),
+      () => createRaidWidget(boundCharacterId, { x, y, w, h }),
+      (response) => (prev) => prev.map((w) => (w.id === placeholderId ? response : w)),
+      { errorLabel: '레이드 위젯 생성 실패' },
+    )
   }
 
   // 레이드는 bulk 저장(persistLayout)이 아예 body에서 제외하므로(docs/api.typ 참고), 위치 이동은
