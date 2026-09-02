@@ -1,6 +1,8 @@
+import { Lock } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { describeCharacterApiError } from '@/lib/characters'
 import { cn } from '@/lib/utils'
@@ -15,6 +17,13 @@ export interface CharacterNameFormProps {
    * 상태 갱신은 비동기라 이 함수 안에서 await 직후에도 아직 새 캐릭터가 없을 수 있음) — 그래서
    * 조회 대신 이 결과값을 그대로 전달한다. */
   onCharacterNameChange: (characterName: string, characterId?: string) => void
+  /** true면 이 카드의 캐릭터 귀속이 이미 확정돼 이름을 더 바꿀 수 없다 — 카드 하나가 곧 그
+   * 캐릭터라는 귀속을 굳힌다(사용자 확인). 한 번 확정되면 그 뒤 위젯을 전부 지워도 다시 풀리지
+   * 않는다 — "위젯을 비우면 이름을 다시 바꿀 수 있다"는 구멍을 두면, 원래 캐릭터가 어느 카드에도
+   * 안 보이면서 DB에는 그대로 남는 상태가 될 수 있기 때문이다. 되돌리려면 카드 자체를 삭제(그
+   * 캐릭터를 영구 삭제)하고 새로 만드는 수밖에 없다 — 그 전, 귀속이 아직 확정되지 않은 동안은
+   * 오타 등을 자유롭게 고칠 수 있도록 잠그지 않는다. */
+  locked?: boolean
 }
 
 /**
@@ -22,7 +31,12 @@ export interface CharacterNameFormProps {
  * 조회하고, 아니면 Open API로 실존 여부를 확인해 새로 등록한 뒤 카드에 귀속시킨다
  * (docs/db_schema.typ: Default Value는 위젯이 아니라 캐릭터에 종속).
  */
-export function CharacterNameForm({ className, characterName, onCharacterNameChange }: CharacterNameFormProps) {
+export function CharacterNameForm({
+  className,
+  characterName,
+  onCharacterNameChange,
+  locked = false,
+}: CharacterNameFormProps) {
   const { resolveByName } = useCharacterDirectory()
   const [characterNameInput, setCharacterNameInput] = useState(characterName)
   const [isResolving, setIsResolving] = useState(false)
@@ -47,6 +61,22 @@ export function CharacterNameForm({ className, characterName, onCharacterNameCha
     } finally {
       setIsResolving(false)
     }
+  }
+
+  if (locked) {
+    return (
+      <div
+        className={cn(
+          'flex items-center gap-2 rounded-xl border border-border bg-card p-3',
+          className,
+        )}
+      >
+        <Tooltip label="배치가 저장된 뒤에는 캐릭터를 바꿀 수 없습니다">
+          <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Tooltip>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{characterName}</span>
+      </div>
+    )
   }
 
   return (

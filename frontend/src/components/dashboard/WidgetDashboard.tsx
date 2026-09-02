@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { checkCustomWidget, decrementCounterWidget, updateCustomWidget } from '@/lib/customWidgets'
 import { fetchWidgetLayout, saveWidgetLayout } from '@/lib/dashboards'
+import { pickDefaultLayout } from '@/data/defaultLayouts'
 import { useElementWidth } from '@/hooks/useElementWidth'
 import { useRaidWidgetActions } from '@/hooks/useRaidWidgetActions'
 import { runOptimistic } from '@/lib/optimistic'
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { CELL_SIZE, WIDGET_CATALOG } from '@/lib/widgetCatalog'
 import { collidesWithAny } from '@/lib/widgetLayout'
 import { CharacterNameForm } from '@/components/dashboard/CharacterNameForm'
+import { DefaultLayoutPromptModal } from '@/components/dashboard/DefaultLayoutPromptModal'
 import { WidgetGrid } from '@/components/dashboard/WidgetGrid'
 import {
   WidgetPalette,
@@ -127,6 +129,24 @@ export function WidgetDashboard({
   const boundCharacterId = characterName ? findByName(characterName)?.id : undefined
   const raidActions = useRaidWidgetActions(widgets, setWidgets, boundCharacterId)
 
+  // 이름을 적용한 캐릭터에 서버 저장 배치가 없을 때(신규 등록, 또는 위젯을 하나도 저장한 적 없는
+  // 기존 캐릭터) 기본 배치를 적용할지 지금 화면(귀속 전 미리 놓아뒀을 수 있는 위젯)을 그대로
+  // 유지할지 물어야 한다 — snapshotWidgets는 그 순간의 로컬 widgets를 그대로 담아둔다(DefaultLayoutPromptModal 참고).
+  const [awaitingLayoutChoice, setAwaitingLayoutChoice] = useState<{ snapshotWidgets: PlacedWidget[] } | null>(null)
+  // 카드=캐릭터 귀속이 한 번 확정됐는지(사용자 확인) — 이미 저장된 배치를 그대로 불러왔거나, 위
+  // 모달에서 둘 중 하나를 선택한 순간 true가 된다. widgets.length로만 잠금을 판단하면 "위젯을
+  // 전부 지우면 다시 다른 이름으로 바꿀 수 있다"는 구멍이 생겨, 원래 캐릭터는 어느 카드에도 안
+  // 보이는데 DB에는 그대로 남는 상태가 될 수 있다 — 그래서 한 번 true가 되면 위젯을 나중에 전부
+  // 지워도 이 카드가 살아있는 동안(리마운트 전까지) 절대 다시 false로 돌아가지 않는다.
+  const [isBindingCommitted, setIsBindingCommitted] = useState(false)
+  // 아래 레이아웃 조회 이펙트가 "boundCharacterId 변경" 때만 재실행돼야 해서 widgets를 deps에 못
+  // 넣는다(넣으면 위젯 하나 옮길 때마다 다시 조회해버림) — 대신 매 렌더 최신값을 ref로 미러링해
+  // 그 이펙트 안에서는 ref로만 읽는다.
+  const widgetsRef = useRef(widgets)
+  useEffect(() => {
+    widgetsRef.current = widgets
+  })
+
   const setCharacterName = (name: string, characterId?: string) => {
     setCharacterNameState(name)
     onCharacterNameChange?.(name, characterId)
@@ -143,6 +163,14 @@ export function WidgetDashboard({
     fetchWidgetLayout(boundCharacterId)
       .then((layout) => {
         if (cancelled) return
+        // 서버에 저장된 배치가 없다 — 귀속 전 이 카드에 이미 놓아뒀을 수 있는 위젯을 그냥 빈
+        // 배치로 덮어써버리면 조용히 사라지므로, widgetsRef(아직 아무것도 덮어쓰지 않았으므로
+        // 정확히 "귀속 전 상태")를 스냅샷으로 남기고 사용자에게 기본 배치 적용/현재 배치 유지를
+        // 묻는다. setWidgets는 그 선택 이후(handleApplyDefaultLayout/handleKeepCurrentLayout)에만 호출한다.
+        if (layout.widgets.length === 0) {
+          setAwaitingLayoutChoice({ snapshotWidgets: widgetsRef.current })
+          return
+        }
         // 그리드 가로 칸 수는 항상 고정(DEFAULT_COLUMNS)이라 layout.columns는 쓰지 않지만, 세로 칸
         // 수(rows)는 캐릭터별로 다를 수 있으니 서버 값을 그대로 반영한다. setRows(래퍼)를 쓰지 않고
         // 직접 부르는 이유는, 매 렌더 새로 만들어지는 그 래퍼를 deps에 넣으면 이 이펙트가 렌더마다
@@ -150,6 +178,7 @@ export function WidgetDashboard({
         setWidgets(layout.widgets)
         setRowsState(layout.rows)
         onRowsChange?.(layout.rows)
+        setIsBindingCommitted(true)
       })
       .catch((err) => console.error('위젯 배치 조회 실패', err))
     return () => {
@@ -466,6 +495,35 @@ export function WidgetDashboard({
   // applyTemplateLayout을 그대로 재사용한다.
   const resetLayout = () => applyTemplateLayout({ columns: DEFAULT_COLUMNS, rows: DEFAULT_ROWS, widgets: [] })
 
+  // DefaultLayoutPromptModal "기본 배치 적용" — 아이템 레벨 구간에 맞는 기본 배치를
+  // applyTemplateLayout으로 그대로 저장한다(배치 코드 적용과 완전히 같은 경로). 레벨을 못 구했거나
+  // (신규 등록 직후 CharacterDirectoryContext 갱신이 아직 안 됐거나) 해당 구간 코드가 비어있으면
+  // 아무 것도 하지 않는다 — 서버는 이미 빈 배치이므로 그대로 빈 채로 둔다. 두 버튼 중 어느 쪽을
+  // 고르든 이 모달 자체가 "이 카드는 이 캐릭터다"를 확정하는 순간이라, 결과가 빈 배치로 남더라도
+  // isBindingCommitted는 항상 true로 둔다(사용자 확인 — 나중에 위젯을 전부 지워도 다시 다른
+  // 캐릭터로 못 바꾸게 하려면 여기서부터 잠가야 한다).
+  const handleApplyDefaultLayout = () => {
+    setAwaitingLayoutChoice(null)
+    setIsBindingCommitted(true)
+    const itemLevel = characterName ? findByName(characterName)?.itemLevel : undefined
+    const layout = pickDefaultLayout(itemLevel)
+    if (!layout) return
+    applyTemplateLayout(layout).catch((err) => console.error('기본 배치 적용 실패', err))
+  }
+
+  // DefaultLayoutPromptModal "현재 배치 유지" — 이름을 귀속하기 전 이 카드에 이미 놓여있던
+  // 위젯(스냅샷)을 로컬 상태는 그대로 두고 새로 귀속된 캐릭터에 저장만 한다. 스냅샷이 비어있으면
+  // (애초에 아무것도 안 놓여있었으면) 저장할 것도 없으니 그대로 둔다. 이 경우에도 귀속은
+  // 확정된다(위 handleApplyDefaultLayout 주석 참고) — 빈 채로 시작하기로 한 것도 선택이다.
+  const handleKeepCurrentLayout = () => {
+    setIsBindingCommitted(true)
+    if (!awaitingLayoutChoice) return
+    const { snapshotWidgets } = awaitingLayoutChoice
+    setAwaitingLayoutChoice(null)
+    if (snapshotWidgets.length === 0) return
+    persistLayout(snapshotWidgets)
+  }
+
   return (
     <div>
       {/* 실제 대시보드에 보여지는 뷰. 위젯과 상호작용할 수 있고 격자선은 보이지 않는다.
@@ -555,6 +613,7 @@ export function WidgetDashboard({
                   className="min-w-[200px] flex-1"
                   characterName={characterName}
                   onCharacterNameChange={setCharacterName}
+                  locked={isBindingCommitted}
                 />
               </div>
               <TemplatePanel
@@ -649,6 +708,13 @@ export function WidgetDashboard({
           />
         </div>
       </GridSettingsModal>
+
+      <DefaultLayoutPromptModal
+        open={awaitingLayoutChoice !== null}
+        characterName={characterName}
+        onApplyDefault={handleApplyDefaultLayout}
+        onKeepCurrent={handleKeepCurrentLayout}
+      />
 
       {/* 위젯 목록에서 그리드로 옮기는 동안 커서를 따라다니는 미리보기. 실제로 놓일 크기 그대로
           CSS 픽셀로 직접 그려서(브라우저 네이티브 드래그 고스트를 쓰지 않음) 디스플레이 배율과
