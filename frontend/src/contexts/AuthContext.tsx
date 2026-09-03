@@ -7,7 +7,7 @@ import type { AuthStatus, SessionUser } from '@/types/auth'
 interface AuthContextValue {
   status: AuthStatus
   user: SessionUser | null
-  loginWithIdToken: (idToken: string) => Promise<void>
+  loginWithIdToken: (idToken: string, rememberMe: boolean) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const loginWithIdToken = useCallback(async (idToken: string) => {
-    const sessionUser = await loginWithGoogleIdToken(idToken)
+  const loginWithIdToken = useCallback(async (idToken: string, rememberMe: boolean) => {
+    const sessionUser = await loginWithGoogleIdToken(idToken, rememberMe)
     setUser(sessionUser)
     setStatus('authenticated')
   }, [])

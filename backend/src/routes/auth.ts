@@ -9,6 +9,7 @@ import { getSessionUserId, SESSION_COOKIE_NAME, sessionCookieOptions } from '../
 
 const googleLoginSchema = z.object({
   idToken: z.string().min(1),
+  rememberMe: z.boolean().optional().default(false),
 })
 
 // deposit_code는 UNIQUE라 신규 유저 생성 시 극히 드물게 충돌할 수 있다 — upsert 자체(googleSub
@@ -61,7 +62,7 @@ export async function authRoutes(fastify: FastifyInstance) {
 
     const user = await findOrCreateUser(fastify.prisma, googleSub)
 
-    reply.setCookie(SESSION_COOKIE_NAME, user.id, sessionCookieOptions())
+    reply.setCookie(SESSION_COOKIE_NAME, user.id, sessionCookieOptions(parsed.data.rememberMe))
 
     return reply.send({ userId: user.id, nickname: user.nickname })
   })

@@ -9,13 +9,21 @@ declare module 'fastify' {
 
 export const SESSION_COOKIE_NAME = 'session'
 
-export function sessionCookieOptions(): CookieSerializeOptions {
+const REMEMBER_ME_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+
+/**
+ * rememberMe가 false(기본)면 maxAge를 안 넣어 브라우저 세션 쿠키로 남긴다(브라우저를 닫으면
+ * 만료) — 지금까지의 기본 동작 그대로다. true면 30일짜리 쿠키로 발급해 브라우저를 닫아도
+ * 로그인이 유지된다(로그인 화면의 "로그인 상태 유지" 체크박스, 사용자 확인).
+ */
+export function sessionCookieOptions(rememberMe = false): CookieSerializeOptions {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     signed: true,
     path: '/',
+    ...(rememberMe ? { maxAge: REMEMBER_ME_MAX_AGE_SECONDS } : {}),
   }
 }
 
