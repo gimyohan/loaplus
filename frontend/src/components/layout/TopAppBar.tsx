@@ -1,6 +1,7 @@
 import { Moon, Sun } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 // 라이트 모드 스타일이 아직 다듬어지지 않아 전환 버튼을 임시로 숨긴다 — 다시 보이려면 이 값만
 // true로 되돌리면 된다(다크 모드 자체 로직은 App.tsx에 그대로 남아있다).
@@ -11,11 +12,17 @@ export interface TopAppBarProps {
   nickname?: string | null
   isDark: boolean
   onToggleDark: () => void
+  isSidebarCollapsed: boolean
 }
 
-export function TopAppBar({ title, nickname, isDark, onToggleDark }: TopAppBarProps) {
+export function TopAppBar({ title, nickname, isDark, onToggleDark, isSidebarCollapsed }: TopAppBarProps) {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 md:ml-[240px] md:px-8">
+    <header
+      className={cn(
+        'flex h-16 items-center justify-between border-b border-border bg-background px-4 transition-[margin] duration-200 md:px-8',
+        isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
+      )}
+    >
       <div className="hidden md:block">
         <h2 className="text-lg font-semibold text-foreground">{title}</h2>
       </div>

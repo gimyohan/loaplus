@@ -53,6 +53,7 @@ function App() {
   // 판단한다 — null(조회 전)이면 우선 숨겨둔다(fail-closed, 잠깐이라도 비프리미엄 유저에게
   // 노출되지 않도록). docs/subscription.typ "기능 제한 대상" 참고.
   const [isPremium, setIsPremium] = useState<boolean | null>(null)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
@@ -186,12 +187,20 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Sidebar activeView={activeView} onNavigate={handleNavigate} onSignOut={() => logout()} isPremium={isPremium ?? false} />
+      <Sidebar
+        activeView={activeView}
+        onNavigate={handleNavigate}
+        onSignOut={() => logout()}
+        isPremium={isPremium ?? false}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapsed={() => setIsSidebarCollapsed((v) => !v)}
+      />
       <TopAppBar
         title={VIEW_TITLES[activeView]}
         nickname={user?.nickname}
         isDark={isDark}
         onToggleDark={() => setIsDark((v) => !v)}
+        isSidebarCollapsed={isSidebarCollapsed}
       />
 
       <main
@@ -199,7 +208,8 @@ function App() {
           // 상단 탭 제목 바(TopAppBar)가 더 이상 fixed가 아니라 문서 흐름 안에 있으므로(사용자
           // 확정: 스크롤해도 안 붙어있게), 예전엔 그 고정 높이(h-16)만큼 비워두던 pt-24를
           // 그 여백분(pt-8)만으로 줄인다.
-          'px-4 pb-12 pt-8 md:ml-[240px] md:px-8',
+          'px-4 pb-12 pt-8 transition-[margin] duration-200 md:px-8',
+          isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
           // 대시보드 탭은 카드가 화면 오른쪽까지 꽉 차게 배치되도록 폭 제한을 풀고, 나머지
           // 탭(표/글 위주 화면)은 가독성을 위해 기존 1200px 중앙 정렬을 유지한다. 여기서 폭을
           // 아예 지정하지 않아야(width: auto) 사이드바의 md:ml-[240px] 마진만큼을 브라우저가
