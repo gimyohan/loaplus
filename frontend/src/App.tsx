@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+import { AnchorAdMock } from '@/components/ads/AnchorAdMock'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { DashboardView } from '@/components/dashboard/DashboardView'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -17,6 +18,11 @@ import { fetchCardOrder } from '@/lib/dashboards'
 import { cn } from '@/lib/utils'
 import { fetchProfile } from '@/lib/user'
 import type { NavView } from '@/types/navigation'
+
+// 실제 AdSense 승인 전까지는 레이아웃 검토용 목업을 꺼둔다(사용자 확정) — 사이트 트래픽이
+// 생기고 애드센스 승인을 받으면 다시 논의하기로 함. 컴포넌트/렌더 조건은 그대로 남겨뒀으니
+// 다시 켜려면 이 값만 true로 되돌리면 된다(docs/ads.md 참고).
+const SHOW_ANCHOR_AD_MOCK = false
 
 const VIEW_TITLES: Record<NavView, string> = {
   dashboard: 'Roster Dashboard',
@@ -247,6 +253,14 @@ function App() {
         {activeView === 'market' && <MarketView isPremium={isPremium ?? false} />}
         {activeView === 'settings' && <SettingsView />}
       </main>
+
+      {/* docs/ads.md "프리미엄 유저 광고 제거" 원칙 그대로: isPremium이 조회 전(null)이면 아직
+          안 띄운다(fail-closed) — 프리미엄 유저에게 잠깐이라도 스치듯 보이는 걸 막는다.
+          Settings/Market은 문서의 배치 권장안대로 제외한다(Settings는 오클릭 위험, Market은
+          이미 프리미엄 전용). 지금은 실제 AdSense 연동 전 레이아웃 확인용 목업이다. */}
+      {SHOW_ANCHOR_AD_MOCK && isPremium === false && activeView !== 'settings' && activeView !== 'market' && (
+        <AnchorAdMock isSidebarCollapsed={isSidebarCollapsed} />
+      )}
 
       <ConfirmModal
         open={pendingRemoval !== null}
