@@ -1,10 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { CharacterDropdown, type CharacterOption } from '@/components/statistics/CharacterDropdown'
 import { PieChart } from '@/components/statistics/charts/PieChart'
+import { useLocalStorageState } from '@/hooks/useLocalStorageState'
 import type { StatFields, WeeklyStatRow } from '@/lib/statistics'
 import { categoryValue, cssVar, GOLD_BASIS_OPTIONS, GOLD_CATEGORIES, type GoldBasis } from '@/lib/statisticsCategories'
 import { cn } from '@/lib/utils'
+
+// 다른 탭에 갔다 돌아와도(App.tsx가 대시보드 외 탭은 언마운트한다) 선택이 유지되도록 localStorage에
+// 저장한다(사용자 확정).
+const BASIS_STORAGE_KEY = 'loaplus:statistics:goldCategoryPie:basis'
+const SELECTED_ID_STORAGE_KEY = 'loaplus:statistics:goldCategoryPie:selectedCharacterId'
 
 export interface GoldCategoryPieSectionProps {
   characters: CharacterOption[]
@@ -73,8 +79,11 @@ function formatShortDate(dateStr: string) {
  * 0으로 취급한다.
  */
 export function GoldCategoryPieSection({ characters, allWeekly }: GoldCategoryPieSectionProps) {
-  const [basis, setBasis] = useState<GoldBasis>('total')
-  const [selectedId, setSelectedId] = useState<string>(characters[0]?.characterId ?? '')
+  const [basis, setBasis] = useLocalStorageState<GoldBasis>(BASIS_STORAGE_KEY, 'total')
+  const [selectedId, setSelectedId] = useLocalStorageState<string>(
+    SELECTED_ID_STORAGE_KEY,
+    characters[0]?.characterId ?? '',
+  )
 
   const latestWeekStartDate = useMemo(
     () => allWeekly.reduce<string | null>((latest, row) => (!latest || row.weekStartDate > latest ? row.weekStartDate : latest), null),

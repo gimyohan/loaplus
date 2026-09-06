@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import type { CharacterOption } from '@/components/statistics/CharacterDropdown'
 import { ALL_CHARACTERS_ID, CharacterMultiSelect } from '@/components/statistics/CharacterMultiSelect'
 import { LineChart, type LineChartPoint, type LineChartSeries } from '@/components/statistics/charts/LineChart'
+import { useLocalStorageState } from '@/hooks/useLocalStorageState'
 import type { WeeklyStatRow } from '@/lib/statistics'
 import { cssVar, GOLD_BASIS_OPTIONS, type GoldBasis } from '@/lib/statisticsCategories'
 import { cn } from '@/lib/utils'
@@ -14,6 +15,11 @@ export interface GoldTrendSectionProps {
 
 // 팔레트가 5슬롯(index.css --chart-1~5)뿐이라 6번째 캐릭터부터는 색이 되풀이된다.
 const CHART_COLOR_SLOTS = 5
+
+// 다른 탭에 갔다 돌아와도(App.tsx가 대시보드 외 탭은 언마운트한다) 선택이 유지되도록 localStorage에
+// 저장한다(사용자 확정).
+const BASIS_STORAGE_KEY = 'loaplus:statistics:goldTrend:basis'
+const SELECTED_IDS_STORAGE_KEY = 'loaplus:statistics:goldTrend:selectedIds'
 
 const numberFormatter = new Intl.NumberFormat('ko-KR')
 function formatNumber(value: number) {
@@ -59,9 +65,19 @@ function sumByWeek(rows: WeeklyStatRow[]): { weekStartDate: string; totalGoldEar
  * 이 배열을 characterId로 걸러 쓴다.
  */
 export function GoldTrendSection({ characters, allWeekly }: GoldTrendSectionProps) {
-  const [basis, setBasis] = useState<GoldBasis>('total')
+  const [basis, setBasis] = useLocalStorageState<GoldBasis>(BASIS_STORAGE_KEY, 'total')
   // 초기 선택값은 "모든 캐릭터" 하나만(사용자 확정).
-  const [selectedIds, setSelectedIds] = useState<string[]>([ALL_CHARACTERS_ID])
+  const [selectedIds, setSelectedIds] = useLocalStorageState<string[]>(SELECTED_IDS_STORAGE_KEY, [ALL_CHARACTERS_ID])
+
+  // 캐시된 선택 중 이미 삭제된 캐릭터가 있으면 걸러낸다 — 그대로 두면 범례에 캐릭터명 대신
+  // characterId(uuid)가 그대로 노출된다(아래 label 계산의 `?? id` 대체값 참고).
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const validIds = new Set([ALL_CHARACTERS_ID, ...characters.map((c) => c.characterId)])
+      const filtered = prev.filter((id) => validIds.has(id))
+      return filtered.length > 0 ? filtered : [ALL_CHARACTERS_ID]
+    })
+  }, [characters, setSelectedIds])
 
   const rowsByCharacter = useMemo(() => {
     const map = new Map<string, WeeklyStatRow[]>()
