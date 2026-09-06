@@ -12,19 +12,20 @@ export interface ScreenshotPair {
  * 없다(사용자 확인). Market/Settings는 로그인 전 사이드바 자체에 노출되지 않으므로 없다. */
 export const PREVIEW_SCREENSHOTS: Record<Exclude<NavView, 'market' | 'settings'>, ScreenshotPair[]> = {
   dashboard: [
-    { src: '/screenshots/dashboard-1.svg', description: '캐릭터별로 가디언/쿠르잔 전선/레이드/루틴을 한 카드에서 관리합니다.' },
-    { src: '/screenshots/dashboard-2.svg', description: '카드마다 원하는 위젯을 자유롭게 배치해 나만의 대시보드를 꾸밀 수 있습니다.' },
+    { src: '/screenshots/dashboard-main.png', description: '캐릭터별로 가디언/쿠르잔 전선/레이드/루틴을 한 카드에서 관리합니다.' },
+    { src: '/screenshots/dashboard-mobile.png', description: '모바일 화면에서 하나의 캐릭터를 집중적으로 관리할 수 있습니다.' },
+    { src: '/screenshots/dashboard-setting.png', description: '카드마다 원하는 위젯을 자유롭게 배치해 나만의 대시보드를 꾸밀 수 있습니다.' },
   ],
   roster: [
-    { src: '/screenshots/roster-1.svg', description: '등록한 캐릭터 카드의 순서를 드래그로 바꿀 수 있습니다.' },
-    { src: '/screenshots/roster-2.svg', description: '원정대 전체를 조회해 아직 등록 안 한 캐릭터를 한 번에 추가할 수 있습니다.' },
+    { src: '/screenshots/roster-list.png', description: '등록한 캐릭터 카드의 순서를 드래그로 바꿀 수 있습니다.' },
+    { src: '/screenshots/roster-add.png', description: '원정대 전체를 조회해 아직 등록 안 한 캐릭터를 한 번에 추가할 수 있습니다.' },
   ],
   logs: [
-    { src: '/screenshots/logs-1.svg', description: '가디언/쿠르잔 전선 수확 등 모든 진행 기록이 자동으로 쌓입니다.' },
-    { src: '/screenshots/logs-2.svg', description: '실수로 체크한 기록은 버튼 하나로 되돌릴 수 있습니다.' },
+    { src: '/screenshots/logs-list.png', description: '가디언/쿠르잔 전선 수확 등 모든 진행 기록이 자동으로 쌓입니다.' },
+    { src: '/screenshots/logs-delete.png', description: '실수로 체크한 기록은 버튼 하나로 되돌릴 수 있습니다.' },
   ],
   statistics: [
-    { src: '/screenshots/statistics-1.svg', description: '주차별 골드 획득 추이를 캐릭터별/합산으로 확인할 수 있습니다.' },
-    { src: '/screenshots/statistics-2.svg', description: '레이드·가디언·쿠르잔 등 컨텐츠별 골드 비중을 한눈에 볼 수 있습니다.' },
+    { src: '/screenshots/statistics-flow.png', description: '주차별 골드 획득 추이를 캐릭터별/합산으로 확인할 수 있습니다.' },
+    { src: '/screenshots/statistics-pie.png', description: '레이드·가디언·쿠르잔 등 컨텐츠별 골드 비중을 한눈에 볼 수 있습니다.' },
   ],
 }

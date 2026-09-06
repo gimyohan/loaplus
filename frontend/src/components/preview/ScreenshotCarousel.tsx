@@ -34,7 +34,7 @@ export function ScreenshotCarousel({ pairs, onLoginClick }: ScreenshotCarouselPr
       </div>
 
       <div className="flex flex-col items-center gap-4">
-        <div className="flex w-full max-w-2xl items-center gap-3">
+        <div className="flex w-full max-w-5xl items-center gap-3">
           <button
             type="button"
             onClick={goPrev}
@@ -47,11 +47,16 @@ export function ScreenshotCarousel({ pairs, onLoginClick }: ScreenshotCarouselPr
 
           {/* min-w-0: img(대체 요소)는 flex item일 때 기본 min-width가 auto라, 원본 크기보다
               작게 줄어들지 않고 옆 버튼을 밀어내며 넘친다 — 그 상태에서 이미지의 실제 중심이
-              행(row) 중심과 어긋나 아래 설명 문단과도 어긋나 보였다(사용자 확인). */}
+              행(row) 중심과 어긋나 아래 설명 문단과도 어긋나 보였다(사용자 확인). aspect-[8/5]가
+              박스 크기 자체를 고정하므로(w-full + 고정 비율 → 높이도 항상 그에 맞춰 계산됨),
+              object-contain으로 바꿔도(원본 이미지 크롭 없이 전체를 보여줌, 사용자 확인) 박스
+              크기는 스크린샷 원본 크기와 무관하게 그대로라 좌우 버튼 위치가 흔들리지 않는다 —
+              object-contain이 남기는 여백(레터박싱)엔 bg-card를 깔아 빈 공간이 어색해 보이지
+              않게 한다. */}
           <img
             src={current.src}
             alt={current.description}
-            className="aspect-[8/5] w-full min-w-0 rounded-xl border border-border object-cover shadow-lg"
+            className="aspect-[8/5] w-full min-w-0 rounded-xl border border-border bg-card object-contain shadow-lg"
           />
 
           <button
@@ -65,7 +70,7 @@ export function ScreenshotCarousel({ pairs, onLoginClick }: ScreenshotCarouselPr
           </button>
         </div>
 
-        <p className="max-w-2xl text-center text-sm text-muted-foreground">{current.description}</p>
+        <p className="max-w-5xl text-center text-sm text-muted-foreground">{current.description}</p>
 
         {pairs.length > 1 && (
           <div className="flex gap-1.5">
