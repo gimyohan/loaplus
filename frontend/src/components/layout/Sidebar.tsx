@@ -27,6 +27,14 @@ const NAV_ITEMS: { view: NavView; label: string; icon: typeof LayoutDashboard; p
   { view: 'settings', label: 'Settings', icon: Settings },
 ]
 
+/** Market(premiumOnly)/Settings(비로그인 숨김) 필터 규칙 — Sidebar/BottomNav가 서로 다른
+ * 탭 구성을 갖지 않도록 이 판단도 함께 export해서 공유한다. */
+export function visibleNavItems(isPremium: boolean, isAuthenticated: boolean) {
+  return NAV_ITEMS.filter(
+    (item) => (!item.premiumOnly || isPremium) && (isAuthenticated || item.view !== 'settings'),
+  )
+}
+
 export interface SidebarProps {
   activeView: NavView
   onNavigate: (view: NavView) => void
@@ -50,9 +58,7 @@ export function Sidebar({
   onSignOut,
   onLoginClick,
 }: SidebarProps) {
-  const navItems = NAV_ITEMS.filter(
-    (item) => (!item.premiumOnly || isPremium) && (isAuthenticated || item.view !== 'settings'),
-  )
+  const navItems = visibleNavItems(isPremium, isAuthenticated)
 
   return (
     <nav

@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnchorAdMock } from '@/components/ads/AnchorAdMock'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { DashboardView } from '@/components/dashboard/DashboardView'
+import { BottomNav } from '@/components/layout/BottomNav'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopAppBar } from '@/components/layout/TopAppBar'
 import { LogsView } from '@/components/logs/LogsView'
@@ -173,7 +174,7 @@ function App() {
 
         <main
           className={cn(
-            'px-4 pb-12 pt-8 transition-[margin] duration-200 md:px-8',
+            'px-4 pb-20 pt-8 transition-[margin] duration-200 md:px-8 md:pb-12',
             isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
             'mx-auto max-w-[1200px]',
           )}
@@ -186,6 +187,15 @@ function App() {
             onLoginClick={() => setShowLoginScreen(true)}
           />
         </main>
+
+        {/* Sidebar는 md 미만에서 아예 숨겨지므로(hidden md:flex), 모바일에서 대시보드 밖의 다른
+            미리보기 탭으로 이동할 유일한 수단이다(사용자 확인). */}
+        <BottomNav
+          activeView={previewView}
+          onNavigate={(view) => setPreviewView(view as Exclude<NavView, 'market' | 'settings'>)}
+          isPremium={false}
+          isAuthenticated={false}
+        />
 
         <Toaster />
       </div>
@@ -273,8 +283,9 @@ function App() {
         className={cn(
           // 상단 탭 제목 바(TopAppBar)가 더 이상 fixed가 아니라 문서 흐름 안에 있으므로(사용자
           // 확정: 스크롤해도 안 붙어있게), 예전엔 그 고정 높이(h-16)만큼 비워두던 pt-24를
-          // 그 여백분(pt-8)만으로 줄인다.
-          'px-4 pb-12 pt-8 transition-[margin] duration-200 md:px-8',
+          // 그 여백분(pt-8)만으로 줄인다. 모바일은 하단에 고정된 BottomNav만큼(pb-20) 더 띄워서
+          // 콘텐츠 마지막 줄이 탭바에 가리지 않게 하고, md 이상은 BottomNav가 없으니 pb-12로 되돌린다.
+          'px-4 pb-20 pt-8 transition-[margin] duration-200 md:px-8 md:pb-12',
           isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
           // 대시보드 탭은 카드가 화면 오른쪽까지 꽉 차게 배치되도록 폭 제한을 풀고, 나머지
           // 탭(표/글 위주 화면)은 가독성을 위해 기존 1200px 중앙 정렬을 유지한다. 여기서 폭을
@@ -313,6 +324,15 @@ function App() {
         {activeView === 'market' && <MarketView isPremium={isPremium ?? false} />}
         {activeView === 'settings' && <SettingsView />}
       </main>
+
+      {/* Sidebar는 md 미만에서 아예 숨겨지므로(hidden md:flex), 이게 없으면 모바일에서 대시보드
+          밖의 다른 탭으로 이동할 방법이 전혀 없었다(사용자 확인). */}
+      <BottomNav
+        activeView={activeView}
+        onNavigate={handleNavigate}
+        isPremium={isPremium ?? false}
+        isAuthenticated
+      />
 
       {/* docs/ads.md "프리미엄 유저 광고 제거" 원칙 그대로: isPremium이 조회 전(null)이면 아직
           안 띄운다(fail-closed) — 프리미엄 유저에게 잠깐이라도 스치듯 보이는 걸 막는다.
