@@ -166,11 +166,13 @@ function toIncrementUpdateData(delta: StatisticDelta) {
 
 /**
  * Character_Statistics(전체 기간) + Character_Statistics_Weekly(그 행위가 일어난 시각이 속한
- * 주)를 같은 델타로 함께 upsert한다. 그 뒤 이 캐릭터의 90일 초과 주간/아이템 통계 행을 같은
- * 트랜잭션 안에서 하드 삭제한다 — 별도 배치 없는 "쓰기 시점 트림"(docs/statistics.typ "3개월
- * 리텐션 정책" 참고). `at`은 생성 시에는 로그 생성 시각, 롤백 시에는 원본 로그의 created_at을
- * 받는다(롤백은 항상 원래 행위가 적립됐던 주를 다시 찾아 역연산 — docs/statistics.typ "주간
- * 경계 정의" 참고). 리텐션 컷오프 자체는 항상 실제 현재 시각 기준이다.
+ * 주)를 같은 델타로 함께 upsert한다. 그 뒤 이 캐릭터의 90일 초과 주간 통계 행을 같은 트랜잭션
+ * 안에서 하드 삭제한다 — 별도 배치 없는 "쓰기 시점 트림"(docs/statistics.typ "3개월 리텐션
+ * 정책" 참고). `at`은 생성 시에는 로그 생성 시각, 롤백 시에는 원본 로그의 created_at을 받는다
+ * (롤백은 항상 원래 행위가 적립됐던 주를 다시 찾아 역연산 — docs/statistics.typ "주간 경계
+ * 정의" 참고). 리텐션 컷오프 자체는 항상 실제 현재 시각 기준이다. Character_Item_Reward_Stats는
+ * 이 리텐션 대상이 아니다(Character_Statistics처럼 전체 기간 영구 누적 — 아래
+ * applyItemRewardDelta 참고).
  */
 async function applyStatisticDelta(
   tx: Prisma.TransactionClient,
@@ -201,28 +203,18 @@ async function applyStatisticDelta(
     DELETE FROM character_statistics_weekly
     WHERE character_id = ${characterId}::uuid AND week_start_date < ${cutoff}
   `
-  await tx.$executeRaw`
-    DELETE FROM character_item_reward_stats
-    WHERE character_id = ${characterId}::uuid AND week_start_date < ${cutoff}
-  `
 }
 
 /**
- * Character_Item_Reward_Stats의 (캐릭터, 주, 컨텐츠, 보상 종류, 아이템) 행을 count +1(생성)
- * 또는 -1(롤백)한다. 롤백 대상 행이 리텐션 트림으로 이미 지워졌다면(90일 초과) 조용히
- * 건너뛴다 — 그 시점엔 이미 통계에서 빠진 값이라 되돌릴 것이 없다.
+ * Character_Item_Reward_Stats의 (캐릭터, 컨텐츠, 보상 종류, 아이템) 행을 count +1(생성) 또는
+ * -1(롤백)한다. Character_Statistics와 같은 성격의 전체 기간 영구 누적 테이블이라 리텐션 트림이
+ * 없다 — 프론트가 기간별 조회를 쓰지 않고 항상 "전체 기간 합계"만 보여주는 게 확인되어(사용자
+ * 확인), 예전엔 있던 week_start_date를 PK에서 완전히 제거했다(docs/statistics.md 참고).
  */
-async function applyItemRewardDelta(
-  tx: Prisma.TransactionClient,
-  characterId: string,
-  delta: ItemRewardDelta,
-  at: Date,
-) {
-  const weekStartDate = weekStartDateKey(at)
+async function applyItemRewardDelta(tx: Prisma.TransactionClient, characterId: string, delta: ItemRewardDelta) {
   const where = {
-    characterId_weekStartDate_contentType_rewardType_itemId: {
+    characterId_contentType_rewardType_itemId: {
       characterId,
-      weekStartDate,
       contentType: delta.contentType,
       rewardType: delta.rewardType,
       itemId: delta.itemId,
@@ -234,7 +226,6 @@ async function applyItemRewardDelta(
       where,
       create: {
         characterId,
-        weekStartDate,
         contentType: delta.contentType,
         rewardType: delta.rewardType,
         itemId: delta.itemId,
@@ -383,7 +374,7 @@ export async function revertActionLog(prisma: PrismaClient, log: ActionLog): Pro
       const { statDelta, itemRewardDelta } = computeStatisticDelta(log.actionType, rewards, -1)
       await applyStatisticDelta(tx, log.characterId, statDelta, log.createdAt)
       if (itemRewardDelta) {
-        await applyItemRewardDelta(tx, log.characterId, itemRewardDelta, log.createdAt)
+        await applyItemRewardDelta(tx, log.characterId, itemRewardDelta)
       }
     }
 
@@ -448,7 +439,7 @@ export async function createRewardLog(
     const { statDelta, itemRewardDelta } = computeStatisticDelta(params.actionType, params.rewards, 1)
     await applyStatisticDelta(tx, params.characterId, statDelta, now)
     if (itemRewardDelta) {
-      await applyItemRewardDelta(tx, params.characterId, itemRewardDelta, now)
+      await applyItemRewardDelta(tx, params.characterId, itemRewardDelta)
     }
     await enforceActionLogCap(tx, params.userId)
 

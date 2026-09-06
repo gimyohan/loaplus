@@ -86,8 +86,6 @@ const weeklyQuerySchema = z.object({
 const itemRewardsQuerySchema = z.object({
   rewardType: z.enum(['SHARD', 'AZENA_BLESSING']),
   contentType: z.enum(['ALL', 'GUARDIAN', 'KURZAN']).default('ALL'),
-  from: z.coerce.date().optional(),
-  to: z.coerce.date().optional(),
 })
 
 export async function statisticsRoutes(fastify: FastifyInstance) {
@@ -212,20 +210,12 @@ export async function statisticsRoutes(fastify: FastifyInstance) {
           characterId: character.id,
           rewardType: parsed.data.rewardType,
           ...(parsed.data.contentType !== 'ALL' ? { contentType: parsed.data.contentType } : {}),
-          ...(parsed.data.from || parsed.data.to
-            ? {
-                weekStartDate: {
-                  ...(parsed.data.from ? { gte: parsed.data.from } : {}),
-                  ...(parsed.data.to ? { lte: parsed.data.to } : {}),
-                },
-              }
-            : {}),
         },
       })
 
-      // "전체"(contentType=ALL)는 가디언+쿠르잔을 합산하고, 여러 주에 걸친 행도 아이템(item_id)
-      // 단위로 합친다 — 비율은 저장하지 않고 이 합산 결과 기준으로 조회 시점에 계산한다
-      // (docs/statistics.typ "아이템 단위 비율·수량 통계" 참고).
+      // "전체"(contentType=ALL)는 가디언+쿠르잔 두 행을 아이템(item_id) 단위로 합산한다 —
+      // 비율은 저장하지 않고 이 합산 결과 기준으로 조회 시점에 계산한다(docs/statistics.typ
+      // "아이템 단위 비율·수량 통계" 참고).
       const merged = new Map<string, { itemId: string; itemName: string; categoryKey: string; count: number }>()
       for (const row of rows) {
         const existing = merged.get(row.itemId)

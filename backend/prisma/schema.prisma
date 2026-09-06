@@ -266,7 +266,7 @@ model CharacterStatisticWeekly {
   @@map("character_statistics_weekly")
 }
 
-// == Character_Item_Reward_Stats (편린 · 아제나 축복 아이템별 통계, 3개월 리텐션) ==========
+// == Character_Item_Reward_Stats (편린 · 아제나 축복 아이템별 통계, 전체 기간 영구 누적) ======
 enum ItemRewardContentType {
   GUARDIAN
   KURZAN
@@ -277,22 +277,26 @@ enum ItemRewardKind {
   AZENA_BLESSING
 }
 
+// 캐릭터당 (컨텐츠, 보상 종류, 아이템) 조합 하나에 행 하나 — 카탈로그가 52종(37+15)으로
+// 작고 고정돼 있어 캐릭터당 최대 행 수도 104개로 묶여 있다. 예전엔 week_start_date까지 PK에
+// 있어 3개월 리텐션 대상이었지만, 프론트가 기간별 조회를 전혀 쓰지 않고 항상 "전체 기간 합계"만
+// 보여주는 게 확인되어(사용자 확인) 시간 축을 완전히 제거하고 Character_Statistics(전체 기간
+// 누적, 리텐션 없음)와 같은 성격으로 바꿨다 — docs/statistics.md 참고.
 model CharacterItemRewardStat {
-  characterId   String                @map("character_id") @db.Uuid
-  weekStartDate DateTime              @map("week_start_date") @db.Date
-  contentType   ItemRewardContentType @map("content_type")
-  rewardType    ItemRewardKind        @map("reward_type")
+  characterId String                @map("character_id") @db.Uuid
+  contentType ItemRewardContentType @map("content_type")
+  rewardType  ItemRewardKind        @map("reward_type")
   /// 보상 카탈로그(kurzanShardRewards.json/kurzanAzenaBlessingRewards.json) 항목 id.
-  itemId        String                @map("item_id")
-  /// 조회 편의를 위한 비정규화 컬럼. 보상 확정 시점 카탈로그 값을 그대로 복사한다.
-  categoryKey   String                @map("category_key")
-  itemName      String                @map("item_name")
-  count         Int                   @default(0)
-  updatedAt     DateTime              @updatedAt @map("updated_at")
+  itemId      String                @map("item_id")
+  /// 조회 편의를 위한 비정규화 컬럼. 가장 최근 보상 확정 시점 카탈로그 값을 그대로 복사한다.
+  categoryKey String                @map("category_key")
+  itemName    String                @map("item_name")
+  count       Int                   @default(0)
+  updatedAt   DateTime              @updatedAt @map("updated_at")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
-  @@id([characterId, weekStartDate, contentType, rewardType, itemId])
+  @@id([characterId, contentType, rewardType, itemId])
   @@map("character_item_reward_stats")
 }
 
