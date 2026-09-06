@@ -35,7 +35,7 @@ jobs:
         working-directory: frontend
         env:
           # Client ID는 시크릿이 아니라 공개돼도 되는 값이라 그대로 하드코딩한다.
-          VITE_API_BASE_URL: https://javago.my
+          VITE_API_BASE_URL: https://loaplus.com
           VITE_GOOGLE_CLIENT_ID: 803917966229-j11poe8m6060l3mrtuntcd70nqi0o7cd.apps.googleusercontent.com
         run: |
           npm ci
