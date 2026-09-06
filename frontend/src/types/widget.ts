@@ -48,6 +48,9 @@ export interface WidgetCatalogItem {
    * 위젯(text/textCheckbox/counter/image)은 ScaleToFit을 쓰지 않으므로 비워둔다. */
   nativeWidth?: number
   nativeHeight?: number
+  /** true면 위젯 목록(WidgetPalette)에서 고를 수 없다 — 이미 배치된 인스턴스의 렌더링/라벨
+   * 조회(WidgetVisual, WidgetDashboard)에는 계속 쓰이므로 카탈로그에서 아예 빼지는 않는다. */
+  hidden?: boolean
 }
 
 export interface PlacedWidget {

@@ -281,7 +281,11 @@ export function WidgetPalette({ className, characterName, onGrabStart, onGrabMov
 
   // 캐릭터 귀속이 필요한 구역(배너/주간 콘텐츠/일일 콘텐츠, category: 'default')과 그렇지 않은
   // 구역(커스텀 위젯/툴, category: 'additional')을 나눈다 — 구역 순서는 SECTION_ORDER 그대로.
-  const sectionsByKey = new Map(SECTION_ORDER.map((key) => [key, WIDGET_CATALOG.filter((item) => item.section === key)]))
+  // hidden 항목(예: 잠정 사용 중단된 어빌리티 스톤)은 새로 추가할 수 없도록 목록에서 뺀다 —
+  // 이미 배치된 인스턴스의 렌더링에는 영향 없다(widgetCatalog.ts 참고).
+  const sectionsByKey = new Map(
+    SECTION_ORDER.map((key) => [key, WIDGET_CATALOG.filter((item) => item.section === key && !item.hidden)]),
+  )
   const gatedSections = SECTION_ORDER.filter((key) => sectionsByKey.get(key)?.[0]?.category === 'default')
   const ungatedSections = SECTION_ORDER.filter((key) => !gatedSections.includes(key))
 

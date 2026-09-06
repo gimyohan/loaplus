@@ -41,7 +41,10 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
   { kind: 'image', label: '이미지', category: 'additional', w: 4, h: 4, group: 'custom', section: 'custom', resizable: true, minW: 2, maxW: 10, resizableH: true, minH: 2, maxH: 10 },
   { kind: 'linkIcon', label: '링크 & 아이콘', category: 'additional', w: 1, h: 1, group: 'custom', section: 'custom', nativeWidth: 100, nativeHeight: 100 },
   // 아이콘 하나뿐이고 실제 상호작용은 모달에서 이루어진다.
-  { kind: 'abilityStone', label: '어빌리티 스톤', category: 'additional', w: 1, h: 1, section: 'tool', nativeWidth: 100, nativeHeight: 100 },
+  // 잠정 사용 중단(사용자 확정, 2026-09-06): 위젯 목록에서 새로 추가할 수 없도록 hidden을
+  // 켰다. 이미 배치된 인스턴스는 그대로 두므로(사용자 확정) 카탈로그 자체에서 빼지는 않는다 —
+  // WidgetVisual/WidgetDashboard가 렌더링·라벨 조회에 이 항목을 계속 참조한다.
+  { kind: 'abilityStone', label: '어빌리티 스톤', category: 'additional', w: 1, h: 1, section: 'tool', nativeWidth: 100, nativeHeight: 100, hidden: true },
 ]
 
 /** 그리드 한 칸의 픽셀 크기 (docs/db_schema.typ: grid_x, grid_y, width, height) */
