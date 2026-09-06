@@ -388,6 +388,35 @@ model MarketItemDailyStat {
   @@map("market_item_daily_stats")
 }
 
+// docs/market_price.typ "파이프라인 C" / docs/db_schema.typ 참고. Market_Item_Daily_Stats가
+// 180일 보존 기간을 넘겨 삭제되기 전에 그 안의 avg_price/trade_count로부터 거래량 가중 평균으로
+// 역연산해서 채운다. 주 경계는 수요일~화요일(달력 날짜 기준) — Character_Statistics_Weekly의
+// "수요일 06:00 KST" 타임스탬프 경계와는 요일만 같고 별개의 개념이다.
+model MarketItemWeeklyStat {
+  itemId        Int      @map("item_id")
+  weekStartDate DateTime @map("week_start_date") @db.Date
+  itemName      String   @map("item_name")
+  avgPrice      Float    @map("avg_price")
+  tradeCount    Int      @map("trade_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@id([itemId, weekStartDate])
+  @@map("market_item_weekly_stats")
+}
+
+// Market_Item_Weekly_Stats와 목적·계산 방식이 동일하며 대상 기간만 주가 아니라 달이다.
+model MarketItemMonthlyStat {
+  itemId         Int      @map("item_id")
+  monthStartDate DateTime @map("month_start_date") @db.Date
+  itemName       String   @map("item_name")
+  avgPrice       Float    @map("avg_price")
+  tradeCount     Int      @map("trade_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@id([itemId, monthStartDate])
+  @@map("market_item_monthly_stats")
+}
+
 // docs/db_schema.typ의 Market_Item_Current_Prices 참고 — 과거 Market_Item_Recent_Prices
 // (RecentPrice)에서 CurrentMinPrice 기준으로 교체하며 테이블·컬럼명도 함께 바꿨다.
 // grade/icon을 더해 이 테이블 자체가 아이템 검색 카탈로그를 겸한다(별도 카탈로그 테이블 없음).

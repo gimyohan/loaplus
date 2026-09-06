@@ -1,5 +1,5 @@
 import { ApiError, apiFetch } from '@/lib/api'
-import type { MarketItemDailyStat, MarketItemSearchResult } from '@/types/market'
+import type { MarketHistoryPeriod, MarketItemHistoryPoint, MarketItemSearchResult } from '@/types/market'
 
 const MARKET_ERROR_MESSAGES: Record<string, string> = {
   invalid_request: '검색어 또는 기간이 올바르지 않습니다.',
@@ -21,8 +21,9 @@ export async function fetchMarketItemHistory(
   itemId: number,
   from: string,
   to: string,
-): Promise<MarketItemDailyStat[]> {
-  return apiFetch<MarketItemDailyStat[]>(
-    `/api/market/items/${itemId}/history?from=${from}&to=${to}`,
+  period: MarketHistoryPeriod = 'daily',
+): Promise<MarketItemHistoryPoint[]> {
+  return apiFetch<MarketItemHistoryPoint[]>(
+    `/api/market/items/${itemId}/history?from=${from}&to=${to}&period=${period}`,
   )
 }

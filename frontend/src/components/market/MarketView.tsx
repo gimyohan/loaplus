@@ -1,4 +1,4 @@
-import { Crown, PackageSearch, Trash2, TrendingUp } from 'lucide-react'
+import { ChevronDown, Crown, PackageSearch, Trash2, TrendingUp } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { ComingSoonView } from '@/components/layout/ComingSoonView'
@@ -7,18 +7,41 @@ import { Button } from '@/components/ui/button'
 import { describeMarketApiError, fetchMarketItemHistory, searchMarketItems } from '@/lib/market'
 import { cssVar } from '@/lib/statisticsCategories'
 import { cn } from '@/lib/utils'
-import type { MarketItemDailyStat, MarketItemSearchResult } from '@/types/market'
+import type { MarketHistoryPeriod, MarketItemHistoryPoint, MarketItemSearchResult } from '@/types/market'
 
 const WATCHLIST_STORAGE_KEY = 'loaplus:market:watchlist'
+// 상단 "현재" 값 카드는 기간 선택과 무관하게 항상 일별 통계의 최근 값을 보여준다(가장 세밀한
+// 값이 최신 가격에 가깝기 때문) — HISTORY_DAYS는 그 조회에만 쓰인다.
 const HISTORY_DAYS = 14
 const SEARCH_DEBOUNCE_MS = 300
 const MIN_SEARCH_QUERY_LENGTH = 2
 const HISTORY_SERIES: LineChartSeries[] = [{ key: 'avgPrice', label: '평균 거래가', color: cssVar('--chart-1') }]
 
+const PERIOD_OPTIONS: { value: MarketHistoryPeriod; label: string }[] = [
+  { value: 'daily', label: '일간' },
+  { value: 'weekly', label: '주간' },
+  { value: 'monthly', label: '월간' },
+]
+
+/** 기간별로 차트에 기본으로 보여줄 구간 폭. 주간/월간은 데이터가 한 주/한 달에 한 행뿐이라
+ * 일간과 같은 14일로는 점이 1~2개뿐이라 무의미하므로 기간마다 다르게 잡는다(각 기간 보존
+ * 한도인 52주/60개월보다 훨씬 짧게 — docs/market_price.md "파이프라인 C" 참고). */
+const PERIOD_RANGE_DAYS: Record<MarketHistoryPeriod, number> = {
+  daily: HISTORY_DAYS,
+  weekly: 12 * 7,
+  monthly: 12 * 30,
+}
+
 const numberFormatter = new Intl.NumberFormat('ko-KR')
 function formatGold(value: number) {
   return `${numberFormatter.format(value)}G`
 }
+
+function formatTradeCount(value: number) {
+  return `${numberFormatter.format(value)}개`
+}
+
+const HISTORY_TOOLTIP_EXTRA_FIELDS = [{ key: 'tradeCount', label: '거래량', format: formatTradeCount }]
 
 function loadWatchlist(): number[] {
   try {
@@ -42,7 +65,7 @@ function ItemIcon({ src, className }: { src: string | null; className: string })
   return <img src={src} alt="" className={cn('shrink-0 rounded object-contain', className)} />
 }
 
-/** 오늘부터 days일 전까지의 "YYYY-MM-DD" 범위. Market_Item_Daily_Stats의 date 형식과 동일하다. */
+/** 오늘부터 days일 전까지의 "YYYY-MM-DD" 범위. Market_Item_*_Stats의 date 형식과 동일하다. */
 function recentDateRange(days: number): { from: string; to: string } {
   const to = new Date()
   const from = new Date(to)
@@ -51,21 +74,35 @@ function recentDateRange(days: number): { from: string; to: string } {
   return { from: iso(from), to: iso(to) }
 }
 
+/** 차트 x축에 쓸 라벨. daily/weekly는 "MM-DD"(주간은 그 주의 시작일인 수요일), monthly는
+ * "YYYY-MM"으로 표시한다(month_start_date는 항상 그 달 1일이라 일자를 보여줄 필요가 없다). */
+function historyPointLabel(date: string, period: MarketHistoryPeriod): string {
+  return period === 'monthly' ? date.slice(0, 7) : date.slice(5)
+}
+
+function periodRangeLabel(period: MarketHistoryPeriod): string {
+  if (period === 'weekly') return `최근 ${PERIOD_RANGE_DAYS.weekly / 7}주간`
+  if (period === 'monthly') return `최근 ${Math.round(PERIOD_RANGE_DAYS.monthly / 30)}개월간`
+  return `최근 ${PERIOD_RANGE_DAYS.daily}일간`
+}
+
 interface WatchedItemState {
   itemId: number
   /** 검색 결과에서 고를 때 즉시 채워진다. 새로고침 뒤 관심 목록만으로 복원한 경우엔 history가
    * 도착하기 전까지 잠깐 null일 수 있다. */
   itemName: string | null
   icon: string | null
-  /** null = 아직 불러오는 중, 빈 배열 = 최근 HISTORY_DAYS일간 데이터 없음. 날짜 오름차순이라
-   * 마지막 원소가 가장 최근 값이다. */
-  history: MarketItemDailyStat[] | null
+  /** 이 아이템 카드가 지금 보여주는 기간 — 상단 "현재" 값과 차트 둘 다 이 기간 기준이다. */
+  period: MarketHistoryPeriod
+  /** null = 아직 불러오는 중, 빈 배열 = 선택한 기간 범위 내 데이터 없음. 날짜(기간 시작일)
+   * 오름차순이라 마지막 원소가 가장 최근 값이다. */
+  history: MarketItemHistoryPoint[] | null
   error: string | null
   isHistoryOpen: boolean
 }
 
-/** history의 마지막(가장 최근 날짜) 원소 — 화면 상단에 보여줄 "현재" 값으로 쓴다. */
-function latestStat(history: MarketItemDailyStat[] | null): MarketItemDailyStat | null {
+/** history의 마지막(가장 최근 기간) 원소 — 화면 상단에 보여줄 "현재" 값으로 쓴다. */
+function latestStat(history: MarketItemHistoryPoint[] | null): MarketItemHistoryPoint | null {
   if (!history || history.length === 0) return null
   return history[history.length - 1]!
 }
@@ -96,13 +133,15 @@ export function MarketView({ isPremium }: MarketViewProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [items, setItems] = useState<WatchedItemState[]>([])
 
-  const loadHistoryFor = (itemId: number) => {
-    const { from, to } = recentDateRange(HISTORY_DAYS)
-    fetchMarketItemHistory(itemId, from, to)
+  const loadHistoryFor = (itemId: number, period: MarketHistoryPeriod) => {
+    const { from, to } = recentDateRange(PERIOD_RANGE_DAYS[period])
+    fetchMarketItemHistory(itemId, from, to, period)
       .then((history) => {
         setItems((prev) =>
           prev.map((it) =>
-            it.itemId === itemId
+            // it.period !== period 가드: 응답이 오기 전에 유저가 드롭박스로 기간을 또 바꿨다면
+            // (예: 일간 요청 중 주간으로 전환) 이 응답은 이미 낡은 것이므로 반영하지 않는다.
+            it.itemId === itemId && it.period === period
               ? {
                   ...it,
                   history,
@@ -116,7 +155,9 @@ export function MarketView({ isPremium }: MarketViewProps) {
       })
       .catch((err) => {
         setItems((prev) =>
-          prev.map((it) => (it.itemId === itemId ? { ...it, error: describeMarketApiError(err) } : it)),
+          prev.map((it) =>
+            it.itemId === itemId && it.period === period ? { ...it, error: describeMarketApiError(err) } : it,
+          ),
         )
       })
   }
@@ -128,9 +169,17 @@ export function MarketView({ isPremium }: MarketViewProps) {
     const itemIds = loadWatchlist()
     if (itemIds.length === 0) return
     setItems(
-      itemIds.map((itemId) => ({ itemId, itemName: null, icon: null, history: null, error: null, isHistoryOpen: false })),
+      itemIds.map((itemId) => ({
+        itemId,
+        itemName: null,
+        icon: null,
+        period: 'daily',
+        history: null,
+        error: null,
+        isHistoryOpen: false,
+      })),
     )
-    itemIds.forEach(loadHistoryFor)
+    itemIds.forEach((itemId) => loadHistoryFor(itemId, 'daily'))
     // loadHistoryFor는 매 렌더 새로 만들어지는 함수라 deps에 넣으면 이 이펙트가 렌더마다
     // 다시 실행돼버린다 — 마운트 시 관심 목록을 한 번만 복원하면 되므로 isPremium만 둔다.
   }, [isPremium])
@@ -175,6 +224,7 @@ export function MarketView({ isPremium }: MarketViewProps) {
           itemId: result.itemId,
           itemName: result.itemName,
           icon: result.icon,
+          period: 'daily',
           history: null,
           error: null,
           isHistoryOpen: false,
@@ -183,7 +233,7 @@ export function MarketView({ isPremium }: MarketViewProps) {
       saveWatchlist(next.map((it) => it.itemId))
       return next
     })
-    loadHistoryFor(result.itemId)
+    loadHistoryFor(result.itemId, 'daily')
     setIsAdding(false)
   }
 
@@ -203,6 +253,13 @@ export function MarketView({ isPremium }: MarketViewProps) {
 
   const handleToggleHistory = (itemId: number) => {
     setItems((prev) => prev.map((it) => (it.itemId === itemId ? { ...it, isHistoryOpen: !it.isHistoryOpen } : it)))
+  }
+
+  const handleChangePeriod = (itemId: number, period: MarketHistoryPeriod) => {
+    setItems((prev) =>
+      prev.map((it) => (it.itemId === itemId ? { ...it, period, history: null, error: null } : it)),
+    )
+    loadHistoryFor(itemId, period)
   }
 
   if (!isPremium) {
@@ -297,10 +354,25 @@ export function MarketView({ isPremium }: MarketViewProps) {
                       <p className="text-xs text-muted-foreground">{latest.date} 평균 거래가</p>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">최근 {HISTORY_DAYS}일간 데이터 없음</p>
+                    <p className="text-sm text-muted-foreground">{periodRangeLabel(it.period)} 데이터 없음</p>
                   )}
 
                   <div className="flex items-center gap-1">
+                    <div className="relative">
+                      <select
+                        value={it.period}
+                        onChange={(event) => handleChangePeriod(it.itemId, event.target.value as MarketHistoryPeriod)}
+                        aria-label="기간 선택"
+                        className="h-10 cursor-pointer appearance-none rounded-lg border border-border bg-transparent pl-3 pr-8 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                      >
+                        {PERIOD_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    </div>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -320,11 +392,16 @@ export function MarketView({ isPremium }: MarketViewProps) {
                     {it.history === null ? (
                       <p className="text-sm text-muted-foreground">히스토리 불러오는 중...</p>
                     ) : it.history.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">최근 {HISTORY_DAYS}일간 데이터가 없습니다.</p>
+                      <p className="text-sm text-muted-foreground">{periodRangeLabel(it.period)} 데이터가 없습니다.</p>
                     ) : (
                       <LineChart
                         series={HISTORY_SERIES}
-                        points={it.history.map((h) => ({ label: h.date.slice(5), values: { avgPrice: h.avgPrice } }))}
+                        points={it.history.map((h) => ({
+                          label: historyPointLabel(h.date, it.period),
+                          values: { avgPrice: h.avgPrice },
+                          extraValues: { tradeCount: h.tradeCount },
+                        }))}
+                        extraFields={HISTORY_TOOLTIP_EXTRA_FIELDS}
                         formatValue={formatGold}
                         height={200}
                       />

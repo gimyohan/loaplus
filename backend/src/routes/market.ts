@@ -17,6 +17,8 @@ const CATEGORY_PAGE_WALK_CAP = 20
 const historyQuerySchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // 기본값 daily — 기존 클라이언트(period 파라미터를 안 보내는)는 그대로 일별 통계를 받는다.
+  period: z.enum(['daily', 'weekly', 'monthly']).optional().default('daily'),
 })
 
 const searchQuerySchema = z.object({
@@ -207,9 +209,12 @@ export async function marketRoutes(fastify: FastifyInstance) {
     },
   )
 
-  fastify.get<{ Params: { itemId: string }; Querystring: { from?: string; to?: string } }>(
+  fastify.get<{ Params: { itemId: string }; Querystring: { from?: string; to?: string; period?: string } }>(
     '/api/market/items/:itemId/history',
-    { preHandler: premiumGate, schema: { tags: ['Market'], summary: '거래소 일자별 시세 히스토리 조회 (프리미엄 전용)' } },
+    {
+      preHandler: premiumGate,
+      schema: { tags: ['Market'], summary: '거래소 기간별(일간/주간/월간) 시세 히스토리 조회 (프리미엄 전용)' },
+    },
     async (request, reply) => {
       const itemId = Number.parseInt(request.params.itemId, 10)
       if (!Number.isInteger(itemId)) {
@@ -221,21 +226,55 @@ export async function marketRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'invalid_request' })
       }
 
-      const rows = await fastify.prisma.marketItemDailyStat.findMany({
-        where: {
-          itemId,
-          date: { gte: new Date(parsed.data.from), lte: new Date(parsed.data.to) },
-        },
-        orderBy: { date: 'asc' },
-      })
+      const { period, from, to } = parsed.data
+      const dateRange = { gte: new Date(from), lte: new Date(to) }
 
-      const icon = (await iconsByItemId([itemId])).get(itemId) ?? null
-      return reply.send(
-        rows.map((row) => ({
-          date: row.date.toISOString().slice(0, 10),
+      // 세 테이블 모두 (itemId, 기간 시작일)당 한 행이라 응답 형태를 date/itemName/avgPrice/
+      // tradeCount로 통일한다 — 주간/월간은 date가 그 기간의 시작일(각각 수요일/1일)이다
+      // (docs/market_price.md "파이프라인 C" 참고).
+      let points: { date: Date; itemName: string; avgPrice: number; tradeCount: number }[]
+      if (period === 'weekly') {
+        const rows = await fastify.prisma.marketItemWeeklyStat.findMany({
+          where: { itemId, weekStartDate: dateRange },
+          orderBy: { weekStartDate: 'asc' },
+        })
+        points = rows.map((row) => ({
+          date: row.weekStartDate,
           itemName: row.itemName,
           avgPrice: row.avgPrice,
           tradeCount: row.tradeCount,
+        }))
+      } else if (period === 'monthly') {
+        const rows = await fastify.prisma.marketItemMonthlyStat.findMany({
+          where: { itemId, monthStartDate: dateRange },
+          orderBy: { monthStartDate: 'asc' },
+        })
+        points = rows.map((row) => ({
+          date: row.monthStartDate,
+          itemName: row.itemName,
+          avgPrice: row.avgPrice,
+          tradeCount: row.tradeCount,
+        }))
+      } else {
+        const rows = await fastify.prisma.marketItemDailyStat.findMany({
+          where: { itemId, date: dateRange },
+          orderBy: { date: 'asc' },
+        })
+        points = rows.map((row) => ({
+          date: row.date,
+          itemName: row.itemName,
+          avgPrice: row.avgPrice,
+          tradeCount: row.tradeCount,
+        }))
+      }
+
+      const icon = (await iconsByItemId([itemId])).get(itemId) ?? null
+      return reply.send(
+        points.map((point) => ({
+          date: point.date.toISOString().slice(0, 10),
+          itemName: point.itemName,
+          avgPrice: point.avgPrice,
+          tradeCount: point.tradeCount,
           icon,
         })),
       )

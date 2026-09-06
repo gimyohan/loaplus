@@ -11,6 +11,16 @@ export interface LineChartPoint {
   /** x축에 표시할 라벨(예: "8/14") */
   label: string
   values: Record<string, number>
+  /** 선으로는 그리지 않지만(축척 계산에도 포함되지 않음) 호버 툴팁에는 추가로 보여줄 값
+   * (예: 거래량) — key는 extraFields의 key와 매칭된다. */
+  extraValues?: Record<string, number>
+}
+
+export interface LineChartExtraField {
+  key: string
+  label: string
+  /** 생략하면 formatValue를 그대로 쓴다 — 거래량처럼 단위가 다른 값에 쓴다. */
+  format?: (value: number) => string
 }
 
 export interface LineChartProps {
@@ -18,6 +28,8 @@ export interface LineChartProps {
   points: LineChartPoint[]
   formatValue: (value: number) => string
   height?: number
+  /** 툴팁에만 표시할 추가 필드(선 그래프에는 나타나지 않음). */
+  extraFields?: LineChartExtraField[]
 }
 
 const VIEW_WIDTH = 800
@@ -33,22 +45,25 @@ function niceMax(rawMax: number): number {
 }
 
 /** 주간 골드/귀속골드/합계 추이 다중 선 그래프 — 최대 3개 시리즈, 호버 시 크로스헤어+툴팁. */
-export function LineChart({ series, points, formatValue, height = 280 }: LineChartProps) {
+export function LineChart({ series, points, formatValue, height = 280, extraFields = [] }: LineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
   const plotWidth = VIEW_WIDTH - PADDING.left - PADDING.right
   const plotHeight = height - PADDING.top - PADDING.bottom
 
+  // extraValues(예: 거래량)는 선으로 그리지 않으므로 축척(y 최댓값) 계산에서 제외한다 — series
+  // 키만 순회해야 한다(전체 values를 순회하면 extraValues 쪽 값이 훨씬 커서 축이 깨진다).
   const maxValue = useMemo(() => {
     let max = 0
     for (const point of points) {
-      for (const series_ of Object.values(point.values)) {
+      for (const s of series) {
+        const series_ = point.values[s.key] ?? 0
         if (series_ > max) max = series_
       }
     }
     return niceMax(max)
-  }, [points])
+  }, [points, series])
 
   const xFor = (index: number) => {
     if (points.length <= 1) return PADDING.left + plotWidth / 2
@@ -196,6 +211,14 @@ export function LineChart({ series, points, formatValue, height = 280 }: LineCha
                   {s.label}
                 </span>
                 <span className="font-mono font-semibold text-foreground">{formatValue(hovered.values[s.key] ?? 0)}</span>
+              </span>
+            ))}
+            {extraFields.map((field) => (
+              <span key={field.key} className="flex items-center justify-between gap-3 border-t border-border pt-1">
+                <span className="text-muted-foreground">{field.label}</span>
+                <span className="font-mono font-semibold text-foreground">
+                  {(field.format ?? formatValue)(hovered.extraValues?.[field.key] ?? 0)}
+                </span>
               </span>
             ))}
           </div>
