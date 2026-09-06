@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ComingSoonView } from '@/components/layout/ComingSoonView'
 import { LogList } from '@/components/logs/LogList'
 import { OtherIncomeModal } from '@/components/statistics/OtherIncomeModal'
+import { ConfirmModal } from '@/components/ui/confirmModal'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { notifyHomeworksChanged } from '@/lib/homeworksEvents'
 import { fetchLogs, rollbackLog, type ActionType, type LogEntry } from '@/lib/logs'
@@ -19,6 +20,9 @@ export function LogsView() {
   const [logs, setLogs] = useState<LogEntry[] | null>(null)
   const [rollingBackId, setRollingBackId] = useState<string | null>(null)
   const [isOtherIncomeOpen, setIsOtherIncomeOpen] = useState(false)
+  // 되돌리기는 상태/통계를 실제로 되돌리는 되돌릴 수 없는 작업이라(로그 자체도 함께 삭제됨),
+  // 카드 삭제(App.tsx)와 같은 원칙으로 확인 모달을 거친다(사용자 확정).
+  const [pendingRollback, setPendingRollback] = useState<LogEntry | null>(null)
   // OtherIncomeModal(원래 Statistics 탭 소속)이 캐릭터 드롭다운에 쓰는 형태로 변환한다 — 여기선
   // CharacterDirectoryContext(id/characterName)를, 원래 위치에선 통계 조회 응답(characterId/
   // characterName)을 쓰던 차이만 있고 모달 자체는 그대로 재사용한다.
@@ -34,7 +38,7 @@ export function LogsView() {
     }
   }, [])
 
-  const handleRollback = async (log: LogEntry) => {
+  const handleConfirmRollback = async (log: LogEntry) => {
     setRollingBackId(log.id)
     try {
       if (log.actionType === 'RAID_GATE_CLEAR' && log.raidId !== null && log.gateIndex !== null) {
@@ -56,6 +60,7 @@ export function LogsView() {
       if (log.actionType && HOMEWORK_ACTION_TYPES.includes(log.actionType)) {
         notifyHomeworksChanged(log.characterId)
       }
+      setPendingRollback(null)
     } catch (err) {
       console.error('로그 롤백 실패', err)
     } finally {
@@ -91,7 +96,7 @@ export function LogsView() {
           description="가디언/쿠르잔 전선 수확 등 통계에 반영되는 행위를 하면 여기에 기록됩니다."
         />
       ) : (
-        <LogList logs={logs} rollingBackId={rollingBackId} onRollback={handleRollback} />
+        <LogList logs={logs} rollingBackId={rollingBackId} onRollback={setPendingRollback} />
       )}
 
       <OtherIncomeModal
@@ -99,6 +104,16 @@ export function LogsView() {
         onClose={() => setIsOtherIncomeOpen(false)}
         characters={characterOptions}
         onRecorded={() => fetchLogs().then(setLogs)}
+      />
+
+      <ConfirmModal
+        open={pendingRollback !== null}
+        onClose={() => setPendingRollback(null)}
+        onConfirm={() => pendingRollback && handleConfirmRollback(pendingRollback)}
+        title="로그 되돌리기"
+        message="이 행위를 되돌리면 캐릭터 상태와 통계가 함께 되돌아가고, 이 로그는 삭제됩니다. 계속할까요?"
+        confirmLabel="되돌리기"
+        isConfirming={pendingRollback !== null && rollingBackId === pendingRollback.id}
       />
     </div>
   )

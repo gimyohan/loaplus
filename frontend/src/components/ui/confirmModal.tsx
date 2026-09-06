@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 import { Modal } from '@/components/ui/modal'
 
 export interface ConfirmModalProps {
@@ -22,6 +24,18 @@ export function ConfirmModal({
   cancelLabel = '취소',
   isConfirming = false,
 }: ConfirmModalProps) {
+  // Enter로 확인 버튼을 누른 것과 같게 한다 — Modal이 이미 Escape는 onClose로 처리하므로
+  // 여기서는 Enter만 추가한다. 폼 입력이 있는 다른 모달(예: OtherIncomeModal)은 자기
+  // <form onSubmit>으로 Enter를 이미 처리하므로, 이 동작은 확인/취소 두 버튼뿐인 이 모달에만 둔다.
+  useEffect(() => {
+    if (!open || isConfirming) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') onConfirm()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, isConfirming, onConfirm])
+
   return (
     <Modal open={open} onClose={onClose} title={title}>
       <div className="flex flex-col gap-6">
