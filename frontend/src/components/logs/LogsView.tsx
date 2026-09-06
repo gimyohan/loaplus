@@ -1,8 +1,10 @@
-import { ScrollText } from 'lucide-react'
+import { PlusCircle, ScrollText } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { ComingSoonView } from '@/components/layout/ComingSoonView'
 import { LogList } from '@/components/logs/LogList'
+import { OtherIncomeModal } from '@/components/statistics/OtherIncomeModal'
+import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { notifyHomeworksChanged } from '@/lib/homeworksEvents'
 import { fetchLogs, rollbackLog, type ActionType, type LogEntry } from '@/lib/logs'
 import { undoRaidGateClear } from '@/lib/raids'
@@ -13,8 +15,14 @@ import { undoRaidGateClear } from '@/lib/raids'
 const HOMEWORK_ACTION_TYPES: ActionType[] = ['HARVEST_GUARDIAN', 'HARVEST_KURZAN', 'EBONY_CUBE_CLEAR', 'HAL_HOURGLASS_COMPLETE']
 
 export function LogsView() {
+  const { characters } = useCharacterDirectory()
   const [logs, setLogs] = useState<LogEntry[] | null>(null)
   const [rollingBackId, setRollingBackId] = useState<string | null>(null)
+  const [isOtherIncomeOpen, setIsOtherIncomeOpen] = useState(false)
+  // OtherIncomeModal(원래 Statistics 탭 소속)이 캐릭터 드롭다운에 쓰는 형태로 변환한다 — 여기선
+  // CharacterDirectoryContext(id/characterName)를, 원래 위치에선 통계 조회 응답(characterId/
+  // characterName)을 쓰던 차이만 있고 모달 자체는 그대로 재사용한다.
+  const characterOptions = characters.map((c) => ({ characterId: c.id, characterName: c.characterName }))
 
   useEffect(() => {
     let cancelled = false
@@ -55,19 +63,43 @@ export function LogsView() {
     }
   }
 
-  if (logs === null) {
-    return <p className="text-sm text-muted-foreground">불러오는 중...</p>
-  }
+  return (
+    <div className="flex flex-col gap-4">
+      {/* 레이드·편린 등 게임 컨텐츠가 자동으로 남기는 로그와 달리, 이 버튼으로 남기는 "기타 수입"만
+          유일하게 유저가 직접 로그를 생성하는 경로다(docs/statistics.typ 참고) — 로그 목록 화면에
+          있는 게 자연스러워 통계 탭에서 이리로 옮겼다(사용자 확정). 캐릭터가 하나도 없으면
+          기록할 대상이 없으므로 숨긴다. */}
+      {characterOptions.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setIsOtherIncomeOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <PlusCircle className="h-4 w-4 text-secondary" />
+            기타 수입 기록
+          </button>
+        </div>
+      )}
 
-  if (logs.length === 0) {
-    return (
-      <ComingSoonView
-        icon={ScrollText}
-        title="기록된 로그가 없습니다"
-        description="가디언/쿠르잔 전선 수확 등 통계에 반영되는 행위를 하면 여기에 기록됩니다."
+      {logs === null ? (
+        <p className="text-sm text-muted-foreground">불러오는 중...</p>
+      ) : logs.length === 0 ? (
+        <ComingSoonView
+          icon={ScrollText}
+          title="기록된 로그가 없습니다"
+          description="가디언/쿠르잔 전선 수확 등 통계에 반영되는 행위를 하면 여기에 기록됩니다."
+        />
+      ) : (
+        <LogList logs={logs} rollingBackId={rollingBackId} onRollback={handleRollback} />
+      )}
+
+      <OtherIncomeModal
+        open={isOtherIncomeOpen}
+        onClose={() => setIsOtherIncomeOpen(false)}
+        characters={characterOptions}
+        onRecorded={() => fetchLogs().then(setLogs)}
       />
-    )
-  }
-
-  return <LogList logs={logs} rollingBackId={rollingBackId} onRollback={handleRollback} />
+    </div>
+  )
 }

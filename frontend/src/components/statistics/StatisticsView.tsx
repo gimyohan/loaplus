@@ -1,11 +1,10 @@
-import { BarChart3, PlusCircle } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import { ComingSoonView } from '@/components/layout/ComingSoonView'
 import { GoldCategoryPieSection } from '@/components/statistics/GoldCategoryPieSection'
 import { GoldTrendSection } from '@/components/statistics/GoldTrendSection'
 import { ItemRewardStatsSection } from '@/components/statistics/ItemRewardStatsSection'
-import { OtherIncomeModal } from '@/components/statistics/OtherIncomeModal'
 import { StatisticsTable } from '@/components/statistics/StatisticsTable'
 import { fetchAllWeeklyStatistics, fetchCharacterStatistics, type CharacterStatistics, type WeeklyStatRow } from '@/lib/statistics'
 import { cn } from '@/lib/utils'
@@ -28,7 +27,6 @@ export function StatisticsView() {
   const [characters, setCharacters] = useState<CharacterStatistics[] | null>(null)
   const [allWeekly, setAllWeekly] = useState<WeeklyStatRow[] | null>(null)
   const [activeTab, setActiveTab] = useState<StatisticsTab>('main')
-  const [isOtherIncomeOpen, setIsOtherIncomeOpen] = useState(false)
 
   const refresh = useCallback(() => {
     Promise.all([fetchCharacterStatistics(), fetchAllWeeklyStatistics()])
@@ -61,33 +59,22 @@ export function StatisticsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                activeTab === tab.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setIsOtherIncomeOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          <PlusCircle className="h-4 w-4 text-secondary" />
-          기타 수입 기록
-        </button>
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              activeTab === tab.key
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {activeTab === 'main' && (
@@ -99,13 +86,6 @@ export function StatisticsView() {
       {activeTab === 'table' && <StatisticsTable characters={characters} />}
       {activeTab === 'shard' && <ItemRewardStatsSection characters={characterOptions} rewardType="SHARD" />}
       {activeTab === 'azenaBlessing' && <ItemRewardStatsSection characters={characterOptions} rewardType="AZENA_BLESSING" />}
-
-      <OtherIncomeModal
-        open={isOtherIncomeOpen}
-        onClose={() => setIsOtherIncomeOpen(false)}
-        characters={characterOptions}
-        onRecorded={refresh}
-      />
     </div>
   )
 }
