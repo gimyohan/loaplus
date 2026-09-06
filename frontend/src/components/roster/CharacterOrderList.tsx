@@ -1,14 +1,8 @@
-import { GripVertical } from 'lucide-react'
-import { useEffect, useState, type DragEvent } from 'react'
+import { useEffect, useState } from 'react'
 
+import { CharacterOrderGrid } from '@/components/roster/CharacterOrderGrid'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { fetchCardOrder, swapCardOrder } from '@/lib/dashboards'
-import { cn } from '@/lib/utils'
-
-const itemLevelFormatter = new Intl.NumberFormat('ko-KR', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
 
 export interface CharacterOrderListProps {
   /** 스왑이 서버에 반영된 뒤 호출된다 — 대시보드 탭의 카드 순서를 다시 불러오는 등에 쓴다. */
@@ -75,65 +69,19 @@ export function CharacterOrderList({ onOrderChanged }: CharacterOrderListProps) 
     .map((id) => characters.find((character) => character.id === id))
     .filter((character): character is NonNullable<typeof character> => Boolean(character))
 
-  if (orderedCharacters.length === 0) {
-    return <p className="text-sm text-muted-foreground">등록된 캐릭터가 없습니다.</p>
-  }
-
   return (
-    // 세로로 한 줄씩 늘어놓는 대신, 대시보드 카드 그리드와 동일하게 한 행에 여러 블록을 배치한다
-    // (대시보드는 DashboardView.tsx의 COLUMNS_PER_ROW=3 고정 — 여기도 큰 화면에서 3열로 맞춘다).
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {orderedCharacters.map((character, index) => (
-        <div
-          key={character.id}
-          draggable
-          onDragStart={() => setDraggingId(character.id)}
-          onDragOver={(event: DragEvent<HTMLDivElement>) => {
-            event.preventDefault()
-            if (dragOverId !== character.id) setDragOverId(character.id)
-          }}
-          onDragLeave={() => setDragOverId((prev) => (prev === character.id ? null : prev))}
-          onDrop={(event: DragEvent<HTMLDivElement>) => {
-            event.preventDefault()
-            handleDrop(character.id)
-          }}
-          onDragEnd={() => {
-            setDraggingId(null)
-            setDragOverId(null)
-          }}
-          className={cn(
-            'flex cursor-grab flex-col gap-2 rounded-lg border border-border bg-card p-3 transition-colors active:cursor-grabbing',
-            draggingId === character.id && 'opacity-40',
-            dragOverId === character.id && draggingId !== character.id && 'border-primary bg-primary/10',
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="w-5 shrink-0 text-center font-mono text-xs text-muted-foreground">{index + 1}</span>
-
-            {character.imageUrl ? (
-              <img
-                src={character.imageUrl}
-                alt=""
-                className="h-9 w-9 shrink-0 rounded-full border border-border object-cover"
-              />
-            ) : (
-              <div className="h-9 w-9 shrink-0 rounded-full border border-border bg-muted" aria-hidden="true" />
-            )}
-
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-foreground">{character.characterName}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {character.server} · {character.job}
-              </p>
-            </div>
-          </div>
-
-          <span className="self-end font-mono text-sm font-bold text-secondary">
-            {itemLevelFormatter.format(character.itemLevel)}
-          </span>
-        </div>
-      ))}
-    </div>
+    <CharacterOrderGrid
+      characters={orderedCharacters}
+      draggingId={draggingId}
+      dragOverId={dragOverId}
+      onDragStart={setDraggingId}
+      onDragOverCharacter={setDragOverId}
+      onDragLeaveCharacter={(id) => setDragOverId((prev) => (prev === id ? null : prev))}
+      onDrop={handleDrop}
+      onDragEnd={() => {
+        setDraggingId(null)
+        setDragOverId(null)
+      }}
+    />
   )
 }

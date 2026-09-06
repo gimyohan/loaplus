@@ -1,16 +1,12 @@
 import { useState, type FormEvent } from 'react'
 
 import { CharacterOrderList } from '@/components/roster/CharacterOrderList'
+import { SiblingTable } from '@/components/roster/SiblingTable'
 import { Button } from '@/components/ui/button'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { describeCharacterApiError, fetchCharacterSiblings, MAX_CHARACTERS_PER_USER } from '@/lib/characters'
 import { cn } from '@/lib/utils'
 import type { CharacterSibling } from '@/types/character'
-
-const itemLevelFormatter = new Intl.NumberFormat('ko-KR', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
 
 export interface RosterViewProps {
   /** 캐릭터가 새로 등록되거나 카드 순서가 바뀌었을 때 호출된다 — 대시보드 탭의 카드 순서를
@@ -148,61 +144,16 @@ export function RosterView({ onRosterChanged }: RosterViewProps) {
         {searchError && <p className="w-full text-sm text-destructive">{searchError}</p>}
       </form>
 
-      {siblings && siblings.length === 0 && (
-        <p className="text-sm text-muted-foreground">원정대에 속한 캐릭터가 없습니다.</p>
-      )}
-
-      {siblings && siblings.length > 0 && (
-        <div className="flex flex-col gap-4">
-          <div className="overflow-hidden rounded-xl border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="w-10 px-3 py-2" />
-                  <th className="px-3 py-2 text-left">캐릭터</th>
-                  <th className="px-3 py-2 text-left">서버</th>
-                  <th className="px-3 py-2 text-left">직업</th>
-                  <th className="px-3 py-2 text-right">아이템 레벨</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {siblings.map((sibling) => {
-                  const isRegistered = Boolean(findByName(sibling.characterName))
-                  return (
-                    <tr key={sibling.characterName} className={isRegistered ? 'opacity-50' : undefined}>
-                      <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={isRegistered || selectedNames.has(sibling.characterName)}
-                          disabled={isRegistered || isAdding}
-                          onChange={() => toggleSelected(sibling.characterName)}
-                          aria-label={`${sibling.characterName} 선택`}
-                          className="h-4 w-4 rounded border border-border disabled:cursor-not-allowed"
-                        />
-                      </td>
-                      <td className="px-3 py-2 font-medium text-foreground">
-                        {sibling.characterName}
-                        {isRegistered && <span className="ml-2 text-xs text-muted-foreground">(등록됨)</span>}
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground">{sibling.serverName}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{sibling.className}</td>
-                      <td className="px-3 py-2 text-right font-mono text-secondary">
-                        {itemLevelFormatter.format(sibling.itemLevel)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={handleAddSelected} disabled={selectedNames.size === 0 || isAdding}>
-              {isAdding ? '추가 중...' : `선택한 ${selectedNames.size}명 카드로 추가`}
-            </Button>
-            {addSummary && <p className="text-sm text-muted-foreground">{addSummary}</p>}
-          </div>
-        </div>
+      {siblings && (
+        <SiblingTable
+          siblings={siblings}
+          isRegistered={(name) => Boolean(findByName(name))}
+          selectedNames={selectedNames}
+          onToggleSelected={toggleSelected}
+          isAdding={isAdding}
+          onAddSelected={handleAddSelected}
+          addSummary={addSummary}
+        />
       )}
     </div>
   )

@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { TopAppBar } from '@/components/layout/TopAppBar'
 import { LogsView } from '@/components/logs/LogsView'
 import { MarketView } from '@/components/market/MarketView'
+import { ScreenshotCarousel } from '@/components/preview/ScreenshotCarousel'
 import { RosterView } from '@/components/roster/RosterView'
 import { SettingsView } from '@/components/settings/SettingsView'
 import { StatisticsView } from '@/components/statistics/StatisticsView'
@@ -17,6 +18,7 @@ import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { fetchCardOrder } from '@/lib/dashboards'
 import { cn } from '@/lib/utils'
 import { fetchProfile } from '@/lib/user'
+import { PREVIEW_SCREENSHOTS } from '@/mocks/previewScreenshots'
 import type { NavView } from '@/types/navigation'
 
 // 실제 AdSense 승인 전까지는 레이아웃 검토용 목업을 꺼둔다(사용자 확정) — 사이트 트래픽이
@@ -60,6 +62,13 @@ function App() {
   // 노출되지 않도록). docs/subscription.typ "기능 제한 대상" 참고.
   const [isPremium, setIsPremium] = useState<boolean | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  // 로그인 전 미리보기 모드 전용 상태 — 인증된 이후 쓰는 activeView/cardIds 등과는 완전히
+  // 분리해 둔다. 실제 데이터 대신 탭별 스크린샷+설명 캐러셀(ScreenshotCarousel)만 보여주므로
+  // 실인증 상태와 얽힐 이유가 없다(사용자 확인: mock 상호작용 대비 유지보수 부담이 낮은 방향으로
+  // 단순화). previewView는 Sidebar가 Settings/Market을 아예 안 보여주므로 실질적으로 dashboard/
+  // roster/logs/statistics 네 값만 쓰인다.
+  const [previewView, setPreviewView] = useState<Exclude<NavView, 'market' | 'settings'>>('dashboard')
+  const [showLoginScreen, setShowLoginScreen] = useState(false)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
@@ -125,11 +134,61 @@ function App() {
   }
 
   if (status === 'unauthenticated') {
+    // 로그인 화면으로 직접 진입한 경우(사이드바의 "로그인" 클릭) — 미리보기 자체는 완전히
+    // 가짜 데이터라 로그인 화면과는 별개 상태(showLoginScreen)로 전환한다. LoginScreen 자체는
+    // 건드리지 않고, 그 위에 미리보기로 돌아가는 버튼만 얹는다.
+    if (showLoginScreen) {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowLoginScreen(false)}
+            className="fixed left-4 top-4 z-10 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            ← 미리보기로 돌아가기
+          </button>
+          <LoginScreen />
+          <Toaster />
+        </>
+      )
+    }
+
     return (
-      <>
-        <LoginScreen />
+      <div className="min-h-screen bg-background text-foreground">
+        <Sidebar
+          activeView={previewView}
+          onNavigate={(view) => setPreviewView(view as Exclude<NavView, 'market' | 'settings'>)}
+          isPremium={false}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapsed={() => setIsSidebarCollapsed((v) => !v)}
+          isAuthenticated={false}
+          onLoginClick={() => setShowLoginScreen(true)}
+        />
+        <TopAppBar
+          title={VIEW_TITLES[previewView]}
+          isDark={isDark}
+          onToggleDark={() => setIsDark((v) => !v)}
+          isSidebarCollapsed={isSidebarCollapsed}
+        />
+
+        <main
+          className={cn(
+            'px-4 pb-12 pt-8 transition-[margin] duration-200 md:px-8',
+            isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
+            'mx-auto max-w-[1200px]',
+          )}
+        >
+          {/* key=previewView: 탭이 바뀌면 캐러셀을 통째로 새로 마운트해서, 각 탭의 스크린샷
+              인덱스가 0부터 다시 시작하도록 한다(사용자 확인: 탭별로 완전히 독립된 쌍). */}
+          <ScreenshotCarousel
+            key={previewView}
+            pairs={PREVIEW_SCREENSHOTS[previewView]}
+            onLoginClick={() => setShowLoginScreen(true)}
+          />
+        </main>
+
         <Toaster />
-      </>
+      </div>
     )
   }
 
@@ -200,6 +259,7 @@ function App() {
         isPremium={isPremium ?? false}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapsed={() => setIsSidebarCollapsed((v) => !v)}
+        isAuthenticated
       />
       <TopAppBar
         title={VIEW_TITLES[activeView]}

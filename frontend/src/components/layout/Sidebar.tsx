@@ -4,6 +4,7 @@ import {
   ChevronRight,
   HelpCircle,
   LayoutDashboard,
+  LogIn,
   LogOut,
   ScrollText,
   Settings,
@@ -29,21 +30,29 @@ const NAV_ITEMS: { view: NavView; label: string; icon: typeof LayoutDashboard; p
 export interface SidebarProps {
   activeView: NavView
   onNavigate: (view: NavView) => void
-  onSignOut: () => void
   isPremium: boolean
   isCollapsed: boolean
   onToggleCollapsed: () => void
+  /** false면 로그인 전 미리보기 모드다 — Settings/Support를 숨기고 하단 버튼이 로그아웃 대신
+   * 로그인으로 동작한다(사용자 확정). */
+  isAuthenticated: boolean
+  onSignOut?: () => void
+  onLoginClick?: () => void
 }
 
 export function Sidebar({
   activeView,
   onNavigate,
-  onSignOut,
   isPremium,
   isCollapsed,
   onToggleCollapsed,
+  isAuthenticated,
+  onSignOut,
+  onLoginClick,
 }: SidebarProps) {
-  const navItems = NAV_ITEMS.filter((item) => !item.premiumOnly || isPremium)
+  const navItems = NAV_ITEMS.filter(
+    (item) => (!item.premiumOnly || isPremium) && (isAuthenticated || item.view !== 'settings'),
+  )
 
   return (
     <nav
@@ -91,29 +100,46 @@ export function Sidebar({
       </div>
 
       <div className="flex flex-col gap-1 border-t border-border pt-4">
-        <button
-          type="button"
-          aria-label="Support"
-          className={cn(
-            'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-            isCollapsed && 'justify-center px-0',
-          )}
-        >
-          <HelpCircle className="h-5 w-5 shrink-0" />
-          {!isCollapsed && 'Support'}
-        </button>
-        <button
-          type="button"
-          onClick={onSignOut}
-          aria-label="Sign Out"
-          className={cn(
-            'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-            isCollapsed && 'justify-center px-0',
-          )}
-        >
-          <LogOut className="h-5 w-5 shrink-0" />
-          {!isCollapsed && 'Sign Out'}
-        </button>
+        {isAuthenticated && (
+          <button
+            type="button"
+            aria-label="Support"
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              isCollapsed && 'justify-center px-0',
+            )}
+          >
+            <HelpCircle className="h-5 w-5 shrink-0" />
+            {!isCollapsed && 'Support'}
+          </button>
+        )}
+        {isAuthenticated ? (
+          <button
+            type="button"
+            onClick={onSignOut}
+            aria-label="Sign Out"
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              isCollapsed && 'justify-center px-0',
+            )}
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            {!isCollapsed && 'Sign Out'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onLoginClick}
+            aria-label="로그인"
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10',
+              isCollapsed && 'justify-center px-0',
+            )}
+          >
+            <LogIn className="h-5 w-5 shrink-0" />
+            {!isCollapsed && '로그인'}
+          </button>
+        )}
       </div>
     </nav>
   )
