@@ -71,13 +71,13 @@ export function CharacterBanner({
               분리한다 — 그러지 않으면 우측 정렬된 내용 왼쪽의 빈 공간까지 호버 박스에 포함돼버린다.
               group도 이름을 붙여서(group/refresh) 카드 전체를 감싸는 바깥 group(삭제/설정 버튼용)의
               호버와 섞이지 않도록 한다 — 안 그러면 카드 아무 데나 올려도 아이콘이 돌아간다. */}
-          <div className="mb-2 flex w-full min-w-0 justify-end">
+          <div className="mb-1.5 flex w-full min-w-0 justify-end">
             <button
               type="button"
               aria-label="캐릭터 정보 새로고침"
               onClick={onRefresh}
               disabled={isRefreshing}
-              className="group/refresh flex min-w-0 max-w-full items-center gap-2 rounded-md px-2 py-1 font-mono text-xl uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:bg-muted hover:text-primary disabled:pointer-events-none disabled:opacity-50"
+              className="group/refresh flex min-w-0 max-w-full items-center gap-2 rounded-md px-2 py-1 font-mono text-3xl uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:bg-muted hover:text-primary disabled:pointer-events-none disabled:opacity-50"
             >
               <RefreshCw
                 className={cn(

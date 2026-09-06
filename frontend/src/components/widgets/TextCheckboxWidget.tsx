@@ -65,7 +65,7 @@ export function TextCheckboxWidget({
       </span>
 
       {remainingCount !== null && (
-        <span className="shrink-0 rounded-md bg-muted px-1 py-0.5 text-[9px] font-semibold text-muted-foreground">
+        <span className="shrink-0 rounded-md bg-muted px-1 py-0.5 text-[13px] font-semibold text-muted-foreground">
           남음 {remainingCount}
         </span>
       )}

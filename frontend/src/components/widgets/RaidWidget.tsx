@@ -1,6 +1,27 @@
 import { Ban, Check, Settings } from 'lucide-react'
 
+import { Tooltip } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+
+/** "관문" 텍스트 대신 쓰는 아이콘 — U자를 뒤집은(위가 둥글고 아래가 트인) 문/아치 모양(사용자
+ * 확정). lucide-react에 정확히 이 모양의 아이콘이 없어 같은 stroke 스타일(24x24, 2px 스트로크,
+ * 둥근 끝)로 직접 그린다. */
+function GateIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M5 20V11a7 7 0 0 1 14 0v9" />
+    </svg>
+  )
+}
 
 export interface RaidGateView {
   cleared: boolean
@@ -31,10 +52,10 @@ export interface RaidWidgetProps {
  */
 function GateRewardText({ gate, goldRewardEnabled }: { gate: RaidGateView; goldRewardEnabled: boolean }) {
   if (!goldRewardEnabled || (gate.goldReward <= 0 && gate.boundGoldReward <= 0)) {
-    return <span className="text-center font-mono text-sm leading-tight text-muted-foreground">-</span>
+    return <span className="text-center font-mono text-xl leading-tight text-muted-foreground">-</span>
   }
   return (
-    <span className="flex flex-wrap items-center justify-center gap-x-1 text-center font-mono text-sm leading-tight">
+    <span className="flex flex-wrap items-center justify-center gap-x-1 text-center font-mono text-xl leading-tight">
       {gate.goldReward > 0 && <span className="text-gold">{gate.goldReward.toLocaleString('ko-KR')}</span>}
       {gate.goldReward > 0 && gate.boundGoldReward > 0 && <span className="text-muted-foreground">/</span>}
       {gate.boundGoldReward > 0 && (
@@ -66,11 +87,11 @@ export function RaidWidget({
       )}
     >
       {/* 상단: 레이드 이름 / 난이도 / 설정 */}
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-xl font-semibold text-foreground">{raidName ?? '레이드'}</h3>
+          <h3 className="truncate text-2xl font-semibold text-foreground">{raidName ?? '레이드'}</h3>
           {difficultyName && (
-            <span className="shrink-0 rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-base uppercase tracking-wide text-secondary">
+            <span className="shrink-0 rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-lg uppercase tracking-wide text-secondary">
               {difficultyName}
             </span>
           )}
@@ -139,30 +160,29 @@ export function RaidWidget({
                 />
                 <span
                   className={cn(
-                    'text-center font-mono text-base uppercase tracking-wide',
+                    'flex items-center justify-center gap-1 font-mono text-lg uppercase tracking-wide',
                     gate.cleared ? 'text-primary' : 'text-muted-foreground',
                   )}
                 >
-                  {index + 1}관문
+                  {index + 1}
+                  <GateIcon className="h-5 w-5 shrink-0" />
                 </span>
                 <span aria-hidden="true" />
               </div>
 
               <GateRewardText gate={gate} goldRewardEnabled={goldRewardEnabled} />
 
-              <label
-                onClick={(event) => event.stopPropagation()}
-                className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground"
-              >
-                <input
-                  type="checkbox"
-                  checked={gate.moreRewardEnabled}
-                  onChange={(event) => onToggleMoreReward?.(index, event.target.checked)}
-                  aria-label={`${index + 1}관문 더보기`}
-                  className="h-5 w-5 shrink-0 cursor-pointer rounded-sm border border-border bg-background accent-primary"
-                />
-                더보기
-              </label>
+              <Tooltip label="더보기">
+                <label onClick={(event) => event.stopPropagation()} className="flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    checked={gate.moreRewardEnabled}
+                    onChange={(event) => onToggleMoreReward?.(index, event.target.checked)}
+                    aria-label={`${index + 1}관문 더보기`}
+                    className="h-5 w-5 shrink-0 cursor-pointer rounded-sm border border-border bg-background accent-primary"
+                  />
+                </label>
+              </Tooltip>
             </div>
           ))}
         </div>

@@ -48,10 +48,10 @@ export function EbonyCubeWidget({ data, onCycleTarget, onClear, onOpenSettings, 
       )}
     >
       {/* 상단: 위젯 이름 / 설정. 낙원과 동일하게 빈 스페이서로 제목을 가운데 맞춘다 */}
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div className="h-6 w-6 shrink-0" aria-hidden="true" />
 
-        <h3 className="min-w-0 flex-1 truncate text-center text-lg font-semibold text-foreground">
+        <h3 className="min-w-0 flex-1 truncate text-center text-2xl font-semibold text-foreground">
           에브니 큐브
         </h3>
 
@@ -83,11 +83,11 @@ export function EbonyCubeWidget({ data, onCycleTarget, onClear, onOpenSettings, 
         </button>
 
         {selectedTicketType ? (
-          <div className="flex min-w-0 flex-col items-center gap-0.5">
-            <span className="truncate text-base font-semibold text-foreground">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="min-w-0 truncate text-lg font-semibold text-foreground">
               {TICKET_LABELS[selectedTicketType]}
             </span>
-            <span className="font-mono text-sm text-secondary">보유 {selectedCount}</span>
+            <span className="shrink-0 font-mono text-sm text-secondary">x {selectedCount}</span>
           </div>
         ) : (
           <span className="text-sm text-muted-foreground">입장권이 없습니다</span>
@@ -114,7 +114,7 @@ export function EbonyCubeWidget({ data, onCycleTarget, onClear, onOpenSettings, 
           type="button"
           disabled={!selectedTicketType || selectedCount < 1}
           onClick={() => onClear?.(1)}
-          className="flex flex-1 items-center justify-center py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50"
+          className="flex flex-1 items-center justify-center py-3 text-base font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50"
         >
           1회 클리어
         </button>
@@ -122,7 +122,7 @@ export function EbonyCubeWidget({ data, onCycleTarget, onClear, onOpenSettings, 
           type="button"
           disabled={!selectedTicketType || selectedCount < 3}
           onClick={() => onClear?.(3)}
-          className="flex flex-1 items-center justify-center py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50"
+          className="flex flex-1 items-center justify-center py-3 text-base font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50"
         >
           3회 클리어
         </button>

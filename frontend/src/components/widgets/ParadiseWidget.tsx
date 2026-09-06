@@ -76,10 +76,10 @@ export function ParadiseWidget({
       )}
     >
       {/* 상단: 위젯 이름 / 옵션. 체크박스가 없는 대신 빈 스페이서로 제목을 가운데 맞춘다 */}
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div className="h-6 w-6 shrink-0" aria-hidden="true" />
 
-        <h3 className="min-w-0 flex-1 truncate text-center text-lg font-semibold text-foreground">
+        <h3 className="min-w-0 flex-1 truncate text-center text-2xl font-semibold text-foreground">
           낙원
         </h3>
 
@@ -101,10 +101,10 @@ export function ParadiseWidget({
           onClick={handleTicketClick}
           className="flex items-center justify-center gap-2 text-foreground transition-colors hover:bg-muted"
         >
-          <Ticket className="h-6 w-6 shrink-0 text-primary" />
+          <Ticket className="h-[1.875rem] w-[1.875rem] shrink-0 text-primary" />
           <span
             className={cn(
-              'font-mono text-xl font-bold',
+              'font-mono text-3xl font-bold',
               isTicketWarningActive && 'animate-flash-warning-text',
             )}
           >
@@ -118,10 +118,10 @@ export function ParadiseWidget({
           onClick={handleKeyClick}
           className="flex items-center justify-center gap-2 text-foreground transition-colors hover:bg-muted"
         >
-          <Key className="h-6 w-6 shrink-0 text-secondary" />
+          <Key className="h-[1.875rem] w-[1.875rem] shrink-0 text-secondary" />
           <span
             className={cn(
-              'font-mono text-xl font-bold',
+              'font-mono text-3xl font-bold',
               isKeyWarningActive && 'animate-flash-warning-text',
             )}
           >
@@ -136,7 +136,7 @@ export function ParadiseWidget({
           onClick={onOpenGoldReward}
           className="flex items-center justify-center bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <Banknote className="h-6 w-6 shrink-0" />
+          <Banknote className="h-[1.875rem] w-[1.875rem] shrink-0" />
         </button>
       </div>
     </div>

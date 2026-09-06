@@ -43,7 +43,7 @@ export function HalHourglassWidget({ data, onToggleCompleted, onOpenSettings, cl
             onToggleCompleted?.(!isCompleted)
           }
         }}
-        className="flex cursor-pointer items-center justify-between gap-3 border-b border-border px-5 py-2.5 transition-colors hover:bg-muted/50"
+        className="flex cursor-pointer items-center justify-between gap-3 border-b border-border px-5 py-3 transition-colors hover:bg-muted/50"
       >
         <label
           className="relative flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center"
@@ -61,7 +61,7 @@ export function HalHourglassWidget({ data, onToggleCompleted, onOpenSettings, cl
 
         <h3
           className={cn(
-            'min-w-0 flex-1 truncate text-center text-lg font-semibold text-foreground',
+            'min-w-0 flex-1 truncate text-center text-2xl font-semibold text-foreground',
             isCompleted && 'text-muted-foreground line-through decoration-2',
           )}
         >

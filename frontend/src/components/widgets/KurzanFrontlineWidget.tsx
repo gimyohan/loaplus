@@ -131,7 +131,7 @@ export function KurzanFrontlineWidget({
           }
         }}
         className={cn(
-          'flex items-center justify-between gap-3 border-b border-border px-5 py-2.5',
+          'flex items-center justify-between gap-3 border-b border-border px-5 py-3',
           !isCheckboxDisabled && 'cursor-pointer transition-colors hover:bg-muted/50',
         )}
       >
@@ -155,7 +155,7 @@ export function KurzanFrontlineWidget({
 
         <h3
           className={cn(
-            'min-w-0 flex-1 truncate text-center text-xl font-semibold text-foreground',
+            'min-w-0 flex-1 truncate text-center text-2xl font-semibold text-foreground',
             isHarvested && 'text-muted-foreground line-through decoration-2',
           )}
         >
@@ -193,16 +193,16 @@ export function KurzanFrontlineWidget({
           }
         }}
         className={cn(
-          'flex flex-1 flex-col justify-center gap-3 px-5 py-4 transition-opacity',
+          'flex flex-1 flex-col justify-center gap-2.5 px-5 py-4 transition-opacity',
           isHarvested && 'opacity-50',
           !isCheckboxDisabled && 'cursor-pointer transition-colors hover:bg-muted/50',
         )}
       >
         <div className="flex items-center justify-between">
-          <span className="font-mono text-base uppercase tracking-wide text-muted-foreground">
+          <span className="font-mono text-lg uppercase tracking-wide text-muted-foreground">
             휴식 게이지
           </span>
-          <span className="font-mono text-base text-secondary">
+          <span className="font-mono text-lg text-secondary">
             {restGauge}/{restGaugeMax}
           </span>
         </div>

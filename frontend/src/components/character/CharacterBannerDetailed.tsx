@@ -1,18 +1,4 @@
-import {
-  Circle,
-  Crown,
-  Footprints,
-  Gem,
-  Hand,
-  Headphones,
-  Shield,
-  Shirt,
-  Sparkles,
-  Swords,
-  Triangle,
-  Watch,
-  type LucideIcon,
-} from 'lucide-react'
+import { ImageOff } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { CharacterBanner } from '@/components/character/CharacterBanner'
@@ -37,23 +23,24 @@ export interface CharacterBannerDetailedProps {
   className?: string
 }
 
-// 장비 슬롯 6종. 실제 부위와 더 잘 어울리는 아이콘으로: 투구=Crown(머리), 어깨=Shield(방어구),
-// 상의=Shirt, 하의=Footprints(하반신), 장갑=Hand, 무기=Swords.
-const EQUIPMENT_SLOTS: { key: keyof EquipmentDetail; label: string; icon: LucideIcon }[] = [
-  { key: 'head', label: '투구', icon: Crown },
-  { key: 'shoulder', label: '어깨', icon: Shield },
-  { key: 'chest', label: '상의', icon: Shirt },
-  { key: 'pants', label: '하의', icon: Footprints },
-  { key: 'gloves', label: '장갑', icon: Hand },
-  { key: 'weapon', label: '무기', icon: Swords },
+// 장비 슬롯 6종. 아이콘 이미지가 없을 때는 부위별로 다른 아이콘을 쓰지 않고 모두 ImageOff로
+// 통일한다(사용자 확정) — "이미지 없음"이라는 같은 상태를 부위마다 다르게 표현하면 오히려 실제
+// 아이템 아이콘처럼 오인될 수 있기 때문이다.
+const EQUIPMENT_SLOTS: { key: keyof EquipmentDetail; label: string }[] = [
+  { key: 'head', label: '투구' },
+  { key: 'shoulder', label: '어깨' },
+  { key: 'chest', label: '상의' },
+  { key: 'pants', label: '하의' },
+  { key: 'gloves', label: '장갑' },
+  { key: 'weapon', label: '무기' },
 ]
 
-const ACCESSORY_SLOTS: { key: keyof AccessoryDetail; label: string; icon: LucideIcon }[] = [
-  { key: 'necklace', label: '목걸이', icon: Sparkles },
-  { key: 'earring1', label: '귀걸이1', icon: Headphones },
-  { key: 'earring2', label: '귀걸이2', icon: Headphones },
-  { key: 'ring1', label: '반지1', icon: Circle },
-  { key: 'ring2', label: '반지2', icon: Circle },
+const ACCESSORY_SLOTS: { key: keyof AccessoryDetail; label: string }[] = [
+  { key: 'necklace', label: '목걸이' },
+  { key: 'earring1', label: '귀걸이1' },
+  { key: 'earring2', label: '귀걸이2' },
+  { key: 'ring1', label: '반지1' },
+  { key: 'ring2', label: '반지2' },
 ]
 
 // 공식 로스트아크 클라이언트가 쓰는 장식 프레임 원본 에셋 — 아이콘 아틀라스(efui_iconatlas)와는
@@ -266,7 +253,7 @@ export function CharacterBannerDetailed({
       <div className="relative z-10 flex flex-[3] gap-3">
         {/* 장비 6종 */}
         <div className="grid flex-[5] grid-cols-2 grid-rows-3 gap-x-3 gap-y-1.5 py-3 pl-3">
-          {EQUIPMENT_SLOTS.map(({ key, label, icon: Icon }) => {
+          {EQUIPMENT_SLOTS.map(({ key, label }) => {
             const slot = equipment[key]
             const qualityColorValue = qualityColor(slot.quality)
             const refineColor = refineLevelColor(slot.refineLevel, slot.itemName)
@@ -312,11 +299,12 @@ export function CharacterBannerDetailed({
                         style={{ backgroundColor: backgroundColor ?? undefined }}
                       >
                         {/* Open API가 내려주는 실제 장비 아이콘 이미지를 우선 쓰고, 없으면(구 저장
-                            데이터 등) 부위별 lucide 아이콘으로 대체한다. */}
+                            데이터 등) 부위와 무관하게 항상 같은 "이미지 없음" 아이콘으로 대체한다
+                            (사용자 확정). */}
                         {slot.iconUrl ? (
                           <img src={slot.iconUrl} alt={label} className="h-full w-full object-cover" />
                         ) : (
-                          <Icon className={cn('h-5 w-5', isWeapon ? 'text-primary' : 'text-muted-foreground')} />
+                          <ImageOff className={cn('h-5 w-5', isWeapon ? 'text-primary' : 'text-muted-foreground')} />
                         )}
                       </div>
                       {/* 프레임은 아이콘 위에 겹치는 오버레이라 아이콘과 같은 크기(부모 relative
@@ -325,7 +313,7 @@ export function CharacterBannerDetailed({
                       <ItemFrames arkPassiveKind="equipment" isTierGear={slot.isTierGear} petBorder={slot.petBorder} />
                     </div>
                     <span
-                      className="font-mono text-xl font-bold leading-none whitespace-nowrap"
+                      className="font-mono text-4xl font-bold leading-none whitespace-nowrap"
                       style={{ color: refineColor }}
                     >
                       +{slot.refineLevel}
@@ -382,10 +370,10 @@ export function CharacterBannerDetailed({
                 {abilityStone.iconUrl ? (
                   <img src={abilityStone.iconUrl} alt="어빌리티 스톤" className="h-full w-full object-cover" />
                 ) : (
-                  <Triangle className="h-5 w-5 text-primary" fill="currentColor" fillOpacity={0.2} />
+                  <ImageOff className="h-5 w-5 text-muted-foreground" />
                 )}
               </div>
-              <span className="font-mono text-xl font-bold leading-none whitespace-nowrap">
+              <span className="font-mono text-4xl font-bold leading-none whitespace-nowrap">
                 <span className="text-foreground">{stoneA ? `+${stoneA.level}` : '-'}</span>
                 <span className="text-sm text-muted-foreground">/</span>
                 <span className="text-secondary">{stoneB ? `+${stoneB.level}` : '-'}</span>
@@ -403,7 +391,7 @@ export function CharacterBannerDetailed({
                   {bracelet.iconUrl ? (
                     <img src={bracelet.iconUrl} alt="팔찌" className="h-full w-full object-cover" />
                   ) : (
-                    <Watch className="h-5 w-5 text-secondary" />
+                    <ImageOff className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
                 <ItemFrames arkPassiveKind="bracelet" isTierGear={bracelet.isTierGear} petBorder={0} />
@@ -424,14 +412,14 @@ export function CharacterBannerDetailed({
                   {wristGuard.iconUrl ? (
                     <img src={wristGuard.iconUrl} alt="완갑" className="h-full w-full object-cover" />
                   ) : (
-                    <Gem className="h-5 w-5 text-primary" />
+                    <ImageOff className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
                 {/* 완갑은 아크 패시브 3분류(진화/깨달음/도약) 어디에도 안 속해 arkPassiveKind를
                     null로 둔다 — 전율 전용(petBorder) 프레임만 뜬다(사용자 확인). */}
                 <ItemFrames arkPassiveKind={null} isTierGear={false} petBorder={wristGuard.petBorder} />
               </div>
-              <span className="font-mono text-xl font-bold leading-none whitespace-nowrap text-foreground">
+              <span className="font-mono text-4xl font-bold leading-none whitespace-nowrap text-foreground">
                 {wristGuard.itemName ? `+${wristGuard.refineLevel}` : '-'}
               </span>
             </div>
@@ -440,7 +428,7 @@ export function CharacterBannerDetailed({
 
         {/* 장신구 5종 — 가장 오른쪽으로 배치. */}
         <div className="flex flex-[2] flex-col justify-between py-3 pr-4">
-          {ACCESSORY_SLOTS.map(({ key, label, icon: Icon }) => {
+          {ACCESSORY_SLOTS.map(({ key, label }) => {
             const slot = accessories[key]
             return (
               <HoverDetail
@@ -455,11 +443,11 @@ export function CharacterBannerDetailed({
                       style={{ backgroundColor: gradeBackgroundColor(slot.grade) ?? undefined }}
                     >
                       {/* 장비와 동일하게, 실제 아이템 이미지가 있으면 우선 쓰고 없으면(구 저장 데이터
-                          등) 부위별 lucide 아이콘으로 대체한다. */}
+                          등) 항상 같은 "이미지 없음" 아이콘으로 대체한다. */}
                       {slot.iconUrl ? (
                         <img src={slot.iconUrl} alt={label} className="h-full w-full object-cover" />
                       ) : (
-                        <Icon className="h-5 w-5 text-muted-foreground" />
+                        <ImageOff className="h-5 w-5 text-muted-foreground" />
                       )}
                     </div>
                     <ItemFrames arkPassiveKind="accessory" isTierGear={slot.isTierGear} petBorder={0} />
