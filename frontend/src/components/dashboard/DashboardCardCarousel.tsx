@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { AddCharacterCard } from '@/components/dashboard/AddCharacterCard'
@@ -6,6 +6,9 @@ import { DashboardCard } from '@/components/dashboard/DashboardCard'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { useElementWidth } from '@/hooks/useElementWidth'
 import { MAX_CHARACTERS_PER_USER } from '@/lib/characters'
+
+// 카드가 많을 때 한 칸씩 넘기기 답답하지 않도록, 3칸씩 건너뛰는 이동 버튼도 함께 둔다(사용자 확정).
+const JUMP_SIZE = 3
 
 export interface DashboardCardCarouselProps {
   cardIds: string[]
@@ -48,27 +51,49 @@ export function DashboardCardCarousel({
   return (
     <div ref={ref} className="flex flex-col items-center gap-3">
       <div className="flex w-full items-center justify-between">
-        <button
-          type="button"
-          aria-label="이전 카드"
-          disabled={index === 0}
-          onClick={() => setIndex((prev) => Math.max(prev - 1, 0))}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label={`${JUMP_SIZE}칸 이전 카드`}
+            disabled={index === 0}
+            onClick={() => setIndex((prev) => Math.max(prev - JUMP_SIZE, 0))}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronsLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            aria-label="이전 카드"
+            disabled={index === 0}
+            onClick={() => setIndex((prev) => Math.max(prev - 1, 0))}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+        </div>
         <span className="font-mono text-xs text-muted-foreground">
           {index + 1} / {slideCount}
         </span>
-        <button
-          type="button"
-          aria-label="다음 카드"
-          disabled={index === slideCount - 1}
-          onClick={() => setIndex((prev) => Math.min(prev + 1, slideCount - 1))}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="다음 카드"
+            disabled={index === slideCount - 1}
+            onClick={() => setIndex((prev) => Math.min(prev + 1, slideCount - 1))}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            aria-label={`${JUMP_SIZE}칸 다음 카드`}
+            disabled={index === slideCount - 1}
+            onClick={() => setIndex((prev) => Math.min(prev + JUMP_SIZE, slideCount - 1))}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronsRight className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {width > 0 &&
