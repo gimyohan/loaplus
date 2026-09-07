@@ -8,6 +8,7 @@ import {
   gradeBackgroundColor,
   hasAdvancedRefine,
   qualityColor,
+  qualityGaugeGradient,
   refineLevelColor,
 } from '@/lib/armoryColors'
 import { BANNER_ZOOM_PERCENT, getBannerImagePosition } from '@/lib/bannerImagePosition'
@@ -256,9 +257,9 @@ export function CharacterBannerDetailed({
           {EQUIPMENT_SLOTS.map(({ key, label }) => {
             const slot = equipment[key]
             const qualityColorValue = qualityColor(slot.quality)
-            const refineColor = refineLevelColor(slot.refineLevel, slot.itemName)
+            const refineColor = refineLevelColor(slot.refineLevel, slot.itemName, slot.grade)
             const advancedRefineColor = advancedRefineLevelColor(slot.advancedRefineLevel)
-            const showAdvancedRefine = hasAdvancedRefine(slot.itemName)
+            const showAdvancedRefine = hasAdvancedRefine(slot.itemName, slot.grade)
             const isWeapon = key === 'weapon'
             const backgroundColor = gradeBackgroundColor(slot.grade)
             return (
@@ -327,7 +328,7 @@ export function CharacterBannerDetailed({
                       className="h-full rounded-full"
                       style={{
                         width: `${slot.quality}%`,
-                        backgroundColor: qualityColorValue,
+                        backgroundImage: qualityGaugeGradient(slot.quality),
                         boxShadow: `0 0 6px ${qualityColorValue}66`,
                       }}
                     />
@@ -374,9 +375,13 @@ export function CharacterBannerDetailed({
                 )}
               </div>
               <span className="font-mono text-4xl font-bold leading-none whitespace-nowrap">
-                <span className="text-foreground">{stoneA ? `+${stoneA.level}` : '-'}</span>
+                <span style={{ color: stoneA ? engravingLevelColor(stoneA.level) : 'rgb(var(--foreground))' }}>
+                  {stoneA ? `+${stoneA.level}` : '-'}
+                </span>
                 <span className="text-sm text-muted-foreground">/</span>
-                <span className="text-secondary">{stoneB ? `+${stoneB.level}` : '-'}</span>
+                <span style={{ color: stoneB ? engravingLevelColor(stoneB.level) : 'rgb(var(--foreground))' }}>
+                  {stoneB ? `+${stoneB.level}` : '-'}
+                </span>
               </span>
             </div>
           </HoverDetail>

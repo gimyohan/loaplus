@@ -1,7 +1,4 @@
 // 상세 배너(BANNER_DETAILED)의 "색상·숫자 위주 요약" 표시에 쓰는 색상 규칙(docs/widgets.typ 참고).
-function chartColor(n: 1 | 2 | 3): string {
-  return `rgb(var(--chart-${n}))`
-}
 
 // 로스트아크 Open API 응답(ArmoryEquipment[].Tooltip)에는 품질/재련 단계 등의 "숫자"만 있고
 // 그 숫자를 어떤 색으로 보여줄지는 내려주지 않는다 — 그래서 이 파일에서 값 구간(레벨)별 색을
@@ -20,36 +17,79 @@ function colorForLevel(value: number, buckets: LevelColorBucket[]): string {
 }
 
 const COLOR_NONE = 'rgb(var(--muted-foreground))'
-const COLOR_RED = '#F04747'
-const COLOR_GREEN = '#22C55E'
-const COLOR_BLUE = '#3B82F6'
-const COLOR_PURPLE = '#A855F7'
-const COLOR_ORANGE = '#F97316'
 
-// 장비 품질(0~100) 구간 색 — 실제 게임 UI가 쓰는 품질 구간별 색을 그대로 재현한다: 0 없음 /
-// 1~30 빨강 / 31~69 초록 / 70~89 파랑 / 90~99 보라 / 100 주황.
+// 아이템 등급별 텍스트(숫자) 색 팔레트(사용자 확정) — 강화(재련) 단계 구간표(REFINE_LEVEL_BUCKET_SETS)가
+// 이 이름으로 색을 참조하므로 그보다 먼저 선언한다. 아래 GRADE_BACKGROUND_COLORS(아이콘 배경, 4개
+// 등급만 지정)와는 별개로 8개 등급 전부를 지정한다.
+const GRADE_TEXT_COLORS: Record<string, string> = {
+  일반: '#ffffff',
+  고급: '#8df901',
+  희귀: '#00b0fa',
+  영웅: '#c340ef',
+  전설: '#f99200',
+  유물: '#f99200',
+  고대: '#e3c7a1',
+  에스더: '#3cf2e6',
+}
+
+export function gradeTextColor(grade: string): string | null {
+  return GRADE_TEXT_COLORS[grade] ?? null
+}
+
+// 장비 품질(0~100) 구간 색(사용자 확정) — 아이템 등급 팔레트(GRADE_TEXT_COLORS)와는 별개의
+// 전용 팔레트다: 0 없음(게이지 자체가 0%라 색이 안 보임) / 1~9 빨강 / 10~29 노랑 / 30~69 초록 /
+// 70~89 파랑 / 90~99 보라 / 100 주황.
+const QUALITY_COLOR_RED = '#ff541d'
+const QUALITY_COLOR_YELLOW = '#ffff10'
+const QUALITY_COLOR_GREEN = '#b2ff0d'
+const QUALITY_COLOR_BLUE = '#0fe6ff'
+const QUALITY_COLOR_PURPLE = '#fc11ff'
+const QUALITY_COLOR_ORANGE = '#ffa031'
+
 const QUALITY_BUCKETS: LevelColorBucket[] = [
   { max: 0, color: COLOR_NONE },
-  { max: 30, color: COLOR_RED },
-  { max: 69, color: COLOR_GREEN },
-  { max: 89, color: COLOR_BLUE },
-  { max: 99, color: COLOR_PURPLE },
-  { max: 100, color: COLOR_ORANGE },
+  { max: 9, color: QUALITY_COLOR_RED },
+  { max: 29, color: QUALITY_COLOR_YELLOW },
+  { max: 69, color: QUALITY_COLOR_GREEN },
+  { max: 89, color: QUALITY_COLOR_BLUE },
+  { max: 99, color: QUALITY_COLOR_PURPLE },
+  { max: 100, color: QUALITY_COLOR_ORANGE },
 ]
 
 export function qualityColor(quality: number): string {
   return colorForLevel(quality, QUALITY_BUCKETS)
 }
 
-// 상급 재련 단계(0~40) 구간 색 — 품질 색상 팔레트를 그대로 재사용한다(사용자 확정, 게임 UI 근거는
-// 아니고 이 앱에서 정한 구간): 0 없음 / 1~10 빨강 / 11~20 초록 / 21~30 파랑 / 31~39 보라 / 40 주황.
+// 품질 게이지 바를 위한 그라데이션(사용자 확정) — 오른쪽 끝(현재 값)은 qualityColor 그대로,
+// 왼쪽 끝(0)으로 갈수록 같은 색을 어둡게 만든 색을 쓴다. hex 색만 어둡게 계산할 수 있어(RGB
+// 채널 스케일), COLOR_NONE(테마 토큰 문자열)처럼 hex가 아니면 그대로(단색) 반환한다 — 어차피
+// quality 0일 땐 바 너비 자체가 0%라 안 보인다.
+const QUALITY_GAUGE_DARKEN_RATIO = 0.35
+
+function darkenHexColor(hex: string, ratio: number): string {
+  const match = /^#([0-9a-fA-F]{6})$/.exec(hex)
+  if (!match) return hex
+  const num = parseInt(match[1], 16)
+  const channel = (shift: number) => Math.round(((num >> shift) & 0xff) * (1 - ratio))
+  const darkened = (channel(16) << 16) | (channel(8) << 8) | channel(0)
+  return `#${darkened.toString(16).padStart(6, '0')}`
+}
+
+export function qualityGaugeGradient(quality: number): string {
+  const color = qualityColor(quality)
+  return `linear-gradient(to right, ${darkenHexColor(color, QUALITY_GAUGE_DARKEN_RATIO)}, ${color})`
+}
+
+// 상급 재련 단계(0~40) 구간 색 — 강화(재련) 숫자와 같은 아이템 등급 팔레트를 쓴다(사용자 확정):
+// 0 일반 / 1~10 고급 / 11~20 희귀 / 21~30 영웅 / 31~39 전설 / 40 유물. 경계값 자체는 이 앱에서
+// 정한 구간(게임 UI 근거 아님)으로 예전과 동일, 색만 교체했다.
 const ADVANCED_REFINE_LEVEL_BUCKETS: LevelColorBucket[] = [
-  { max: 0, color: COLOR_NONE },
-  { max: 10, color: COLOR_RED },
-  { max: 20, color: COLOR_GREEN },
-  { max: 30, color: COLOR_BLUE },
-  { max: 39, color: COLOR_PURPLE },
-  { max: 40, color: COLOR_ORANGE },
+  { max: 0, color: GRADE_TEXT_COLORS.일반 },
+  { max: 10, color: GRADE_TEXT_COLORS.고급 },
+  { max: 20, color: GRADE_TEXT_COLORS.희귀 },
+  { max: 30, color: GRADE_TEXT_COLORS.영웅 },
+  { max: 39, color: GRADE_TEXT_COLORS.전설 },
+  { max: 40, color: GRADE_TEXT_COLORS.유물 },
 ]
 
 export function advancedRefineLevelColor(advancedRefineLevel: number): string {
@@ -60,7 +100,9 @@ export function advancedRefineLevelColor(advancedRefineLevel: number): string {
 // 상급 재련이 없는 것이다(사용자 확인). 나중에 상급 재련 없는 세트가 더 확인되면 이름만 추가한다.
 const NO_ADVANCED_REFINE_ITEM_NAMES = ['전율']
 
-export function hasAdvancedRefine(itemName: string): boolean {
+export function hasAdvancedRefine(itemName: string, grade: string): boolean {
+  // 에스더 무기도 상급 재련 등급 자체가 없다(사용자 확인) — 이름 패턴과 무관하게 등급으로 먼저 제외.
+  if (grade === '에스더') return false
   return !NO_ADVANCED_REFINE_ITEM_NAMES.some((name) => itemName?.includes(name))
 }
 
@@ -78,27 +120,30 @@ interface RefineLevelBucketSet {
 
 const REFINE_LEVEL_BUCKET_SETS: RefineLevelBucketSet[] = [
   {
-    // "운명의 업화"/"운명의 결단" 세트: +10 기준 아이템 레벨 1640대(사용자 확인).
+    // "운명의 업화"/"운명의 결단" 세트: +10 기준 아이템 레벨 1640대(사용자 확인). 구간 경계는
+    // 그대로 두고 색만 아이템 등급 팔레트(일반→유물, 6단계)로 교체했다(사용자 확정).
     nameIncludes: ['업화', '결단'],
     buckets: [
-      { max: 9, color: COLOR_NONE },
-      { max: 13, color: COLOR_RED },
-      { max: 15, color: COLOR_GREEN },
-      { max: 17, color: COLOR_BLUE },
-      { max: 19, color: COLOR_PURPLE },
-      { max: 25, color: COLOR_ORANGE },
+      { max: 9, color: GRADE_TEXT_COLORS.일반 },
+      { max: 13, color: GRADE_TEXT_COLORS.고급 },
+      { max: 15, color: GRADE_TEXT_COLORS.희귀 },
+      { max: 17, color: GRADE_TEXT_COLORS.영웅 },
+      { max: 19, color: GRADE_TEXT_COLORS.전설 },
+      { max: 25, color: GRADE_TEXT_COLORS.유물 },
     ],
   },
   {
-    // "운명의 전율" 세트: +11 기준 아이템 레벨 1730대(사용자 확인).
+    // "운명의 전율" 세트: +11 기준 아이템 레벨 1730대(사용자 확인). 기존 11~14 구간을 11~12/13~14로
+    // 쪼개 한 단계를 더 늘리고, 색은 아이템 등급 팔레트(일반→고대, 7단계)로 교체했다(사용자 확정).
     nameIncludes: ['전율'],
     buckets: [
-      { max: 10, color: COLOR_NONE },
-      { max: 14, color: COLOR_RED },
-      { max: 16, color: COLOR_GREEN },
-      { max: 18, color: COLOR_BLUE },
-      { max: 20, color: COLOR_PURPLE },
-      { max: 25, color: COLOR_ORANGE },
+      { max: 10, color: GRADE_TEXT_COLORS.일반 },
+      { max: 12, color: GRADE_TEXT_COLORS.고급 },
+      { max: 14, color: GRADE_TEXT_COLORS.희귀 },
+      { max: 16, color: GRADE_TEXT_COLORS.영웅 },
+      { max: 18, color: GRADE_TEXT_COLORS.전설 },
+      { max: 20, color: GRADE_TEXT_COLORS.유물 },
+      { max: 25, color: GRADE_TEXT_COLORS.고대 },
     ],
   },
 ]
@@ -107,7 +152,11 @@ const REFINE_LEVEL_BUCKET_SETS: RefineLevelBucketSet[] = [
  * 보여주는 것보다, "아직 이 세트는 구간이 없다"는 걸 색으로도 드러내는 쪽을 택한다. */
 const REFINE_LEVEL_COLOR_UNKNOWN = COLOR_NONE
 
-export function refineLevelColor(refineLevel: number, itemName: string): string {
+export function refineLevelColor(refineLevel: number, itemName: string, grade: string): string {
+  // 에스더 무기는 재련 구간표 자체가 없고(위 세트 이름 어디에도 안 걸림), 구간과 무관하게 항상
+  // 에스더 등급 색으로 통일한다(사용자 확정) — 구간표(REFINE_LEVEL_BUCKET_SETS) 조회보다 먼저 검사.
+  if (grade === '에스더') return GRADE_TEXT_COLORS.에스더
+
   // 이 필드를 추가하기 전에 저장된 캐릭터는 새로고침 전까지 itemName이 없을 수 있다 — 방어적으로 처리.
   const set = REFINE_LEVEL_BUCKET_SETS.find((candidate) =>
     candidate.nameIncludes.some((name) => itemName?.includes(name)),
@@ -133,9 +182,16 @@ export function gradeBackgroundColor(grade: string): string | null {
   return GRADE_BACKGROUND_COLORS[grade] ?? null
 }
 
-/** 어빌리티 스톤 전투 각인 레벨(1~3)을 색상으로 구분한다(별도 색 정보 없음 — 이 앱 차트 팔레트 재사용). */
+// 어빌리티 스톤 전투 각인 레벨(0~4) 구간 색(사용자 확정) — 아이템 등급 팔레트를 그대로 재사용한다:
+// 0 일반 / 1 고급 / 2 희귀 / 3 영웅 / 4 전설.
+const ENGRAVING_LEVEL_BUCKETS: LevelColorBucket[] = [
+  { max: 0, color: GRADE_TEXT_COLORS.일반 },
+  { max: 1, color: GRADE_TEXT_COLORS.고급 },
+  { max: 2, color: GRADE_TEXT_COLORS.희귀 },
+  { max: 3, color: GRADE_TEXT_COLORS.영웅 },
+  { max: 4, color: GRADE_TEXT_COLORS.전설 },
+]
+
 export function engravingLevelColor(level: number): string {
-  if (level >= 3) return chartColor(2)
-  if (level >= 2) return chartColor(1)
-  return 'rgb(var(--muted-foreground))'
+  return colorForLevel(level, ENGRAVING_LEVEL_BUCKETS)
 }
