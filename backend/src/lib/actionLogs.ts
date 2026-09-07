@@ -60,8 +60,18 @@ interface StatisticDeltaResult {
  */
 function computeStatisticDelta(actionType: ActionType, rewards: RewardEntry[], sign: 1 | -1): StatisticDeltaResult {
   switch (actionType) {
-    case 'HARVEST_GUARDIAN':
-      return { statDelta: { guardianHarvestCount: sign }, itemRewardDelta: null }
+    case 'HARVEST_GUARDIAN': {
+      // 1640 이상 목표만 4티어 보석을 주므로(guardianRewardCatalog.ts 참고) 그 아래 목표는
+      // rewards가 항상 빈 배열이라 gemstoneAmount가 0으로 계산되어 컬럼을 건드리지 않는다.
+      const gemstoneAmount = rewards.find((reward) => reward.categoryKey === 'gemstone')?.amount ?? 0
+      return {
+        statDelta: {
+          guardianHarvestCount: sign,
+          ...(gemstoneAmount !== 0 ? { gemstoneTier4Earned: sign * gemstoneAmount } : {}),
+        },
+        itemRewardDelta: null,
+      }
+    }
     case 'HARVEST_KURZAN':
       return { statDelta: { kurzanHarvestCount: sign }, itemRewardDelta: null }
     case 'GUARDIAN_SHARD_REWARD':
@@ -282,8 +292,9 @@ export async function applyHarvestStatistics(
   characterId: string,
   actionType: 'HARVEST_GUARDIAN' | 'HARVEST_KURZAN',
   at: Date,
+  rewards: RewardEntry[] = [],
 ) {
-  const { statDelta } = computeStatisticDelta(actionType, [], 1)
+  const { statDelta } = computeStatisticDelta(actionType, rewards, 1)
   await applyStatisticDelta(tx, characterId, statDelta, at)
 }
 
@@ -396,7 +407,7 @@ const GENERIC_REWARD_CATEGORY_LABELS: Record<string, string> = {
   silver: '실링',
 }
 
-function toDisplayRewards(rewards: RewardEntry[]): RewardEntry[] {
+export function toDisplayRewards(rewards: RewardEntry[]): RewardEntry[] {
   return rewards.map((reward) => {
     const genericLabel = GENERIC_REWARD_CATEGORY_LABELS[reward.categoryKey]
     return genericLabel ? { ...reward, itemName: genericLabel } : reward

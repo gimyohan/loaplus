@@ -1,10 +1,13 @@
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 
+import type { Prisma } from '@prisma/client'
+
 import { getOrCreateGuardian, GUARDIAN_REST_GAUGE_COST, GUARDIAN_REST_GAUGE_MAX } from '../../lib/homeworkDefaults.js'
 import type { ActionLogCreateInput } from '../../lib/actionLogs.js'
-import { applyHarvestStatistics, createRewardLog, enforceActionLogCap, toLogEntry } from '../../lib/actionLogs.js'
+import { applyHarvestStatistics, createRewardLog, enforceActionLogCap, toDisplayRewards, toLogEntry } from '../../lib/actionLogs.js'
 import { GUARDIAN_RAID_TARGETS, pickHighestEligibleTarget } from '../../lib/contentTargets.js'
+import { buildGuardianHarvestRewards } from '../../lib/guardianRewardCatalog.js'
 import { AZENA_BLESSING_REWARD_CATALOG, findRewardCatalogItem, SHARD_REWARD_CATALOG } from '../../lib/rewardCatalog.js'
 import { requireAuth } from '../../lib/session.js'
 import { harvestSchema, rewardSelectionSchema, toHomeworkSummary } from './shared.js'
@@ -52,6 +55,9 @@ export async function guardianHomeworkRoutes(fastify: FastifyInstance) {
 
       const consumed = guardian.restGauge >= GUARDIAN_REST_GAUGE_COST
       const restGaugeConsumed = consumed ? GUARDIAN_REST_GAUGE_COST : 0
+      // 1640 이상 목표만 보상이 있고(guardianRewardCatalog.ts 참고), 휴식 게이지를 소모한
+      // 수확이면 보상이 2배가 된다(사용자 확인).
+      const rewards = buildGuardianHarvestRewards(guardian.targetName, consumed)
 
       const updated = await fastify.prisma.$transaction(async (tx) => {
         const updatedGuardian = await tx.guardian.update({
@@ -69,11 +75,12 @@ export async function guardianHomeworkRoutes(fastify: FastifyInstance) {
             characterId: character.id,
             actionType: 'HARVEST_GUARDIAN',
             revertParams: { restGaugeConsumed },
+            rewards: toDisplayRewards(rewards) as unknown as Prisma.InputJsonValue,
             description: parsed.data?.description ?? null,
             createdAt: now,
           } satisfies ActionLogCreateInput,
         })
-        await applyHarvestStatistics(tx, character.id, 'HARVEST_GUARDIAN', now)
+        await applyHarvestStatistics(tx, character.id, 'HARVEST_GUARDIAN', now, rewards)
         await enforceActionLogCap(tx, request.userId!)
         return updatedGuardian
       })

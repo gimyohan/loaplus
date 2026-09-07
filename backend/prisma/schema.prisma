@@ -225,10 +225,12 @@ model CharacterStatistic {
   kurzanShardRewardCount            Int    @default(0) @map("kurzan_shard_reward_count")
   guardianAzenaBlessingRewardCount  Int    @default(0) @map("guardian_azena_blessing_reward_count")
   kurzanAzenaBlessingRewardCount    Int    @default(0) @map("kurzan_azena_blessing_reward_count")
-  /// 에브니 큐브 클리어(EBONY_CUBE_CLEAR)·할의 모래시계 완료(HAL_HOURGLASS_COMPLETE)로 누적
-  /// 획득한 4티어 보석 수량. 골드/귀속골드가 아닌 별도 재화라 위 골드 카테고리 컬럼들에는
-  /// 포함되지 않는다(docs/ebony_cube_hal_hourglass.typ 참고).
-  gemstoneTier4Earned                Int    @default(0) @map("gemstone_tier4_earned")
+  /// 에브니 큐브 클리어(EBONY_CUBE_CLEAR)·할의 모래시계 완료(HAL_HOURGLASS_COMPLETE)·가디언
+  /// 토벌(HARVEST_GUARDIAN)로 누적 획득한 4티어 보석 수량. 골드/귀속골드가 아닌 별도 재화라 위
+  /// 골드 카테고리 컬럼들에는 포함되지 않는다(docs/ebony_cube_hal_hourglass.md 참고). 가디언
+  /// 토벌 보상은 목표별 기본값이 소수(예: 2.7개)라 Int가 아닌 Float다(사용자 확인 — 매 토벌마다
+  /// 반올림하면 장기간 누적 오차가 생기므로 정확한 소수 누적을 택함).
+  gemstoneTier4Earned                Float  @default(0) @map("gemstone_tier4_earned")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
@@ -257,7 +259,7 @@ model CharacterStatisticWeekly {
   kurzanShardRewardCount            Int      @default(0) @map("kurzan_shard_reward_count")
   guardianAzenaBlessingRewardCount  Int      @default(0) @map("guardian_azena_blessing_reward_count")
   kurzanAzenaBlessingRewardCount    Int      @default(0) @map("kurzan_azena_blessing_reward_count")
-  gemstoneTier4Earned                Int      @default(0) @map("gemstone_tier4_earned")
+  gemstoneTier4Earned                Float    @default(0) @map("gemstone_tier4_earned")
   updatedAt                         DateTime @updatedAt @map("updated_at")
 
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)

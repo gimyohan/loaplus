@@ -1,0 +1,11 @@
+{
+  "targets": [
+    { "targetName": "아게오로스", "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 2.7 }] },
+    { "targetName": "스콜라키아", "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 4.3 }] },
+    { "targetName": "드렉탈라스", "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 4.6 }] },
+    { "targetName": "크라티오스", "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 6.4 }] },
+    { "targetName": "잔영 1단계", "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 10.5 }] },
+    { "targetName": "잔영 2단계", "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 11.5 }] },
+    { "targetName": "잔영 3단계", "baseRewards": [{ "itemId": "gemstoneTier4", "amount": 13 }] }
+  ]
+}
