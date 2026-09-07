@@ -50,7 +50,7 @@ function HalHourglassWidgetBound({ characterId, characterNameForModal }: HalHour
         data={hourglassData}
         onToggleCompleted={(checked) => {
           if (checked) {
-            completeHalHourglass(characterId)
+            completeHalHourglass(characterId, hourglassData.level)
               .then((next) => {
                 setHourglassData(next)
                 notifyHomeworksChanged(characterId)
