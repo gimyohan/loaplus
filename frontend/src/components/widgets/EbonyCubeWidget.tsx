@@ -67,7 +67,7 @@ export function EbonyCubeWidget({ data, onCycleTarget, onClear, onOpenSettings, 
 
       {/* 중단: 좌우 화살표로 등급 선택. 수량이 있는 등급만 대상이고 순환하지 않으며(양 끝에서는
           해당 화살표가 비활성화됨), 화살표 바깥쪽에 이전/다음 등급을 흐리게 미리 보여준다. */}
-      <div className="flex flex-1 items-center justify-center gap-2 px-4">
+      <div className="flex flex-1 items-center justify-center gap-1 px-2">
         <span className="w-14 shrink-0 truncate text-right text-xs text-muted-foreground/40">
           {prevLabel}
         </span>
