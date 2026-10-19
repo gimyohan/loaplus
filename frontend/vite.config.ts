@@ -1,10 +1,19 @@
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// 앱 버전의 단일 출처는 package.json의 version이다(git 태그 v{version}과 항상 같게 유지).
+const { version } = JSON.parse(readFileSync(path.resolve(import.meta.dirname, './package.json'), 'utf-8')) as {
+  version: string
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),

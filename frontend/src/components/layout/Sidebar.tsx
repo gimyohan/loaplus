@@ -146,6 +146,7 @@ export function Sidebar({
             {!isCollapsed && '로그인'}
           </button>
         )}
+        <p className="pt-2 text-center text-[10px] text-muted-foreground/70">v{__APP_VERSION__}</p>
       </div>
     </nav>
   )
