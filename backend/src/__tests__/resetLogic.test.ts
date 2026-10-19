@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  applyHarvestDailyResets,
+  crossedDailyBoundaryCount,
+  crossedWeeklyBoundaryCount,
   mostRecentDailyBoundary,
   mostRecentWeeklyBoundary,
   retentionCutoffDate,
@@ -28,6 +31,75 @@ describe('mostRecentDailyBoundary', () => {
     // 2026-08-25 06:01:00 KST
     const at = new Date('2026-08-24T21:01:00.000Z')
     expect(mostRecentDailyBoundary(at)).toEqual(new Date('2026-08-24T21:00:00.000Z'))
+  })
+})
+
+describe('crossedDailyBoundaryCount', () => {
+  it('운영에서 실제로 누락됐던 사례: 18일 16:25 KST 방문 → 20일 07:22 KST는 경계 2개(19일·20일 06:00)', () => {
+    const last = new Date('2026-10-18T07:25:37.000Z').getTime()
+    const now = new Date('2026-10-19T22:22:14.000Z')
+    expect(crossedDailyBoundaryCount(last, now)).toBe(2)
+  })
+
+  it('같은 날 안에서 경계를 한 번만 넘으면 1', () => {
+    // 05:00 KST 방문 → 같은 날 07:00 KST
+    const last = new Date('2026-10-18T20:00:00.000Z').getTime()
+    const now = new Date('2026-10-18T22:00:00.000Z')
+    expect(crossedDailyBoundaryCount(last, now)).toBe(1)
+  })
+
+  it('첫 방문(last_visited_at 없음)은 1', () => {
+    expect(crossedDailyBoundaryCount(-Infinity, new Date('2026-10-19T22:22:14.000Z'))).toBe(1)
+  })
+})
+
+describe('crossedWeeklyBoundaryCount', () => {
+  it('같은 주 안에서 경계를 한 번만 넘으면 1', () => {
+    // 2026-10-14(수) 05:00 KST 방문 → 같은 날 07:00 KST (경계 2026-10-13T21:00Z)
+    const last = new Date('2026-10-13T20:00:00.000Z').getTime()
+    const now = new Date('2026-10-13T22:00:00.000Z')
+    expect(crossedWeeklyBoundaryCount(last, now)).toBe(1)
+  })
+
+  it('3주 비웠다 접속하면 3', () => {
+    // 2026-09-23(수) 07:00 KST 방문 → 2026-10-14(수) 07:00 KST: 경계 9/30, 10/7, 10/14
+    const last = new Date('2026-09-22T22:00:00.000Z').getTime()
+    const now = new Date('2026-10-13T22:00:00.000Z')
+    expect(crossedWeeklyBoundaryCount(last, now)).toBe(3)
+  })
+
+  it('첫 방문은 1', () => {
+    expect(crossedWeeklyBoundaryCount(-Infinity, new Date('2026-10-13T22:00:00.000Z'))).toBe(1)
+  })
+})
+
+describe('applyHarvestDailyResets', () => {
+  const base = { restGaugeMax: 100 }
+
+  it('경계 1개 — 수확한 날이면 게이지는 그대로(플래그만 끔)', () => {
+    expect(applyHarvestDailyResets({ ...base, isHarvested: true, restGauge: 0 }, 1)).toEqual({ restGauge: 0 })
+  })
+
+  it('경계 1개 — 쉰 날이면 10% 충전', () => {
+    expect(applyHarvestDailyResets({ ...base, isHarvested: false, restGauge: 0 }, 1)).toEqual({ restGauge: 10 })
+  })
+
+  it('경계 2개 — 수확 다음 날 쉬었으면 첫 경계는 플래그만, 둘째 경계에서 10% 충전(운영 누락 사례)', () => {
+    expect(applyHarvestDailyResets({ ...base, isHarvested: true, restGauge: 0 }, 2)).toEqual({ restGauge: 10 })
+  })
+
+  it('경계 3개 — 안 한 채로 비웠으면 3일치 30% 충전', () => {
+    expect(applyHarvestDailyResets({ ...base, isHarvested: false, restGauge: 0 }, 3)).toEqual({ restGauge: 30 })
+  })
+
+  it('최대치를 넘지 않는다 — 충전량이 남은 공간보다 커도 상한에서 멈춘다', () => {
+    expect(applyHarvestDailyResets({ ...base, isHarvested: false, restGauge: 95 }, 5)).toEqual({ restGauge: 100 })
+    expect(applyHarvestDailyResets({ ...base, isHarvested: true, restGauge: 85 }, 10)).toEqual({ restGauge: 100 })
+  })
+
+  it('이미 상한이면 그대로, 충전 경계가 없으면(수확 후 경계 1개) 기존 값을 건드리지 않는다', () => {
+    expect(applyHarvestDailyResets({ ...base, isHarvested: false, restGauge: 100 }, 3)).toEqual({ restGauge: 100 })
+    expect(applyHarvestDailyResets({ ...base, isHarvested: true, restGauge: 120 }, 1)).toEqual({ restGauge: 120 })
   })
 })
 

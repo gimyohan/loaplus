@@ -67,6 +67,43 @@ function crossedDailyBoundaryDaysMask(lastVisitedAtMs: number, now: Date): numbe
   return mask
 }
 
+/**
+ * lastVisitedAtMs와 now 사이에 크로스된 "매일 06:00 KST" 경계의 개수. 마지막 방문이 없으면(첫
+ * 방문) 1로 본다. applyLazyReset은 dailyCrossed일 때만 부르므로 항상 1 이상이다.
+ */
+export function crossedDailyBoundaryCount(lastVisitedAtMs: number, now: Date): number {
+  if (!Number.isFinite(lastVisitedAtMs)) return 1
+  const lastBoundary = mostRecentDailyBoundary(new Date(lastVisitedAtMs))
+  return Math.round((mostRecentDailyBoundary(now).getTime() - lastBoundary.getTime()) / MS_PER_DAY)
+}
+
+/** crossedDailyBoundaryCount의 주간판 — 지나간 "수요일 06:00 KST" 경계의 개수(첫 방문이면 1). */
+export function crossedWeeklyBoundaryCount(lastVisitedAtMs: number, now: Date): number {
+  if (!Number.isFinite(lastVisitedAtMs)) return 1
+  const lastBoundary = mostRecentWeeklyBoundary(new Date(lastVisitedAtMs))
+  return Math.round((mostRecentWeeklyBoundary(now).getTime() - lastBoundary.getTime()) / (7 * MS_PER_DAY))
+}
+
+const REST_GAUGE_DAILY_REFILL_RATIO = 0.1
+
+/**
+ * 가디언/쿠르잔 전선의 일일 초기화를, 방문 간격 동안 지나간 경계 개수(crossedCount)만큼 한꺼번에
+ * 반영한다. 경계 하나마다 "그날 수확했으면 플래그만 끄고, 안 했으면 게이지 10% 충전"이 적용되는데,
+ * 수확 플래그는 가장 오래된 첫 경계에서만 켜져 있었으므로 그 경계는 플래그만 끄고 나머지
+ * (crossedCount - 1)개 경계는 모두 쉰 날이라 각각 10%씩 충전한다. 예전엔 방문 간격과 무관하게
+ * 한 번만 적용해, 이틀 이상 비웠다 접속하면 수확한 다음 날의 충전분이 통째로 누락됐다.
+ */
+export function applyHarvestDailyResets(
+  state: { isHarvested: boolean; restGauge: number; restGaugeMax: number },
+  crossedCount: number,
+): { restGauge: number } {
+  const refillCount = state.isHarvested ? crossedCount - 1 : crossedCount
+  // 충전할 경계가 없으면 게이지를 건드리지 않는다 — 상한 클램프로 기존 값을 깎지 않기 위함.
+  if (refillCount <= 0) return { restGauge: state.restGauge }
+  const refill = Math.round(state.restGaugeMax * REST_GAUGE_DAILY_REFILL_RATIO) * refillCount
+  return { restGauge: Math.min(state.restGauge + refill, state.restGaugeMax) }
+}
+
 const RETENTION_DAYS = 90
 
 /**
@@ -91,6 +128,10 @@ interface LazyResetContext {
   characterIds: string[]
   /** 'daily' 대상만 쓴다. dailyCrossed가 false면 항상 0(대상 자체가 실행되지 않으므로 무의미). */
   crossedDaysMask: number
+  /** 'daily' 대상만 쓴다. 방문 간격 동안 지나간 06:00 KST 경계의 개수(dailyCrossed면 1 이상). */
+  crossedDailyCount: number
+  /** 'weekly' 대상만 쓴다. 방문 간격 동안 지나간 수요일 06:00 KST 경계의 개수(weeklyCrossed면 1 이상). */
+  crossedWeeklyCount: number
 }
 
 interface LazyResetTarget {
@@ -115,28 +156,20 @@ const LAZY_RESET_TARGETS: LazyResetTarget[] = [
     // rest_gauge를 rest_gauge_max의 10%만큼 채운다(캡 있음) — 두 처리는 상호 배타적이다
     // (docs/db_schema.typ의 Users "초기화 적용 범위" 참고). rest_gauge_max가 행마다 다를 수 있어
     // updateMany로 일괄 계산할 수 없으므로 개별 조회 후 갱신한다.
-    async collectOperations({ prisma, characterIds }) {
+    async collectOperations({ prisma, characterIds, crossedDailyCount }) {
       const operations: Prisma.PrismaPromise<unknown>[] = []
       const guardians = await prisma.guardian.findMany({ where: { characterId: { in: characterIds } } })
       for (const guardian of guardians) {
-        if (guardian.isHarvested) {
-          operations.push(
-            prisma.guardian.update({
-              where: { characterId: guardian.characterId },
-              data: { isHarvested: false, restGaugeConsumedByHarvest: false },
-            }),
-          )
-        } else {
-          const restGauge = Math.min(
-            guardian.restGauge + Math.round(guardian.restGaugeMax * 0.1),
-            guardian.restGaugeMax,
-          )
-          if (restGauge !== guardian.restGauge) {
-            operations.push(
-              prisma.guardian.update({ where: { characterId: guardian.characterId }, data: { restGauge } }),
-            )
-          }
-        }
+        const { restGauge } = applyHarvestDailyResets(guardian, crossedDailyCount)
+        if (!guardian.isHarvested && restGauge === guardian.restGauge) continue
+        operations.push(
+          prisma.guardian.update({
+            where: { characterId: guardian.characterId },
+            data: guardian.isHarvested
+              ? { isHarvested: false, restGaugeConsumedByHarvest: false, restGauge }
+              : { restGauge },
+          }),
+        )
       }
       return operations
     },
@@ -145,25 +178,20 @@ const LAZY_RESET_TARGETS: LazyResetTarget[] = [
     name: 'kurzan_harvest',
     boundary: 'daily',
     // guardian_harvest와 완전히 동일한 규칙을 별도 테이블(Kurzan_Frontlines)에 적용한다.
-    async collectOperations({ prisma, characterIds }) {
+    async collectOperations({ prisma, characterIds, crossedDailyCount }) {
       const operations: Prisma.PrismaPromise<unknown>[] = []
       const kurzans = await prisma.kurzanFrontline.findMany({ where: { characterId: { in: characterIds } } })
       for (const kurzan of kurzans) {
-        if (kurzan.isHarvested) {
-          operations.push(
-            prisma.kurzanFrontline.update({
-              where: { characterId: kurzan.characterId },
-              data: { isHarvested: false, restGaugeConsumedByHarvest: false },
-            }),
-          )
-        } else {
-          const restGauge = Math.min(kurzan.restGauge + Math.round(kurzan.restGaugeMax * 0.1), kurzan.restGaugeMax)
-          if (restGauge !== kurzan.restGauge) {
-            operations.push(
-              prisma.kurzanFrontline.update({ where: { characterId: kurzan.characterId }, data: { restGauge } }),
-            )
-          }
-        }
+        const { restGauge } = applyHarvestDailyResets(kurzan, crossedDailyCount)
+        if (!kurzan.isHarvested && restGauge === kurzan.restGauge) continue
+        operations.push(
+          prisma.kurzanFrontline.update({
+            where: { characterId: kurzan.characterId },
+            data: kurzan.isHarvested
+              ? { isHarvested: false, restGaugeConsumedByHarvest: false, restGauge }
+              : { restGauge },
+          }),
+        )
       }
       return operations
     },
@@ -198,7 +226,9 @@ const LAZY_RESET_TARGETS: LazyResetTarget[] = [
     boundary: 'weekly',
     // 캐릭터마다 티켓/열쇠 값이 달라 updateMany로 일괄 계산할 수 없다
     // (workspace/frontend/src/lib/paradise.ts의 applyParadiseWeeklyRecharge와 동일한 공식).
-    async collectOperations({ prisma, characterIds }) {
+    // 티켓은 "5 미만이면 5로"라 몇 주가 지나도 결과가 같지만(멱등), 열쇠는 +3 누적이라 지나간
+    // 주간 경계 개수만큼 곱해야 한다 — 몇 주 비웠다 접속해도 주마다 +3이 빠지지 않게 한다.
+    async collectOperations({ prisma, characterIds, crossedWeeklyCount }) {
       const operations: Prisma.PrismaPromise<unknown>[] = []
       const paradises = await prisma.paradise.findMany({
         where: { characterId: { in: characterIds }, autoRecharge: true },
@@ -207,7 +237,10 @@ const LAZY_RESET_TARGETS: LazyResetTarget[] = [
         operations.push(
           prisma.paradise.update({
             where: { characterId: paradise.characterId },
-            data: { ticketCount: Math.max(paradise.ticketCount, 5), keyCount: paradise.keyCount + 3 },
+            data: {
+              ticketCount: Math.max(paradise.ticketCount, 5),
+              keyCount: paradise.keyCount + 3 * crossedWeeklyCount,
+            },
           }),
         )
       }
@@ -285,6 +318,8 @@ export async function applyLazyReset(prisma: PrismaClient, userId: string): Prom
       prisma,
       characterIds,
       crossedDaysMask: dailyCrossed ? crossedDailyBoundaryDaysMask(lastVisitedAtMs, now) : 0,
+      crossedDailyCount: dailyCrossed ? crossedDailyBoundaryCount(lastVisitedAtMs, now) : 0,
+      crossedWeeklyCount: weeklyCrossed ? crossedWeeklyBoundaryCount(lastVisitedAtMs, now) : 0,
     }
 
     for (const target of LAZY_RESET_TARGETS) {
