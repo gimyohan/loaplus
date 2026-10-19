@@ -226,8 +226,9 @@ const LAZY_RESET_TARGETS: LazyResetTarget[] = [
     boundary: 'weekly',
     // 캐릭터마다 티켓/열쇠 값이 달라 updateMany로 일괄 계산할 수 없다
     // (workspace/frontend/src/lib/paradise.ts의 applyParadiseWeeklyRecharge와 동일한 공식).
-    // 티켓은 "5 미만이면 5로"라 몇 주가 지나도 결과가 같지만(멱등), 열쇠는 +3 누적이라 지나간
-    // 주간 경계 개수만큼 곱해야 한다 — 몇 주 비웠다 접속해도 주마다 +3이 빠지지 않게 한다.
+    // 티켓은 5로 set한다(사용자 확정 — 5를 넘게 남아 있어도 5로 맞춘다, 이월 없음). set이라 몇
+    // 주가 지나도 결과가 같지만(멱등), 열쇠는 +3 누적이라 지나간 주간 경계 개수만큼 곱해야
+    // 한다 — 몇 주 비웠다 접속해도 주마다 +3이 빠지지 않게 한다.
     async collectOperations({ prisma, characterIds, crossedWeeklyCount }) {
       const operations: Prisma.PrismaPromise<unknown>[] = []
       const paradises = await prisma.paradise.findMany({
@@ -238,7 +239,7 @@ const LAZY_RESET_TARGETS: LazyResetTarget[] = [
           prisma.paradise.update({
             where: { characterId: paradise.characterId },
             data: {
-              ticketCount: Math.max(paradise.ticketCount, 5),
+              ticketCount: 5,
               keyCount: paradise.keyCount + 3 * crossedWeeklyCount,
             },
           }),
