@@ -938,6 +938,21 @@
       "name": "벨가르딘",
       "difficulties": [
         {
+          "key": "match",
+          "name": "매칭",
+          "minItemLevel": 1750,
+          "gates": [
+            {
+              "goldReward": 10000,
+              "boundGoldReward": 10000
+            },
+            {
+              "goldReward": 15000,
+              "boundGoldReward": 15000
+            }
+          ]
+        },
+        {
           "key": "normal",
           "name": "노말",
           "minItemLevel": 1750,
