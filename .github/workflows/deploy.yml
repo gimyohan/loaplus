@@ -57,6 +57,11 @@ jobs:
           name: frontend-dist
           path: frontend/dist
 
+      # EC2(t3.micro)에서 빌드하면 메모리가 모자라서 러너에서 빌드한다. SSH를 열기 전에 끝내서
+      # 22번 포트가 열려 있는 시간을 줄인다.
+      - name: 백엔드 Docker 이미지 빌드
+        run: docker build -t loaplus-backend:latest backend
+
       - name: Configure AWS credentials (OIDC, 장기 액세스 키 없음)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -97,7 +102,16 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             frontend/dist/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/frontend-dist/
 
+      - name: 백엔드 이미지를 EC2로 전송
+        # 레지스트리 없이 기존 SSH로 스트리밍한다(중간 파일 없음 — /tmp가 tmpfs라 RAM 크기만큼만 쓸 수 있다).
+        run: |
+          set -o pipefail
+          docker save loaplus-backend:latest | gzip \
+            | ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'gunzip | docker load'
+
       - name: EC2에서 재배포
+        # --no-build: 방금 로드한 이미지를 그대로 쓴다. 이전 이미지는 prune -a로 정리해 디스크가
+        # 배포마다 쌓이지 않게 한다(실행 중인 컨테이너가 쓰는 이미지는 지워지지 않음).
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
             set -e
@@ -106,7 +120,9 @@ jobs:
             sudo chmod -R o+rX /usr/share/nginx/html/
             rm -rf /tmp/frontend-dist
             cd /opt/loaplus/app/backend
-            docker compose -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.prod.yml up -d --no-build
+            docker image prune -af
+            docker builder prune -af
           '
 
       - name: 임시로 열었던 SSH 접근 회수

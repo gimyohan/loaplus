@@ -12,6 +12,10 @@ services:
       - loaplus_pgdata_prod:/var/lib/postgresql/data
 
   backend:
+    # 이미지는 GitHub Actions 러너에서 빌드해 docker save | ssh docker load로 EC2에 넣는다 —
+    # EC2(t3.micro, RAM 1GB)에서 npm ci/tsc 빌드를 돌리면 메모리가 모자란다. 배포는
+    # `up -d --no-build`로 이 이름의 이미지를 그대로 쓴다. build는 수동 비상 빌드용으로 남겨둔다.
+    image: loaplus-backend:latest
     build:
       context: .
     restart: unless-stopped
