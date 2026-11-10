@@ -20,7 +20,7 @@ export function BottomNav({ activeView, onNavigate, isPremium, isAuthenticated }
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-card md:hidden"
+      className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-sidebar md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {navItems.map(({ view, label, icon: Icon }) => (
@@ -31,11 +31,18 @@ export function BottomNav({ activeView, onNavigate, isPremium, isAuthenticated }
           aria-label={label}
           aria-current={activeView === view ? 'page' : undefined}
           className={cn(
-            'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
-            activeView === view ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+            'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition-colors',
+            activeView === view ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          <Icon className="h-5 w-5 shrink-0" />
+          <span
+            className={cn(
+              'flex h-7 w-11 items-center justify-center rounded-lg transition-colors',
+              activeView === view && 'bg-primary-strong text-primary-foreground',
+            )}
+          >
+            <Icon className="h-[18px] w-[18px] shrink-0" />
+          </span>
           {label}
         </button>
       ))}

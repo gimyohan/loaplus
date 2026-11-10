@@ -19,16 +19,16 @@ export function TopAppBar({ title, nickname, isDark, onToggleDark, isSidebarColl
   return (
     <header
       className={cn(
-        'flex h-16 items-center justify-between border-b border-border bg-background px-4 transition-[margin] duration-200 md:px-8',
+        'flex h-12 items-center justify-between border-b border-border bg-background px-4 transition-[margin] duration-200 md:px-8',
         isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
       )}
     >
       <div className="hidden md:block">
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <h2 className="text-lg font-black text-white">{title}</h2>
       </div>
 
       {/* 모바일에서만 보이는 로고 (사이드바가 숨겨지므로) */}
-      <h1 className="text-lg font-bold text-primary md:hidden">LoaPlus</h1>
+      <h1 className="text-lg font-black text-white md:hidden">LoaPlus</h1>
 
       <div className="ml-auto flex items-center gap-3">
         {nickname && <span className="hidden text-sm text-muted-foreground sm:block">{nickname}</span>}

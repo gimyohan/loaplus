@@ -43,7 +43,7 @@ export function ImageWidget({ url, onChangeUrl, className }: ImageWidgetProps) {
           />
           <button
             type="submit"
-            className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="rounded-md bg-primary-strong px-2 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary-strong/90"
           >
             적용
           </button>

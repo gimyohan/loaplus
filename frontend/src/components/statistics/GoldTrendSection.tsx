@@ -135,7 +135,7 @@ export function GoldTrendSection({ characters, allWeekly }: GoldTrendSectionProp
                 className={cn(
                   'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                   basis === option.key
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-primary-strong text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >

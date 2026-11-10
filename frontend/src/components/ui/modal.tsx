@@ -33,7 +33,7 @@ export function Modal({ open, onClose, title, children, className, align = 'cent
   return createPortal(
     <div
       className={cn(
-        'fixed inset-0 z-50 flex justify-center overflow-y-auto bg-black/50 p-4',
+        'fixed inset-0 z-50 flex justify-center overflow-y-auto bg-black/60 p-4',
         align === 'start' ? 'items-start pt-[10vh]' : 'items-center',
       )}
       onClick={onClose}
@@ -44,17 +44,17 @@ export function Modal({ open, onClose, title, children, className, align = 'cent
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
         className={cn(
-          'w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl',
+          'w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-[0_18px_48px_rgba(0,0,0,0.55)]',
           className,
         )}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+          <h2 className="text-xl font-black text-foreground">{title}</h2>
           <button
             type="button"
             aria-label="닫기"
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>

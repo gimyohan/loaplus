@@ -4,19 +4,20 @@ import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
+// Slack 톤: 주요 실행(default)은 초록 면, 보조(outline)는 테두리만, 굵은 글씨·8px 모서리.
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90',
-        outline: 'border border-border bg-transparent hover:bg-muted',
-        ghost: 'hover:bg-muted hover:text-foreground',
+        default: 'bg-secondary-strong text-secondary-foreground hover:bg-secondary-strong/90',
+        secondary: 'bg-primary-strong text-primary-foreground hover:bg-primary-strong/90',
+        outline: 'border border-foreground/30 bg-transparent text-foreground hover:bg-muted',
+        ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        icon: 'h-10 w-10',
+        default: 'h-9 px-3',
+        icon: 'h-9 w-9',
       },
     },
     defaultVariants: {

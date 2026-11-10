@@ -89,7 +89,7 @@ export function ItemRewardStatsSection({ characters, rewardType }: ItemRewardSta
             className={cn(
               'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
               contentType === option.key
-                ? 'bg-primary text-primary-foreground'
+                ? 'bg-primary-strong text-primary-foreground'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >

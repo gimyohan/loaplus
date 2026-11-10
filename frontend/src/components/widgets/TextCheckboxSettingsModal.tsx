@@ -165,7 +165,7 @@ export function TextCheckboxSettingsModal({
                   className={cn(
                     'flex h-9 items-center justify-center rounded-md text-sm font-medium transition-colors',
                     isOn
-                      ? 'bg-primary text-primary-foreground'
+                      ? 'bg-primary-strong text-primary-foreground'
                       : 'bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground',
                   )}
                 >

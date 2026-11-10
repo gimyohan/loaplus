@@ -27,7 +27,7 @@ export function ScreenshotCarousel({ pairs, onLoginClick }: ScreenshotCarouselPr
         <button
           type="button"
           onClick={onLoginClick}
-          className="shrink-0 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          className="shrink-0 rounded-lg bg-secondary-strong px-4 py-1.5 text-sm font-bold text-secondary-foreground transition-colors hover:bg-secondary-strong/90"
         >
           로그인하고 시작하기
         </button>

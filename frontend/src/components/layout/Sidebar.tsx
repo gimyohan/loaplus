@@ -60,76 +60,68 @@ export function Sidebar({
 }: SidebarProps) {
   const navItems = visibleNavItems(isPremium, isAuthenticated)
 
+  // Slack 톤 사이드바 항목: 28px 높이의 촘촘한 행, 활성 항목은 짙은 파랑 면 + 흰 굵은 글씨.
+  const itemClass = (active = false) =>
+    cn(
+      'flex h-8 w-full items-center gap-2.5 rounded-lg px-3 text-[15px] transition-colors',
+      isCollapsed && 'justify-center px-0',
+      active
+        ? 'bg-primary-strong font-bold text-primary-foreground'
+        : 'text-sidebar-foreground/75 hover:bg-white/[0.06] hover:text-sidebar-foreground',
+    )
+
   return (
     <nav
       className={cn(
-        'fixed left-0 top-0 hidden h-full flex-col border-r border-border bg-card py-6 transition-[width] duration-200 md:flex',
-        isCollapsed ? 'w-16 px-2' : 'w-[240px] px-4',
+        'fixed left-0 top-0 hidden h-full flex-col border-r border-border bg-sidebar transition-[width] duration-200 md:flex',
+        isCollapsed ? 'w-16' : 'w-[240px]',
       )}
     >
-      {/* 접혔을 때 로고 자리를 없애 로고+버튼이 세로로 쌓이지 않게 한다 — 그러면 이 헤더 블록
-          높이가 펼친 상태보다 커져서 아래 네비 아이템들이 그만큼 밀려 내려가 버린다(사용자 확인).
-          펼침/접힘 모두 한 줄(row) 높이를 유지하도록 버튼만 남기고 정렬만 바꾸되, "LoaPlus" 텍스트
-          줄높이와 버튼(h-6) 높이가 서로 달라 그 차이만큼 여전히 미세하게 밀리므로, h-8로 고정해
-          두 상태의 행 높이 자체를 아예 동일하게 맞춘다. */}
-      <div className={cn('mb-8 flex h-8 items-center', isCollapsed ? 'justify-center' : 'justify-between gap-2')}>
-        {!isCollapsed && <h1 className="min-w-0 text-xl font-bold text-primary">LoaPlus</h1>}
+      {/* 헤더 행은 TopAppBar와 같은 높이(h-12)로 맞춰 두 바의 아래 경계선이 한 줄로 이어지게 한다.
+          접힘/펼침 모두 같은 행 높이를 유지해 아래 항목이 밀리지 않는다. */}
+      <div
+        className={cn(
+          'flex h-12 shrink-0 items-center border-b border-border',
+          isCollapsed ? 'justify-center px-2' : 'justify-between gap-2 pl-4 pr-3',
+        )}
+      >
+        {!isCollapsed && <h1 className="min-w-0 truncate text-lg font-black text-white">LoaPlus</h1>}
         <button
           type="button"
           onClick={onToggleCollapsed}
           aria-label={isCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-white/[0.08] hover:text-sidebar-foreground"
         >
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col gap-1">
+      <div className={cn('flex flex-1 flex-col gap-0.5 overflow-y-auto py-3', isCollapsed ? 'px-2' : 'px-2.5')}>
         {navItems.map(({ view, label, icon: Icon }) => (
           <button
             key={view}
             type="button"
             onClick={() => onNavigate(view)}
             aria-label={label}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-              isCollapsed && 'justify-center px-0',
-              activeView === view
-                ? 'bg-primary/10 font-semibold text-primary'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
+            aria-current={activeView === view ? 'page' : undefined}
+            className={itemClass(activeView === view)}
           >
-            <Icon className="h-5 w-5 shrink-0" />
-            {!isCollapsed && label}
+            <Icon className="h-[18px] w-[18px] shrink-0" />
+            {!isCollapsed && <span className="truncate">{label}</span>}
           </button>
         ))}
       </div>
 
-      <div className="flex flex-col gap-1 border-t border-border pt-4">
+      <div className={cn('flex flex-col gap-0.5 border-t border-border py-3', isCollapsed ? 'px-2' : 'px-2.5')}>
         {isAuthenticated && (
-          <button
-            type="button"
-            aria-label="Support"
-            className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-              isCollapsed && 'justify-center px-0',
-            )}
-          >
-            <HelpCircle className="h-5 w-5 shrink-0" />
+          <button type="button" aria-label="Support" className={itemClass()}>
+            <HelpCircle className="h-[18px] w-[18px] shrink-0" />
             {!isCollapsed && 'Support'}
           </button>
         )}
         {isAuthenticated ? (
-          <button
-            type="button"
-            onClick={onSignOut}
-            aria-label="Sign Out"
-            className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-              isCollapsed && 'justify-center px-0',
-            )}
-          >
-            <LogOut className="h-5 w-5 shrink-0" />
+          <button type="button" onClick={onSignOut} aria-label="Sign Out" className={itemClass()}>
+            <LogOut className="h-[18px] w-[18px] shrink-0" />
             {!isCollapsed && 'Sign Out'}
           </button>
         ) : (
@@ -138,15 +130,15 @@ export function Sidebar({
             onClick={onLoginClick}
             aria-label="로그인"
             className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10',
+              'flex h-8 w-full items-center gap-2.5 rounded-lg bg-secondary-strong px-3 text-[15px] font-bold text-secondary-foreground transition-colors hover:bg-secondary-strong/90',
               isCollapsed && 'justify-center px-0',
             )}
           >
-            <LogIn className="h-5 w-5 shrink-0" />
+            <LogIn className="h-[18px] w-[18px] shrink-0" />
             {!isCollapsed && '로그인'}
           </button>
         )}
-        <p className="pt-2 text-center text-[10px] text-muted-foreground/70">v{__APP_VERSION__}</p>
+        <p className="pt-2 text-center text-[10px] text-sidebar-foreground/50">v{__APP_VERSION__}</p>
       </div>
     </nav>
   )

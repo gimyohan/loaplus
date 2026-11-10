@@ -115,7 +115,7 @@ export function GoldCategoryPieSection({ characters, allWeekly }: GoldCategoryPi
               onClick={() => setBasis(option.key)}
               className={cn(
                 'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                basis === option.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                basis === option.key ? 'bg-primary-strong text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
               {option.label}
