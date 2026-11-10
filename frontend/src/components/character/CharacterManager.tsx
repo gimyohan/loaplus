@@ -1,7 +1,7 @@
 import { Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { CharacterBannerCompact } from '@/components/character/CharacterBannerCompact'
+import { CharacterBanner } from '@/components/character/CharacterBanner'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
@@ -75,7 +75,7 @@ export function CharacterManager() {
 
       {characters.map((character) => (
         <div key={character.id} className="flex items-center gap-2">
-          <CharacterBannerCompact character={character} className="flex-1" />
+          <CharacterBanner character={character} className="flex-1" />
           <Button
             variant="outline"
             size="icon"

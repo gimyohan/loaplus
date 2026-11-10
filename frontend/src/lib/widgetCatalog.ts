@@ -21,11 +21,13 @@ export const DEFAULT_IMAGE_SIZE: ImageSize = 'M'
 // height는 카드 폭 350px 기준 높이다. ScaleToFit으로 그리는 위젯은 원본(nativeWidth×nativeHeight)
 // 비율을 그대로 따른다 — 원본 폭이 350px인 위젯(가디언 등)은 1:1로 보인다.
 export const WIDGET_CATALOG: WidgetCatalogItem[] = [
-  // 배너 3종은 아직 원본 폭이 900px이라 350px 카드에서는 0.39배로 줄어든다. 350px 폭 전용
-  // 레이아웃으로 다시 설계할 예정이다(docs/ui_redesign.md "캐릭터 상세 배너", 개편 4단계).
-  { kind: 'bannerDetailed', label: '캐릭터 상세 배너', category: 'default', height: 175, group: 'banner', section: 'banner', nativeWidth: 900, nativeHeight: 450 },
-  { kind: 'banner', label: '캐릭터 배너', category: 'default', height: 70, group: 'banner', section: 'banner', nativeWidth: 900, nativeHeight: 180 },
-  { kind: 'bannerCompact', label: '캐릭터 요약 배너', category: 'default', height: 35, group: 'banner', section: 'banner', nativeWidth: 900, nativeHeight: 90 },
+  // 배너: 예전 3종(상세/기본/요약)을 350px 배너 하나로 합쳤다(components/character/CharacterBanner.tsx).
+  // DB의 세 종류는 그대로 두고 장비 정보를 처음에 펼칠지만 다르다 — 새로 추가할 때는 상세 배너
+  // 하나만 고를 수 있고(나머지는 hidden), 이미 놓인 기본/요약 배너도 같은 배너로 보인다.
+  // 높이는 접고 펼침에 따라 달라져 위젯 스스로 정한다(height는 접힌 헤더 높이, 참고용).
+  { kind: 'bannerDetailed', label: '캐릭터 배너', category: 'default', height: 80, group: 'banner', section: 'banner' },
+  { kind: 'banner', label: '캐릭터 배너(기본)', category: 'default', height: 80, group: 'banner', section: 'banner', hidden: true },
+  { kind: 'bannerCompact', label: '캐릭터 배너(요약)', category: 'default', height: 80, group: 'banner', section: 'banner', hidden: true },
   // raid: 가디언/쿠르잔 전선과 레이아웃이 동일하다.
   { kind: 'raid', label: '레이드', category: 'default', height: 210, group: 'weekly', section: 'weekly', nativeWidth: 350, nativeHeight: 210 },
   { kind: 'paradise', label: '낙원', category: 'default', height: 140, group: 'weekly', section: 'weekly', nativeWidth: 350, nativeHeight: 140 },

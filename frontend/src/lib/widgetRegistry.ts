@@ -2,8 +2,6 @@ import type { ComponentType } from 'react'
 
 import { AbilityStoneCard } from '@/components/widgets/AbilityStoneCard'
 import { BannerCard } from '@/components/widgets/BannerCard'
-import { BannerCompactCard } from '@/components/widgets/BannerCompactCard'
-import { BannerDetailedCard } from '@/components/widgets/BannerDetailedCard'
 import { CounterCard } from '@/components/widgets/CounterCard'
 import { EbonyCubeCard } from '@/components/widgets/EbonyCubeCard'
 import { GuardianCard } from '@/components/widgets/GuardianCard'
@@ -25,8 +23,9 @@ import type { WidgetCardProps, WidgetKind } from '@/types/widget'
  */
 export const WIDGET_CARD_REGISTRY: Partial<Record<WidgetKind, ComponentType<WidgetCardProps>>> = {
   banner: BannerCard,
-  bannerCompact: BannerCompactCard,
-  bannerDetailed: BannerDetailedCard,
+  // 배너 3종은 같은 350px 배너로 그린다(종류는 장비 정보를 처음에 펼칠지만 정함, BannerCard 참고).
+  bannerCompact: BannerCard,
+  bannerDetailed: BannerCard,
   guardian: GuardianCard,
   kurzanFrontline: KurzanFrontlineCard,
   paradise: ParadiseCard,
