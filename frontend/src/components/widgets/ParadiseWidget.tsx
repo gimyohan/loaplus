@@ -1,8 +1,10 @@
 import { Banknote, Key, Ticket } from 'lucide-react'
 import { useEffect, useRef, useState, type ComponentType } from 'react'
 
+import { GameIcon } from '@/components/ui/GameIcon'
 import { Tooltip } from '@/components/ui/tooltip'
 import { ROW_PADDING_CLASSNAME, RowIconButton, RowSettingsButton, RowTitle } from '@/components/widgets/rowParts'
+import { GAME_ICONS } from '@/lib/gameAssets'
 import { cn } from '@/lib/utils'
 import type { ParadiseSummary } from '@/types/paradise'
 
@@ -31,6 +33,11 @@ function useFlash() {
     timeoutRef.current = window.setTimeout(() => setActive(false), WARNING_DURATION_MS)
   }
   return [active, trigger] as const
+}
+
+/** 귀속 골드 공식 아이콘(실패하면 기존 지폐 아이콘). */
+function BoundGoldIcon({ className }: { className?: string }) {
+  return <GameIcon src={GAME_ICONS.boundGold} alt="" className={className} fallback={<Banknote className={className} />} />
 }
 
 /** 보유 개수를 보여주고 누르면 1개 사용하는 작은 버튼(티켓/열쇠). */
@@ -101,7 +108,7 @@ export function ParadiseWidget({
         flashing={isKeyWarningActive}
         onClick={() => (keyCount <= 0 ? flashKey() : onDecrementKey?.())}
       />
-      <RowIconButton label="귀속골드 획득 기록" icon={Banknote} onClick={onOpenGoldReward} />
+      <RowIconButton label="귀속골드 획득 기록" icon={BoundGoldIcon} onClick={onOpenGoldReward} />
       <RowSettingsButton label="낙원 설정" onClick={onOpenSettings} />
     </div>
   )

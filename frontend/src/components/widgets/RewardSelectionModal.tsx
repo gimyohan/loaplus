@@ -1,11 +1,12 @@
 import { Banknote, Book, Coins, CreditCard, Gem, ImagePlus, Layers, Package, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { GameIcon } from '@/components/ui/GameIcon'
 import { Modal } from '@/components/ui/modal'
 import { cn } from '@/lib/utils'
 
 // 보상 카탈로그(kurzanShardRewards.json/kurzanAzenaBlessingRewards.json)의 categoryKey별 아이콘.
-// 개별 아이템 이미지(imageUrl)는 실제로 채워지는 곳이 없어 대신 카테고리 단위로 아이콘을 보여준다.
+// 아이템 이미지(imageUrl, 공식 CDN — docs/asset_cdn.md)가 있으면 그것을, 없거나 불러오지 못하면 카테고리 아이콘을 보여준다.
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   gold: Banknote,
   boundGold: Banknote,
@@ -105,7 +106,12 @@ export function RewardSelectionModal({
                 className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-4 text-center transition-colors hover:border-primary hover:bg-muted"
               >
                 <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                  <CategoryIcon className="h-8 w-8 text-muted-foreground" />
+                  <GameIcon
+                    src={item.imageUrl}
+                    alt=""
+                    className="h-11 w-11"
+                    fallback={<CategoryIcon className="h-8 w-8 text-muted-foreground" />}
+                  />
                 </span>
                 <span className="font-mono text-sm uppercase leading-tight tracking-wide text-foreground">
                   {name}
