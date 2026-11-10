@@ -5,6 +5,7 @@ import { HalHourglassSettingsModal } from '@/components/widgets/HalHourglassSett
 import { HalHourglassWidget } from '@/components/widgets/HalHourglassWidget'
 import { adjustHalHourglassSand, completeHalHourglass, fetchHomeworks, undoHalHourglassComplete } from '@/lib/homeworks'
 import { notifyHomeworksChanged, subscribeHomeworksChanged } from '@/lib/homeworksEvents'
+import { useReportPendingHomework } from '@/lib/pendingHomework'
 import { cn } from '@/lib/utils'
 import type { HalHourglassSummary } from '@/types/halHourglass'
 import type { WidgetCardProps } from '@/types/widget'
@@ -22,6 +23,8 @@ interface HalHourglassWidgetBoundProps {
 function HalHourglassWidgetBound({ characterId, characterNameForModal }: HalHourglassWidgetBoundProps) {
   const [hourglassData, setHourglassData] = useState<HalHourglassSummary | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  // 사이드바 미완료 뱃지: 이번 주 완료 안 했으면 1개(GuardianCard와 같은 방식).
+  useReportPendingHomework(characterId, hourglassData ? !hourglassData.isCompleted : null, 'halHourglass')
 
   useEffect(() => {
     let cancelled = false

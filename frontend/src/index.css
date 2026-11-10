@@ -35,6 +35,9 @@
        #f5c45e의 대비가 부족해 라이트 모드만 짙은 톤을 쓴다. */
     --gold: 142 98 12; /* #8e620c */
 
+    /* 사이드바 미완료 숙제 뱃지(슬랙의 멘션 뱃지 자리) — 흰 글씨 대비 5.3:1 */
+    --danger: 205 37 83; /* #cd2553 */
+
     /* 통계 차트 전용 카테고리 색상(레이드/편린/아제나 축복/낙원/기타 고정 순서) — dataviz 스킬
        기본 팔레트의 5개 슬롯. UI 강조색 규칙과는 별개다. */
     --chart-1: 42 120 214; /* #2a78d6 blue */
@@ -71,6 +74,8 @@
     --secondary-foreground: 255 255 255;
 
     --gold: 245 196 94; /* #f5c45e */
+
+    --danger: 205 37 83; /* #cd2553 */
 
     --chart-1: 57 135 229; /* #3987e5 blue */
     --chart-2: 217 89 38; /* #d95926 orange */
@@ -157,4 +162,19 @@
 
 .animate-toast-in {
   animation: toast-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 사이드바에서 캐릭터를 눌러 그 카드로 이동했을 때 어느 카드인지 잠깐 강조한다(App.tsx). */
+@keyframes card-focus {
+  0%,
+  60% {
+    box-shadow: 0 0 0 3px rgb(var(--primary) / 0.9);
+  }
+  100% {
+    box-shadow: 0 0 0 3px rgb(var(--primary) / 0);
+  }
+}
+
+.animate-card-focus {
+  animation: card-focus 1.4s ease-out;
 }

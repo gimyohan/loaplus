@@ -24,6 +24,8 @@ export default {
         // 레이드 위젯의 골드/귀속골드 색 구분 전용 — primary/secondary 두 색만 쓴다는 원칙(위 참고)의
         // 예외로, 재화 종류를 색으로 구분해야 하는 자리에서만 쓴다(차트 카테고리 색과 같은 성격).
         gold: 'rgb(var(--gold) / <alpha-value>)',
+        // 사이드바 미완료 숙제 개수 뱃지 전용.
+        danger: 'rgb(var(--danger) / <alpha-value>)',
         // 레이아웃에 필요한 중립 톤 (라이트/다크 모드 대응)
         background: 'rgb(var(--background) / <alpha-value>)',
         foreground: 'rgb(var(--foreground) / <alpha-value>)',

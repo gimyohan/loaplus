@@ -15,6 +15,7 @@ import {
   updateKurzanTarget,
 } from '@/lib/homeworks'
 import { notifyHomeworksChanged, subscribeHomeworksChanged } from '@/lib/homeworksEvents'
+import { useReportPendingHomework } from '@/lib/pendingHomework'
 import { withObjectParticle } from '@/lib/korean'
 import { showToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -36,6 +37,8 @@ function KurzanFrontlineWidgetBound({
 }: KurzanFrontlineWidgetBoundProps) {
   const [kurzanData, setKurzanData] = useState<KurzanFrontlineSummary | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  // 사이드바 미완료 뱃지: 오늘 수확 안 했으면 1개(GuardianCard와 같은 방식).
+  useReportPendingHomework(characterId, kurzanData ? !kurzanData.isHarvested : null, 'kurzanFrontline')
 
   useEffect(() => {
     let cancelled = false

@@ -16,6 +16,7 @@ import { ConfirmModal } from '@/components/ui/confirmModal'
 import { Toaster } from '@/components/ui/Toaster'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
+import { MAX_CHARACTERS_PER_USER } from '@/lib/characters'
 import { fetchCardOrder } from '@/lib/dashboards'
 import { cn } from '@/lib/utils'
 import { fetchProfile } from '@/lib/user'
@@ -260,6 +261,36 @@ function App() {
     setActiveView(next)
   }
 
+  const handleAddCharacter = () => {
+    const newId = crypto.randomUUID()
+    setCardIds((prev) => [...(prev ?? []), newId])
+    setAutoOpenCardId(newId)
+  }
+
+  // 사이드바 캐릭터 목록은 대시보드 카드 순서를 그대로 따른다(아직 이름을 안 정한 임시 카드는 제외).
+  const sidebarCharacters = (cardIds ?? []).flatMap((id) => {
+    const character = characters.find((candidate) => candidate.id === id)
+    return character ? [{ id, characterName: character.characterName, imageUrl: character.imageUrl }] : []
+  })
+
+  // 사이드바에서 캐릭터를 누르면 대시보드로 가서 그 카드로 스크롤하고 잠깐 강조한다(슬랙에서 채널을
+  // 누르면 그 채널로 이동하는 자리). 다른 탭에 있었다면 대시보드 스크롤 복원(useLayoutEffect)이
+  // 먼저 끝난 뒤 이동해야 하므로 다음 프레임까지 미룬다.
+  const handleCharacterClick = (characterId: string) => {
+    handleNavigate('dashboard')
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const card = document.getElementById(`dashboard-card-${characterId}`)
+        if (!card) return
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        card.classList.remove('animate-card-focus')
+        // 같은 카드를 연달아 눌러도 애니메이션이 다시 돌도록 리플로우를 한 번 강제한다.
+        void card.offsetWidth
+        card.classList.add('animate-card-focus')
+      })
+    })
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Sidebar
@@ -270,6 +301,16 @@ function App() {
         isCollapsed={isSidebarCollapsed}
         onToggleCollapsed={() => setIsSidebarCollapsed((v) => !v)}
         isAuthenticated
+        characters={sidebarCharacters}
+        onCharacterClick={handleCharacterClick}
+        onAddCharacter={
+          characters.length < MAX_CHARACTERS_PER_USER
+            ? () => {
+                handleNavigate('dashboard')
+                handleAddCharacter()
+              }
+            : undefined
+        }
       />
       <TopAppBar
         title={VIEW_TITLES[activeView]}
@@ -310,11 +351,7 @@ function App() {
               autoOpenCardId={autoOpenCardId}
               onRemoveCard={handleRemoveCard}
               onCardBound={handleCardBound}
-              onAddCharacter={() => {
-                const newId = crypto.randomUUID()
-                setCardIds((prev) => [...(prev ?? []), newId])
-                setAutoOpenCardId(newId)
-              }}
+              onAddCharacter={handleAddCharacter}
             />
           )}
         </div>

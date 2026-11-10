@@ -83,15 +83,17 @@ export function DashboardView({
           // 이미 실제 캐릭터로 등록된 id(GET /api/dashboards에서 온 카드)라면 이름을 미리 채워서
           // WidgetDashboard가 마운트되자마자 위젯 배치를 서버에서 조회하도록 한다.
           const boundCharacter = characters.find((character) => character.id === id)
+          // id는 사이드바 캐릭터 목록에서 이 카드로 스크롤할 때 쓰는 앵커다(App.tsx handleCharacterClick).
           return (
-            <DashboardCard
-              key={id}
-              initialCharacterName={boundCharacter?.characterName}
-              autoOpenSettings={id === autoOpenCardId}
-              onRemove={() => onRemoveCard(id)}
-              onBound={(characterId) => onCardBound(id, characterId)}
-              width={cardWidth}
-            />
+            <div key={id} id={`dashboard-card-${id}`} className="scroll-mt-6 rounded-xl">
+              <DashboardCard
+                initialCharacterName={boundCharacter?.characterName}
+                autoOpenSettings={id === autoOpenCardId}
+                onRemove={() => onRemoveCard(id)}
+                onBound={(characterId) => onCardBound(id, characterId)}
+                width={cardWidth}
+              />
+            </div>
           )
         })}
       {containerWidth > 0 && !atCharacterLimit && <AddCharacterCard onClick={onAddCharacter} width={cardWidth} />}

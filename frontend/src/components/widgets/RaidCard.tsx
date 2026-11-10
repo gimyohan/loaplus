@@ -4,6 +4,7 @@ import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { RaidTargetModal } from '@/components/widgets/RaidTargetModal'
 import { RaidWidget, type RaidGateView } from '@/components/widgets/RaidWidget'
 import { cn } from '@/lib/utils'
+import { useReportPendingHomework } from '@/lib/pendingHomework'
 import raidCatalogData from '@/data/raidCatalog.json'
 import type { RaidTargetSummary } from '@/types/raid'
 import type { WidgetCardProps } from '@/types/widget'
@@ -25,6 +26,8 @@ export function RaidCard({
   disabledClassName,
   className,
   bannerCharacter,
+  interactive,
+  record,
   raid,
   raidExcludedKeys,
   onRaidGateToggle,
@@ -48,6 +51,12 @@ export function RaidCard({
     boundGoldReward: difficultyDefinition?.gates[index]?.boundGoldReward ?? 0,
   }))
   const hasClearedGate = raidData.gates.some((gate) => gate.cleared)
+  // 사이드바 미완료 뱃지: 목표를 정한 레이드에 안 깬 관문이 남아 있으면 1개. 미리보기(팔레트·배치
+  // 편집)는 interactive가 꺼져 있어 보고하지 않는다 — 실제 카드에 배치된 인스턴스만 센다.
+  useReportPendingHomework(
+    interactive ? record?.id : undefined,
+    raid && raid.raidKey ? raid.gates.some((gate) => !gate.cleared) : null,
+  )
 
   return (
     <>

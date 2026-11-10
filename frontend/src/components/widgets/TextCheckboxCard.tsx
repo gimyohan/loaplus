@@ -6,6 +6,7 @@ import {
   type TextCheckboxResetDays,
 } from '@/components/widgets/TextCheckboxSettingsModal'
 import { TextCheckboxWidget } from '@/components/widgets/TextCheckboxWidget'
+import { useReportPendingHomework } from '@/lib/pendingHomework'
 import { cn } from '@/lib/utils'
 import type { WidgetCardProps } from '@/types/widget'
 
@@ -18,10 +19,14 @@ export function TextCheckboxCard({
   onCustomDataChange,
   onCheckboxToggle,
   bannerCharacter,
+  interactive,
+  record,
 }: WidgetCardProps) {
   const [isTextCheckboxSettingsOpen, setIsTextCheckboxSettingsOpen] = useState(false)
 
   const isChecked = Boolean(customData?.isChecked)
+  // 사이드바 미완료 뱃지: 체크 안 된 루틴이면 1개(실제 카드에 배치된 인스턴스만, RaidCard 참고).
+  useReportPendingHomework(interactive ? record?.id : undefined, !isChecked)
   const text = (customData?.text as string | undefined) ?? ''
   const resetDays = (customData?.resetDays as TextCheckboxResetDays | undefined) ?? RESET_DAYS_OFF
   const remainingCount =

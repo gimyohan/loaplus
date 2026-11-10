@@ -6,12 +6,14 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Plus,
   ScrollText,
   Settings,
   TrendingUp,
   Users,
 } from 'lucide-react'
 
+import { usePendingHomeworkCounts } from '@/lib/pendingHomework'
 import { cn } from '@/lib/utils'
 import type { NavView } from '@/types/navigation'
 
@@ -35,6 +37,13 @@ export function visibleNavItems(isPremium: boolean, isAuthenticated: boolean) {
   )
 }
 
+/** 사이드바 캐릭터 목록 한 줄(슬랙의 채널 행 자리). 대시보드 카드 순서 그대로 넘긴다. */
+export interface SidebarCharacterItem {
+  id: string
+  characterName: string
+  imageUrl?: string
+}
+
 export interface SidebarProps {
   activeView: NavView
   onNavigate: (view: NavView) => void
@@ -46,6 +55,12 @@ export interface SidebarProps {
   isAuthenticated: boolean
   onSignOut?: () => void
   onLoginClick?: () => void
+  /** 로그인 상태에서만 넘긴다. 없으면 캐릭터 섹션 자체를 그리지 않는다(미리보기 모드). */
+  characters?: SidebarCharacterItem[]
+  /** 캐릭터 행 클릭 — 대시보드로 이동해 그 카드로 스크롤한다. */
+  onCharacterClick?: (characterId: string) => void
+  /** "캐릭터 추가" 행 클릭. 최대 개수에 도달했으면 넘기지 않아 행을 숨긴다. */
+  onAddCharacter?: () => void
 }
 
 export function Sidebar({
@@ -57,8 +72,12 @@ export function Sidebar({
   isAuthenticated,
   onSignOut,
   onLoginClick,
+  characters,
+  onCharacterClick,
+  onAddCharacter,
 }: SidebarProps) {
   const navItems = visibleNavItems(isPremium, isAuthenticated)
+  const pendingCounts = usePendingHomeworkCounts()
 
   // Slack 톤 사이드바 항목: 28px 높이의 촘촘한 행, 활성 항목은 짙은 파랑 면 + 흰 굵은 글씨.
   const itemClass = (active = false) =>
@@ -110,6 +129,54 @@ export function Sidebar({
             {!isCollapsed && <span className="truncate">{label}</span>}
           </button>
         ))}
+
+        {characters && (
+          // 슬랙의 채널 목록 자리. 미완료 숙제가 있는 캐릭터는 슬랙의 "안 읽은 채널"처럼 굵고 밝게,
+          // 다 끝낸 캐릭터는 흐리게 보여주고, 개수는 오른쪽 뱃지로 띄운다(lib/pendingHomework.ts).
+          <section aria-label="캐릭터" className="mt-5 flex flex-col gap-0.5">
+            {!isCollapsed && (
+              <h2 className="mb-1 px-3 text-[13px] font-bold text-sidebar-foreground/60">캐릭터</h2>
+            )}
+            {characters.map((character) => {
+              const pending = pendingCounts[character.id] ?? 0
+              return (
+                <button
+                  key={character.id}
+                  type="button"
+                  onClick={() => onCharacterClick?.(character.id)}
+                  aria-label={pending > 0 ? `${character.characterName}, 미완료 숙제 ${pending}개` : character.characterName}
+                  title={isCollapsed ? character.characterName : undefined}
+                  className={cn(
+                    'relative flex h-8 w-full items-center gap-2.5 rounded-lg px-3 text-[15px] transition-colors hover:bg-white/[0.06]',
+                    isCollapsed && 'justify-center px-0',
+                    pending > 0
+                      ? 'font-bold text-white'
+                      : 'text-sidebar-foreground/60 hover:text-sidebar-foreground',
+                  )}
+                >
+                  <CharacterAvatar name={character.characterName} imageUrl={character.imageUrl} />
+                  {!isCollapsed && <span className="min-w-0 flex-1 truncate text-left">{character.characterName}</span>}
+                  {pending > 0 &&
+                    (isCollapsed ? (
+                      <span className="absolute right-2 top-1 h-2 w-2 rounded-full bg-danger ring-2 ring-sidebar" />
+                    ) : (
+                      <span className="ml-auto min-w-[20px] shrink-0 rounded-full bg-danger px-1.5 text-center text-xs font-bold leading-5 text-white">
+                        {pending}
+                      </span>
+                    ))}
+                </button>
+              )
+            })}
+            {onAddCharacter && (
+              <button type="button" onClick={onAddCharacter} aria-label="캐릭터 추가" className={itemClass()}>
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.08]">
+                  <Plus className="h-3.5 w-3.5" />
+                </span>
+                {!isCollapsed && <span className="truncate">캐릭터 추가</span>}
+              </button>
+            )}
+          </section>
+        )}
       </div>
 
       <div className={cn('flex flex-col gap-0.5 border-t border-border py-3', isCollapsed ? 'px-2' : 'px-2.5')}>
@@ -141,5 +208,25 @@ export function Sidebar({
         <p className="pt-2 text-center text-[10px] text-sidebar-foreground/50">v{__APP_VERSION__}</p>
       </div>
     </nav>
+  )
+}
+
+/** 캐릭터 행의 20px 아바타. 이미지가 없으면 이름 첫 글자로 대신한다. 캐릭터 이미지는 전신 일러스트라
+ * 얼굴 쪽(위)이 보이도록 위 기준으로 자른다. */
+function CharacterAvatar({ name, imageUrl }: { name: string; imageUrl?: string }) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-5 w-5 shrink-0 rounded-md bg-white/[0.08] object-cover object-top"
+        loading="lazy"
+      />
+    )
+  }
+  return (
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.08] text-[11px] font-bold">
+      {name.slice(0, 1)}
+    </span>
   )
 }
