@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { createRaidGateClearLog } from '../lib/actionLogs.js'
 import type { RaidGateState } from '../lib/actionLogs.js'
 import { buildRaidGateRewardEntries, findRaidDifficulty } from '../lib/raidCatalog.js'
-import { toWidgetResponse } from '../lib/widgetKind.js'
+import { nextDisplayOrder, toWidgetResponse } from '../lib/widgetKind.js'
 import { requireAuth } from '../lib/session.js'
 
 const createRaidSchema = z
@@ -15,10 +15,6 @@ const createRaidSchema = z
     // 경우는 클라이언트 버그일 가능성이 높으므로 명시적으로 거부한다(아래 refine).
     raidKey: z.string().trim().min(1).optional(),
     difficultyKey: z.string().trim().min(1).optional(),
-    x: z.number().int().min(0),
-    y: z.number().int().min(0),
-    w: z.number().int().min(1),
-    h: z.number().int().min(1),
   })
   .refine((data) => (data.raidKey === undefined) === (data.difficultyKey === undefined), {
     message: 'raidKey and difficultyKey must both be present or both omitted',
@@ -35,13 +31,6 @@ const moreRewardSchema = z.object({
 
 const goldRewardSchema = z.object({
   enabled: z.boolean(),
-})
-
-const positionUpdateSchema = z.object({
-  x: z.number().int().min(0),
-  y: z.number().int().min(0),
-  w: z.number().int().min(1),
-  h: z.number().int().min(1),
 })
 
 const gateClearSchema = z.object({ description: z.string().trim().min(1).optional() }).optional()
@@ -110,7 +99,8 @@ export async function raidRoutes(fastify: FastifyInstance) {
       const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
       if (!character) return
 
-      const parsed = createRaidSchema.safeParse(request.body)
+      // body 자체를 생략해도 된다(목표 없는 빈 슬롯을 카드 맨 아래에 추가).
+      const parsed = createRaidSchema.safeParse(request.body ?? {})
       if (!parsed.success) {
         return reply.code(400).send({ error: 'invalid_request' })
       }
@@ -140,10 +130,8 @@ export async function raidRoutes(fastify: FastifyInstance) {
           data: {
             characterId: character.id,
             widgetType: 'RAID',
-            gridX: parsed.data.x,
-            gridY: parsed.data.y,
-            width: parsed.data.w,
-            height: parsed.data.h,
+            // 새 레이드 위젯은 카드 맨 아래에 붙는다. 순서 변경은 PUT .../dashboards/{id}/widgets.
+            displayOrder: await nextDisplayOrder(tx, character.id),
             raidId: raid.id,
           },
           include: { raid: true },
@@ -179,34 +167,6 @@ export async function raidRoutes(fastify: FastifyInstance) {
       ])
 
       return reply.code(204).send()
-    },
-  )
-
-  // RAID 위젯은 PUT .../widgets(전체 교체)의 대상이 아니라 위치 이동도 전용 엔드포인트로 처리한다
-  // (docs/api.typ "대시보드 및 레이아웃" 참고) — Character_Raids 참조를 보존하면서 그리드 좌표만
-  // 바꾸므로 목표(target) 변경과 달리 완료된 관문이 있어도 제한 없이 옮길 수 있다.
-  fastify.patch<{ Params: { characterId: string; raidId: string } }>(
-    '/api/characters/:characterId/raids/:raidId/position',
-    { preHandler: auth, schema: { tags: ['Raid'], summary: '레이드 위젯 그리드 위치/크기 변경' } },
-    async (request, reply) => {
-      const character = await requireOwnedCharacter(request.params.characterId, request.userId!, reply)
-      if (!character) return
-
-      const raid = await requireOwnedRaid(character.id, request.params.raidId, reply)
-      if (!raid) return
-
-      const parsed = positionUpdateSchema.safeParse(request.body)
-      if (!parsed.success) {
-        return reply.code(400).send({ error: 'invalid_request' })
-      }
-
-      const widget = await fastify.prisma.dashboardWidget.update({
-        where: { raidId: raid.id },
-        data: { gridX: parsed.data.x, gridY: parsed.data.y, width: parsed.data.w, height: parsed.data.h },
-        include: { raid: true },
-      })
-
-      return reply.send(toWidgetResponse(widget))
     },
   )
 

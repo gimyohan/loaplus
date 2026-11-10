@@ -5,17 +5,12 @@ import { z } from 'zod'
 import { KIND_TO_WIDGET_TYPE, WIDGET_TYPE_TO_KIND, toWidgetResponse } from '../lib/widgetKind.js'
 import { requireAuth } from '../lib/session.js'
 
+/** 위젯 종류만 위→아래 순서대로 담는다(마이그레이션 20261110120000_widget_order_model). */
 interface TemplateLayoutWidget {
   kind: string
-  x: number
-  y: number
-  w: number
-  h: number
 }
 
 interface TemplateLayoutSchema {
-  columns: number
-  rows: number
   widgets: TemplateLayoutWidget[]
 }
 
@@ -47,8 +42,6 @@ function toTemplateSummary(template: {
     id: template.id,
     title: template.title,
     description: template.description,
-    columns: layout.columns,
-    rows: layout.rows,
     widgetCount: layout.widgets.length,
     createdAt: template.createdAt,
     ...(template.author !== undefined ? { authorNickname: template.author?.nickname ?? null } : {}),
@@ -76,20 +69,13 @@ export async function templateRoutes(fastify: FastifyInstance) {
 
     const widgets = await fastify.prisma.dashboardWidget.findMany({
       where: { characterId: character.id },
+      orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
     })
 
-    // 위젯의 종류와 위치만 스냅샷한다 — custom_data/raid 목표 같은 상태는 담지 않는다
-    // (docs/db_schema.typ의 Dashboard_Templates 참고).
+    // 위젯의 종류와 순서만 스냅샷한다 — custom_data/raid 목표 같은 상태는 담지 않는다
+    // (docs/db_schema.md의 Dashboard_Templates 참고).
     const layoutSchema: TemplateLayoutSchema = {
-      columns: character.gridColumns,
-      rows: character.gridRows,
-      widgets: widgets.map((widget) => ({
-        kind: WIDGET_TYPE_TO_KIND[widget.widgetType],
-        x: widget.gridX,
-        y: widget.gridY,
-        w: widget.width,
-        h: widget.height,
-      })),
+      widgets: widgets.map((widget) => ({ kind: WIDGET_TYPE_TO_KIND[widget.widgetType] })),
     }
 
     const template = await fastify.prisma.dashboardTemplate.create({
@@ -148,63 +134,54 @@ export async function templateRoutes(fastify: FastifyInstance) {
       }
 
       const layout = template.layoutSchema as unknown as TemplateLayoutSchema
-      const raidEntries = layout.widgets.filter((widget) => widget.kind === 'raid')
-      const otherEntries = layout.widgets.filter((widget) => widget.kind !== 'raid')
 
+      // RAID가 아닌 기존 위젯은 전부 지우고 템플릿 순서대로 다시 만든다. 기존 레이드 슬롯은
+      // 건드리지 않고(슬롯 생명주기는 POST/DELETE .../raids 전용) 템플릿 위젯들 뒤로 보낸다.
+      // 템플릿의 raid 항목은 그 자리에 목표가 없는 빈 레이드 슬롯을 새로 만든다.
       await fastify.prisma.$transaction(async (tx) => {
-        await tx.character.update({
-          where: { id: character.id },
-          data: { gridColumns: layout.columns, gridRows: layout.rows },
-        })
-
-        // RAID가 아닌 기존 배치를 전부 지우고 템플릿 내용으로 다시 채운다 (PUT .../widgets의
-        // replace-all과 동일한 원칙 — 기존 RAID 위젯은 건드리지 않음).
         await tx.dashboardWidget.deleteMany({
           where: { characterId: character.id, widgetType: { not: 'RAID' } },
         })
-        if (otherEntries.length > 0) {
-          await tx.dashboardWidget.createMany({
-            data: otherEntries.map((widget) => ({
-              characterId: character.id,
-              widgetType: KIND_TO_WIDGET_TYPE[widget.kind as keyof typeof KIND_TO_WIDGET_TYPE],
-              gridX: widget.x,
-              gridY: widget.y,
-              width: widget.w,
-              height: widget.h,
-            })),
-          })
+        const existingRaidWidgets = await tx.dashboardWidget.findMany({
+          where: { characterId: character.id, widgetType: 'RAID' },
+          orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+          select: { id: true },
+        })
+
+        for (const [index, entry] of layout.widgets.entries()) {
+          if (entry.kind === 'raid') {
+            const raid = await tx.characterRaid.create({
+              data: { characterId: character.id, raidKey: null, difficultyKey: null, gates: [] },
+            })
+            await tx.dashboardWidget.create({
+              data: { characterId: character.id, widgetType: 'RAID', displayOrder: index, raidId: raid.id },
+            })
+          } else {
+            await tx.dashboardWidget.create({
+              data: {
+                characterId: character.id,
+                widgetType: KIND_TO_WIDGET_TYPE[entry.kind as keyof typeof KIND_TO_WIDGET_TYPE],
+                displayOrder: index,
+              },
+            })
+          }
         }
 
-        // 템플릿의 raid 항목 개수만큼, 목표가 없는 빈 레이드 슬롯을 새로 추가한다 — 기존 레이드
-        // 슬롯은 건드리지 않는다(레이드 슬롯 생명주기는 POST/DELETE .../raids 전용, 위 참고).
-        for (const raidWidget of raidEntries) {
-          const raid = await tx.characterRaid.create({
-            data: { characterId: character.id, raidKey: null, difficultyKey: null, gates: [] },
-          })
-          await tx.dashboardWidget.create({
-            data: {
-              characterId: character.id,
-              widgetType: 'RAID',
-              gridX: raidWidget.x,
-              gridY: raidWidget.y,
-              width: raidWidget.w,
-              height: raidWidget.h,
-              raidId: raid.id,
-            },
+        for (const [offset, widget] of existingRaidWidgets.entries()) {
+          await tx.dashboardWidget.update({
+            where: { id: widget.id },
+            data: { displayOrder: layout.widgets.length + offset },
           })
         }
       })
 
       const widgets = await fastify.prisma.dashboardWidget.findMany({
         where: { characterId: character.id },
+        orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
         include: { raid: true },
       })
 
-      return reply.send({
-        columns: layout.columns,
-        rows: layout.rows,
-        widgets: widgets.map(toWidgetResponse),
-      })
+      return reply.send({ widgets: widgets.map(toWidgetResponse) })
     },
   )
 }

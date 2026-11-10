@@ -2,15 +2,14 @@ import { apiFetch } from '@/lib/api'
 import type { PlacedWidget } from '@/types/widget'
 
 /**
- * Additional Value 위젯(text/textCheckbox/image/linkIcon) 하나의 내용(customData) 편집 전용 API.
- * 배치(x/y/w/h) 변경은 그리드 편집 모달에서 카드 전체를 한 번에 저장하는
- * PUT /api/dashboards/{characterId}/widgets(lib/dashboards.ts)로 처리하고, 이 파일의 함수들은
- * 대시보드 화면에서 위젯 하나의 내용만 바로 바꿀 때(텍스트 입력, 체크박스 토글 등) 쓴다 —
- * 그때마다 카드 전체 위젯 배치를 다시 저장하는 건 낭비이기 때문이다(docs/api.typ 참고).
+ * Additional Value 위젯(text/textCheckbox/counter/image/linkIcon) 하나의 내용(customData) 편집 전용 API.
+ * 순서·추가·삭제는 카드 전체를 순서 배열로 저장하는 PUT /api/dashboards/{characterId}/widgets
+ * (lib/dashboards.ts)로 처리하고, 이 파일의 함수들은 위젯 하나의 내용만 바로 바꿀 때(텍스트 입력,
+ * 체크박스 토글, 이미지 크기 등) 쓴다(docs/api.md 참고).
  */
 export async function updateCustomWidget(
   widgetId: string,
-  input: { x: number; y: number; w: number; h: number; customData: Record<string, unknown> },
+  input: { customData: Record<string, unknown> },
 ): Promise<PlacedWidget> {
   return apiFetch<PlacedWidget>(`/api/widgets/custom/${widgetId}`, {
     method: 'PUT',

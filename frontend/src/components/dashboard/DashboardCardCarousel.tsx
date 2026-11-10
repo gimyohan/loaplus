@@ -6,6 +6,7 @@ import { DashboardCard } from '@/components/dashboard/DashboardCard'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { useElementWidth } from '@/hooks/useElementWidth'
 import { MAX_CHARACTERS_PER_USER } from '@/lib/characters'
+import { CARD_WIDTH } from '@/lib/widgetCatalog'
 
 // 카드가 많을 때 한 칸씩 넘기기 답답하지 않도록, 3칸씩 건너뛰는 이동 버튼도 함께 둔다(사용자 확정).
 const JUMP_SIZE = 3
@@ -20,8 +21,8 @@ export interface DashboardCardCarouselProps {
 }
 
 /**
- * 모바일(md 미만)에서 카드를 한 번에 하나씩만 보여주는 캐러셀. 좁은 화면에 여러 칸짜리 그리드를
- * 욱여넣는 대신, 카드 하나를 화면 너비에 맞춰 최대한 키워서 보여주고 좌우 화살표로 넘긴다. 새 카드
+ * 모바일(md 미만)에서 카드를 한 번에 하나씩만 보여주는 캐러셀. 카드 폭은 데스크톱과 같은
+ * CARD_WIDTH(350px)이고, 화면이 그보다 좁을 때만 화면 폭에 맞춰 줄인다(키우지는 않는다). 새 카드
  * 추가 타일을 마지막 한 칸으로 취급해 슬라이드 끝에 둔다.
  */
 export function DashboardCardCarousel({
@@ -45,6 +46,7 @@ export function DashboardCardCarousel({
     setIndex((prev) => Math.min(prev, slideCount - 1))
   }, [slideCount])
 
+  const cardWidth = Math.min(CARD_WIDTH, width)
   const currentId = isAddSlide ? undefined : cardIds[index]
   const boundCharacter = currentId ? characters.find((character) => character.id === currentId) : undefined
 
@@ -98,7 +100,7 @@ export function DashboardCardCarousel({
 
       {width > 0 &&
         (isAddSlide ? (
-          <AddCharacterCard onClick={onAddCharacter} width={width} />
+          <AddCharacterCard onClick={onAddCharacter} width={cardWidth} />
         ) : (
           currentId && (
             <DashboardCard
@@ -107,7 +109,7 @@ export function DashboardCardCarousel({
               autoOpenSettings={currentId === autoOpenCardId}
               onRemove={() => onRemoveCard(currentId)}
               onBound={(characterId) => onCardBound(currentId, characterId)}
-              width={width}
+              width={cardWidth}
             />
           )
         ))}

@@ -6,9 +6,6 @@ import { applyLazyReset } from '../lib/resetLogic.js'
 import { KIND_TO_WIDGET_TYPE, toWidgetResponse } from '../lib/widgetKind.js'
 import { requireAuth } from '../lib/session.js'
 
-const MAX_COLUMNS = 30
-const MAX_ROWS = 60
-
 const cardOrderSchema = z.object({
   characterIds: z.array(z.string().uuid()),
 })
@@ -18,19 +15,20 @@ const cardSwapSchema = z.object({
   characterIdB: z.string().uuid(),
 })
 
-const widgetInputSchema = z.object({
-  kind: z.enum(Object.keys(KIND_TO_WIDGET_TYPE) as [string, ...string[]]),
-  x: z.number().int().min(0),
-  y: z.number().int().min(0),
-  w: z.number().int().min(1),
-  h: z.number().int().min(1),
-  customData: z.unknown().optional(),
-})
+// 레이드는 Character_Raids 행이 함께 있어야 성립하므로 이 엔드포인트로 새로 만들 수 없다(POST
+// .../raids 전용). 이미 있는 레이드 위젯은 id로 순서만 옮길 수 있다.
+const NEW_WIDGET_KINDS = Object.keys(KIND_TO_WIDGET_TYPE).filter((kind) => kind !== 'raid') as [string, ...string[]]
 
-const widgetsLayoutSchema = z.object({
-  columns: z.number().int().min(1).max(MAX_COLUMNS),
-  rows: z.number().int().min(1).max(MAX_ROWS),
-  widgets: z.array(widgetInputSchema),
+/** 순서 배열의 한 칸: 이미 있는 위젯은 id만, 새로 추가하는 위젯은 kind(+ 초기 customData). */
+const widgetOrderEntrySchema = z.union([
+  z.object({ id: z.string().uuid() }).strict(),
+  z.object({ kind: z.enum(NEW_WIDGET_KINDS), customData: z.unknown().optional() }).strict(),
+])
+
+const MAX_WIDGETS_PER_CARD = 60
+
+const widgetOrderSchema = z.object({
+  widgets: z.array(widgetOrderEntrySchema).max(MAX_WIDGETS_PER_CARD),
 })
 
 export async function dashboardRoutes(fastify: FastifyInstance) {
@@ -133,9 +131,18 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
     return reply.send(await getCardOrder(request.userId!))
   })
 
+  async function listWidgets(characterId: string) {
+    const widgets = await fastify.prisma.dashboardWidget.findMany({
+      where: { characterId },
+      orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
+      include: { raid: true },
+    })
+    return { widgets: widgets.map(toWidgetResponse) }
+  }
+
   fastify.get<{ Params: { characterId: string } }>(
     '/api/dashboards/:characterId/widgets',
-    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '캐릭터 내부 그리드 위젯 배치 조회' } },
+    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '캐릭터 카드의 위젯 목록 조회(위→아래 순서)' } },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store')
 
@@ -146,22 +153,17 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'character_not_found' })
       }
 
-      const widgets = await fastify.prisma.dashboardWidget.findMany({
-        where: { characterId: character.id },
-        include: { raid: true },
-      })
-
-      return reply.send({
-        columns: character.gridColumns,
-        rows: character.gridRows,
-        widgets: widgets.map(toWidgetResponse),
-      })
+      return reply.send(await listWidgets(character.id))
     },
   )
 
+  // 카드의 위젯 목록을 위→아래 순서 배열로 통째로 맞춘다. 배열에 id로 남은 위젯은 그대로 두고
+  // 순서만 바꾸며(id·custom_data 유지), kind로 들어온 항목은 새로 만들고, 배열에서 빠진 기존
+  // 위젯은 삭제한다. 레이드 위젯은 여기서 지울 수 없다 — 슬롯 삭제는 관문 로그 정리가 함께
+  // 필요해 DELETE .../raids/{raidId} 전용이므로, 기존 레이드 위젯은 전부 배열에 있어야 한다.
   fastify.put<{ Params: { characterId: string } }>(
     '/api/dashboards/:characterId/widgets',
-    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '그리드 크기 + 위젯 배치 전체 교체' } },
+    { preHandler: auth, schema: { tags: ['Dashboard'], summary: '위젯 순서·추가·삭제를 순서 배열로 저장' } },
     async (request, reply) => {
       const character = await fastify.prisma.character.findFirst({
         where: { id: request.params.characterId, userId: request.userId! },
@@ -170,45 +172,49 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'character_not_found' })
       }
 
-      const parsed = widgetsLayoutSchema.safeParse(request.body)
+      const parsed = widgetOrderSchema.safeParse(request.body)
       if (!parsed.success) {
         return reply.code(400).send({ error: 'invalid_request' })
       }
-      // RAID는 이 replace-all로 만들거나 옮길 수 없다 — 삭제 후 재생성 방식이라
-      // Character_Raids 참조를 보존할 수 없기 때문 (docs/db_schema.typ의 Dashboard_Widgets 참고).
-      if (parsed.data.widgets.some((widget) => widget.kind === 'raid')) {
-        return reply.code(400).send({ error: 'raid_widget_not_allowed' })
+      const entries = parsed.data.widgets
+
+      const existing = await fastify.prisma.dashboardWidget.findMany({
+        where: { characterId: character.id },
+        select: { id: true, widgetType: true },
+      })
+      const existingIds = new Set(existing.map((widget) => widget.id))
+      const keptIds = entries.flatMap((entry) => ('id' in entry ? [entry.id] : []))
+
+      if (new Set(keptIds).size !== keptIds.length || !keptIds.every((id) => existingIds.has(id))) {
+        return reply.code(400).send({ error: 'unknown_widget' })
+      }
+      const keptIdSet = new Set(keptIds)
+      if (existing.some((widget) => widget.widgetType === 'RAID' && !keptIdSet.has(widget.id))) {
+        return reply.code(400).send({ error: 'raid_widget_missing' })
       }
 
-      // 그리드 크기 갱신 + 위젯 전체 교체(기존 삭제 후 새로 생성)를 한 트랜잭션으로 처리한다.
-      // 기존 RAID 위젯 행은 건드리지 않는다(자체 생명주기는 POST/DELETE .../raids가 관리).
-      const [, , widgets] = await fastify.prisma.$transaction([
-        fastify.prisma.character.update({
-          where: { id: character.id },
-          data: { gridColumns: parsed.data.columns, gridRows: parsed.data.rows },
-        }),
-        fastify.prisma.dashboardWidget.deleteMany({
-          where: { characterId: character.id, widgetType: { not: 'RAID' } },
-        }),
-        fastify.prisma.dashboardWidget.createManyAndReturn({
-          data: parsed.data.widgets.map((widget) => ({
-            characterId: character.id,
-            widgetType: KIND_TO_WIDGET_TYPE[widget.kind as keyof typeof KIND_TO_WIDGET_TYPE],
-            gridX: widget.x,
-            gridY: widget.y,
-            width: widget.w,
-            height: widget.h,
-            customData:
-              widget.customData === undefined ? undefined : (widget.customData as Prisma.InputJsonValue),
-          })),
-        }),
-      ])
-
-      return reply.send({
-        columns: parsed.data.columns,
-        rows: parsed.data.rows,
-        widgets: widgets.map(toWidgetResponse),
+      await fastify.prisma.$transaction(async (tx) => {
+        await tx.dashboardWidget.deleteMany({
+          where: { characterId: character.id, id: { notIn: keptIds } },
+        })
+        for (const [index, entry] of entries.entries()) {
+          if ('id' in entry) {
+            await tx.dashboardWidget.update({ where: { id: entry.id }, data: { displayOrder: index } })
+          } else {
+            await tx.dashboardWidget.create({
+              data: {
+                characterId: character.id,
+                widgetType: KIND_TO_WIDGET_TYPE[entry.kind as keyof typeof KIND_TO_WIDGET_TYPE],
+                displayOrder: index,
+                customData:
+                  entry.customData === undefined ? undefined : (entry.customData as Prisma.InputJsonValue),
+              },
+            })
+          }
+        }
       })
+
+      return reply.send(await listWidgets(character.id))
     },
   )
 }

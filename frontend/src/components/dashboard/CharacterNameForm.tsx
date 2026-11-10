@@ -96,7 +96,7 @@ export function CharacterNameForm({
           {isResolving ? '조회 중...' : '적용'}
         </Button>
       </div>
-      {resolveError && <p className="text-xs text-destructive">{resolveError}</p>}
+      {resolveError && <p className="text-xs text-danger">{resolveError}</p>}
     </form>
   )
 }

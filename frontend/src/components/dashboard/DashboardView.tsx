@@ -2,7 +2,6 @@ import { AddCharacterCard } from '@/components/dashboard/AddCharacterCard'
 import { DashboardCard } from '@/components/dashboard/DashboardCard'
 import { DashboardCardCarousel } from '@/components/dashboard/DashboardCardCarousel'
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
-import { useElementWidth } from '@/hooks/useElementWidth'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MAX_CHARACTERS_PER_USER } from '@/lib/characters'
 
@@ -16,15 +15,6 @@ export interface DashboardViewProps {
   onAddCharacter: () => void
 }
 
-const GRID_GAP = 24
-// 카드 한 칸이 이보다 좁아지면 읽기 힘들어지므로, 화면이 좁을 땐 COLUMNS_PER_ROW보다 실제로는
-// 적게 배치한다("화면 크기도 고려" 요구사항).
-const MIN_CARD_WIDTH = 150
-// 한 줄에 배치할 카드 수. 사용자가 고를 수 있게 했던 적이 있었으나(Roster 탭), 카드 높이가 폭에
-// 비례해 커지면서 세로 스크롤바가 나타났다 사라졌다 하고 그때마다 뷰포트 폭이 미세하게 바뀌어
-// 카드 크기가 계속 흔들리는 문제가 있어 우선 3열로 고정한다.
-const COLUMNS_PER_ROW = 3
-
 export function DashboardView({
   cardIds,
   autoOpenCardId,
@@ -34,16 +24,15 @@ export function DashboardView({
 }: DashboardViewProps) {
   const { characters } = useCharacterDirectory()
   const isMobile = useIsMobile()
-  const { ref, width: containerWidth } = useElementWidth<HTMLDivElement>()
   // 이미 최대 개수를 등록한 상태면 "새 카드 추가" 타일 자체를 숨긴다 — 어차피 이름을 입력하는
-  // 순간 서버가 거부할 걸 알면서 빈 카드부터 만들게 두는 건 혼란만 준다(docs/api.typ 참고).
+  // 순간 서버가 거부할 걸 알면서 빈 카드부터 만들게 두는 건 혼란만 준다.
   const atCharacterLimit = characters.length >= MAX_CHARACTERS_PER_USER
 
   if (cardIds.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-12">
         <p className="text-sm text-muted-foreground">등록된 카드가 없습니다. 아래에서 캐릭터를 추가해 보세요.</p>
-        {!atCharacterLimit && <AddCharacterCard onClick={onAddCharacter} className="w-full max-w-[240px]" />}
+        {!atCharacterLimit && <AddCharacterCard onClick={onAddCharacter} />}
       </div>
     )
   }
@@ -60,43 +49,27 @@ export function DashboardView({
     )
   }
 
-  // 화면 폭이 좁으면 COLUMNS_PER_ROW만큼 배치했을 때 카드가 MIN_CARD_WIDTH보다 좁아질 수 있으므로,
-  // 실제로 배치할 열 수는 (화면에 들어가는 최대 열 수)와 COLUMNS_PER_ROW 중 작은 값으로 줄인다.
-  const maxColumnsForWidth = Math.max(1, Math.floor((containerWidth + GRID_GAP) / (MIN_CARD_WIDTH + GRID_GAP)))
-  const effectiveColumns = Math.min(COLUMNS_PER_ROW, maxColumnsForWidth)
-  const cardWidth =
-    containerWidth > 0 ? (containerWidth - GRID_GAP * (effectiveColumns - 1)) / effectiveColumns : 0
-
+  // 카드는 고정 폭(CARD_WIDTH)이라 한 줄에 몇 장이 들어갈지는 화면 폭이 정하고, 남는 카드는 다음
+  // 줄로 넘어간다(docs/ui_redesign.md "화면 폭과 카드 개수"). items-start: 카드마다 위젯 수가 달라
+  // 높이가 다르므로 같은 줄 카드를 가장 큰 높이로 늘리지 않는다.
   return (
-    // containerWidth를 재기 전(첫 렌더)엔 카드 크기를 계산할 수 없으므로, ref는 항상 걸어 너비부터
-    // 잰 뒤(거의 즉시) 카드를 그린다 — 그래야 원본 크기로 한 번 그렸다가 줄어드는 플래시 없이 바로
-    // 알맞은 크기로 나온다.
-    // items-start: 카드마다 그리드 높이(rows)가 달라질 수 있으므로, 기본값인 stretch로 같은 줄의
-    // 카드를 전부 가장 큰 카드 높이에 맞춰 늘리지 않고, 각자 원래 높이 그대로 줄 위쪽에 맞춘다.
-    <div
-      ref={ref}
-      className="grid items-start justify-center gap-6"
-      style={{ gridTemplateColumns: `repeat(${effectiveColumns}, ${cardWidth}px)` }}
-    >
-      {containerWidth > 0 &&
-        cardIds.map((id) => {
-          // 이미 실제 캐릭터로 등록된 id(GET /api/dashboards에서 온 카드)라면 이름을 미리 채워서
-          // WidgetDashboard가 마운트되자마자 위젯 배치를 서버에서 조회하도록 한다.
-          const boundCharacter = characters.find((character) => character.id === id)
-          // id는 사이드바 캐릭터 목록에서 이 카드로 스크롤할 때 쓰는 앵커다(App.tsx handleCharacterClick).
-          return (
-            <div key={id} id={`dashboard-card-${id}`} className="scroll-mt-6 rounded-xl">
-              <DashboardCard
-                initialCharacterName={boundCharacter?.characterName}
-                autoOpenSettings={id === autoOpenCardId}
-                onRemove={() => onRemoveCard(id)}
-                onBound={(characterId) => onCardBound(id, characterId)}
-                width={cardWidth}
-              />
-            </div>
-          )
-        })}
-      {containerWidth > 0 && !atCharacterLimit && <AddCharacterCard onClick={onAddCharacter} width={cardWidth} />}
+    <div className="flex flex-wrap items-start gap-4">
+      {cardIds.map((id) => {
+        // 이미 실제 캐릭터로 등록된 id라면 이름을 미리 채워 마운트 즉시 위젯 목록을 조회하게 한다.
+        const boundCharacter = characters.find((character) => character.id === id)
+        // id는 사이드바 캐릭터 목록에서 이 카드로 스크롤할 때 쓰는 앵커다(App.tsx handleCharacterClick).
+        return (
+          <div key={id} id={`dashboard-card-${id}`} className="scroll-mt-6 rounded-xl">
+            <DashboardCard
+              initialCharacterName={boundCharacter?.characterName}
+              autoOpenSettings={id === autoOpenCardId}
+              onRemove={() => onRemoveCard(id)}
+              onBound={(characterId) => onCardBound(id, characterId)}
+            />
+          </div>
+        )
+      })}
+      {!atCharacterLimit && <AddCharacterCard onClick={onAddCharacter} />}
     </div>
   )
 }

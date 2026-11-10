@@ -29,29 +29,26 @@ export async function swapCardOrder(characterIdA: string, characterIdB: string):
   })
 }
 
-interface WidgetLayoutDto {
-  columns: number
-  rows: number
+export interface WidgetLayout {
+  /** 위→아래 순서 */
   widgets: PlacedWidget[]
 }
 
-export interface WidgetLayout {
-  columns: number
-  rows: number
-  widgets: PlacedWidget[]
-}
+/** 순서 배열의 한 칸: 이미 저장된 위젯은 id만, 새로 추가하는 위젯은 kind(+ 초기 customData). */
+export type WidgetOrderEntry = { id: string } | { kind: PlacedWidget['kind']; customData?: Record<string, unknown> }
 
 export async function fetchWidgetLayout(characterId: string): Promise<WidgetLayout> {
-  return apiFetch<WidgetLayoutDto>(`/api/dashboards/${characterId}/widgets`)
+  return apiFetch<WidgetLayout>(`/api/dashboards/${characterId}/widgets`)
 }
 
-/** 그리드 크기 + 위젯 배치를 통째로 교체 저장한다(부분 갱신 없음). */
-export async function saveWidgetLayout(
-  characterId: string,
-  layout: { columns: number; rows: number; widgets: Omit<PlacedWidget, 'id'>[] },
-): Promise<WidgetLayout> {
-  return apiFetch<WidgetLayoutDto>(`/api/dashboards/${characterId}/widgets`, {
+/**
+ * 카드의 위젯 목록을 위→아래 순서 배열로 통째로 맞춘다. id로 넘긴 위젯은 그대로(순서만 변경),
+ * kind로 넘긴 항목은 새로 만들고, 배열에서 빠진 기존 위젯은 서버가 지운다. 레이드 위젯은 여기서
+ * 만들거나 지울 수 없다(POST/DELETE .../raids 전용) — 기존 레이드 위젯은 전부 id로 포함해야 한다.
+ */
+export async function saveWidgetOrder(characterId: string, widgets: WidgetOrderEntry[]): Promise<WidgetLayout> {
+  return apiFetch<WidgetLayout>(`/api/dashboards/${characterId}/widgets`, {
     method: 'PUT',
-    body: JSON.stringify(layout),
+    body: JSON.stringify({ widgets }),
   })
 }

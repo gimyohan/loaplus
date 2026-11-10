@@ -8,14 +8,14 @@ interface RaidTargetDto extends RaidTargetSummary {
 }
 
 /**
- * 레이드 위젯(슬롯) 하나를 생성한다. Character_Raids 행 + Dashboard_Widgets(RAID) 행이 함께 만들어진다.
- * raidKey/difficultyKey를 생략하면 서버가 캐릭터 아이템 레벨 기준으로 자동 추천한다(둘 다 생략해야
- * 하며 하나만 보내면 400) — 위젯을 팔레트에서 드래그해 추가할 때는 목표를 먼저 고르게 하지 않고
- * 일단 추가한 뒤, 톱니바퀴(RaidTargetModal)에서 원하는 목표로 바꾸게 한다.
+ * 레이드 위젯(슬롯) 하나를 카드 맨 아래에 생성한다. Character_Raids 행 + Dashboard_Widgets(RAID) 행이
+ * 함께 만들어진다. raidKey/difficultyKey를 생략하면 목표 없는 빈 슬롯이 된다(둘 다 생략해야 하며
+ * 하나만 보내면 400) — 위젯을 추가할 때는 목표를 먼저 고르게 하지 않고 일단 추가한 뒤,
+ * 톱니바퀴(RaidTargetModal)에서 원하는 목표로 바꾸게 한다.
  */
 export async function createRaidWidget(
   characterId: string,
-  input: { raidKey?: string; difficultyKey?: string; x: number; y: number; w: number; h: number },
+  input: { raidKey?: string; difficultyKey?: string } = {},
 ): Promise<PlacedWidget> {
   return apiFetch<PlacedWidget>(`/api/characters/${characterId}/raids`, {
     method: 'POST',
@@ -26,22 +26,6 @@ export async function createRaidWidget(
 /** 레이드 위젯(슬롯) 삭제. Character_Raids 행과 이 슬롯의 RAID_GATE_CLEAR 로그도 함께 정리된다. */
 export async function deleteRaidWidget(characterId: string, raidId: string): Promise<void> {
   await apiFetch<void>(`/api/characters/${characterId}/raids/${raidId}`, { method: 'DELETE' })
-}
-
-/**
- * 그리드 위치/크기만 변경한다. `PUT /api/dashboards/{characterId}/widgets`(전체 교체)가
- * `kind: "raid"`를 거부하므로(docs/api.typ 참고) 레이드 위젯을 그리드에서 옮기려면 이 엔드포인트를
- * 써야 한다. 목표/관문 진행 상태는 건드리지 않아 완료된 관문이 있어도 제한 없이 옮길 수 있다.
- */
-export async function updateRaidPosition(
-  characterId: string,
-  raidId: string,
-  input: { x: number; y: number; w: number; h: number },
-): Promise<PlacedWidget> {
-  return apiFetch<PlacedWidget>(`/api/characters/${characterId}/raids/${raidId}/position`, {
-    method: 'PATCH',
-    body: JSON.stringify(input),
-  })
 }
 
 /** 목표 레이드/난이도 변경. 완료된 관문이 하나라도 있으면 서버가 409를 반환한다(docs/api.typ 참고). */

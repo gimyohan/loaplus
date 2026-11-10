@@ -55,9 +55,6 @@ model Character {
   imageUrl      String? @map("image_url")
   /// 대시보드에서 카드가 나열되는 순서. PUT /api/dashboards로 갱신, 신규 등록 시 맨 뒤로 자동 배정.
   displayOrder  Int     @default(0) @map("display_order")
-  /// 이 캐릭터 카드 내부 위젯 그리드(n x m)의 칸 수. GridSettingsModal에서 조정.
-  gridColumns   Int     @default(10) @map("grid_columns")
-  gridRows      Int     @default(16) @map("grid_rows")
 
   /// 상세 배너(BANNER_DETAILED, 10x4)용 컬럼 4개. POST /api/characters·POST .../refresh 시점에 Open API
   /// ArmoryEquipment 응답을 파싱해 한 번에 채운다(docs/api.typ "상세 배너 필드 매핑",
@@ -362,10 +359,10 @@ model DashboardWidget {
   id          String     @id @default(uuid()) @db.Uuid
   characterId String     @map("character_id") @db.Uuid
   widgetType  WidgetType @map("widget_type")
-  gridX       Int        @map("grid_x")
-  gridY       Int        @map("grid_y")
-  width       Int
-  height      Int
+  /// 카드 안에서의 세로 순서(0부터, 위→아래). 폭은 항상 카드 폭(350px)이고 높이는 위젯 종류가
+  /// 정하므로 위치·크기는 저장하지 않는다(docs/ui_redesign.md "순서 모델과 데이터"). 이미지 위젯만
+  /// 높이 단계(S/M/L)를 custom_data.size로 갖는다.
+  displayOrder Int       @map("display_order")
   /// widget_type이 RAID일 때만 값이 채워지는 참조. 이 행이 어느 레이드 슬롯을 가리키는지
   /// 명시하며(RAID는 캐릭터당 여러 슬롯을 가질 수 있어 character_id만으로 유일하지 않음),
   /// Character_Raids 행이 삭제되면 이 행도 함께 삭제된다(onDelete: Cascade).
@@ -377,6 +374,7 @@ model DashboardWidget {
   character Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)
   raid      CharacterRaid? @relation(fields: [raidId], references: [id], onDelete: Cascade)
 
+  @@index([characterId, displayOrder])
   @@map("dashboard_widgets")
 }
 
@@ -470,8 +468,8 @@ model DashboardTemplate {
   authorUserId String   @map("author_user_id") @db.Uuid
   title        String
   description  String?
-  /// { columns, rows, widgets: [{ kind, x, y, w, h }] }. 위젯의 종류와 위치만 담고
-  /// custom_data/레이드 목표 같은 상태는 담지 않는다 (docs/db_schema.typ 참고).
+  /// { widgets: [{ kind }] } — 위에서 아래 순서대로의 위젯 종류 목록. custom_data/레이드 목표
+  /// 같은 상태는 담지 않는다 (docs/db_schema.md 참고).
   layoutSchema Json     @map("layout_schema")
   createdAt    DateTime @default(now()) @map("created_at")
 

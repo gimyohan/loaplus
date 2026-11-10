@@ -1,4 +1,4 @@
-import type { WidgetType } from '@prisma/client'
+import type { Prisma, PrismaClient, WidgetType } from '@prisma/client'
 
 // workspace/frontend/src/types/widget.ts의 WidgetKind(카멜케이스)와 Dashboard_Widgets.widget_type
 // Enum(docs/db_schema.typ)을 1:1로 매핑한다. API는 프론트가 이미 쓰는 카멜케이스 kind를 그대로 쓴다.
@@ -36,13 +36,22 @@ export const ADDITIONAL_VALUE_KINDS = [
   'counter',
 ] as const satisfies WidgetKind[]
 
+/** 이 캐릭터 카드의 맨 아래(가장 큰 display_order + 1) 순서. 위젯을 하나씩 추가할 때 끝에 붙인다. */
+export async function nextDisplayOrder(
+  prisma: Pick<PrismaClient, 'dashboardWidget'> | Prisma.TransactionClient,
+  characterId: string,
+): Promise<number> {
+  const result = await prisma.dashboardWidget.aggregate({
+    where: { characterId },
+    _max: { displayOrder: true },
+  })
+  return (result._max.displayOrder ?? -1) + 1
+}
+
+/** 위젯 응답. 배열 자체가 위→아래 순서이므로(호출부가 display_order로 정렬) 순서 값은 따로 싣지 않는다. */
 export function toWidgetResponse(widget: {
   id: string
   widgetType: WidgetType
-  gridX: number
-  gridY: number
-  width: number
-  height: number
   customData: unknown
   raidId?: string | null
   raid?: { raidKey: string | null; difficultyKey: string | null; gates: unknown; goldRewardEnabled: boolean } | null
@@ -50,10 +59,6 @@ export function toWidgetResponse(widget: {
   return {
     id: widget.id,
     kind: WIDGET_TYPE_TO_KIND[widget.widgetType],
-    x: widget.gridX,
-    y: widget.gridY,
-    w: widget.width,
-    h: widget.height,
     customData: widget.customData ?? null,
     // widget_type이 RAID일 때만 값이 채워진다 (docs/db_schema.typ의 Dashboard_Widgets 참고).
     ...(widget.widgetType === 'RAID'

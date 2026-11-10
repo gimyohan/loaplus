@@ -11,14 +11,12 @@ import type { PlacedWidget } from '@/types/widget'
 export interface TemplatePanelProps {
   className?: string
   widgets: PlacedWidget[]
-  /** 이 카드의 그리드 세로 칸 수(높이) — 코드에도 그대로 담긴다. */
-  rows: number
   /** 아직 카드가 캐릭터에 귀속되지 않았으면(characterId 없음) 코드를 적용할 수 없다. */
   boundCharacterId?: string
   /** 코드를 적용하기로 확정된 뒤 호출된다 — 실제 서버 반영은 WidgetDashboard가 한다. */
   onApplyLayout: (layout: TemplateLayout) => Promise<void> | void
-  /** 배치 초기화가 확정된 뒤 호출된다. 위젯을 전부 지우고 그리드 높이를 기본값으로 되돌리되,
-   * 캐릭터 귀속은 그대로 유지한다 — 실제 반영은 WidgetDashboard가 한다. */
+  /** 배치 초기화가 확정된 뒤 호출된다. 위젯을 전부 지우되 캐릭터 귀속은 그대로 유지한다 —
+   * 실제 반영은 WidgetDashboard가 한다. */
   onResetLayout: () => Promise<void> | void
 }
 
@@ -32,12 +30,11 @@ export interface TemplatePanelProps {
 export function TemplatePanel({
   className,
   widgets,
-  rows,
   boundCharacterId,
   onApplyLayout,
   onResetLayout,
 }: TemplatePanelProps) {
-  const currentCode = useMemo(() => encodeTemplateCode(widgets, rows), [widgets, rows])
+  const currentCode = useMemo(() => encodeTemplateCode(widgets), [widgets])
   const [copied, setCopied] = useState(false)
 
   const [codeInput, setCodeInput] = useState('')
@@ -124,7 +121,7 @@ export function TemplatePanel({
 
         <div className="ml-0.5 h-5 w-px shrink-0 self-center bg-border" aria-hidden="true" />
 
-        {/* 배치 초기화: 위젯 전체 삭제 + 그리드 높이 기본값 복원(캐릭터 귀속은 유지) — 되돌릴 수
+        {/* 배치 초기화: 위젯 전체 삭제(캐릭터 귀속은 유지) — 되돌릴 수
             없으므로 배치 코드 적용과 동일하게 ConfirmModal로 한 번 더 확인받는다. */}
         <button
           type="button"
@@ -132,7 +129,7 @@ export function TemplatePanel({
           title="배치 초기화"
           disabled={!boundCharacterId}
           onClick={() => setIsResetConfirmOpen(true)}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive disabled:pointer-events-none disabled:opacity-40"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger disabled:pointer-events-none disabled:opacity-40"
         >
           <RotateCcw className="h-3.5 w-3.5" />
         </button>
@@ -141,14 +138,14 @@ export function TemplatePanel({
       {!boundCharacterId && (
         <p className="text-xs text-muted-foreground">캐릭터를 먼저 지정해야 코드를 쓸 수 있습니다.</p>
       )}
-      {parseError && <p className="text-xs text-destructive">{parseError}</p>}
+      {parseError && <p className="text-xs text-danger">{parseError}</p>}
 
       <ConfirmModal
         open={pendingLayout !== null}
         onClose={() => setPendingLayout(null)}
         onConfirm={handleApplyConfirmed}
         title="배치 코드 적용"
-        message={`이 코드를 적용하면 현재 배치(레이드 진행 상태 포함)가 모두 사라지고, 코드에 담긴 위젯 배치(${pendingLayout?.widgets.length ?? 0}개)로 완전히 덮어씌워집니다. 계속할까요?`}
+        message={`이 코드를 적용하면 현재 배치(레이드 진행 상태 포함)가 모두 사라지고, 코드에 담긴 위젯 ${pendingLayout?.widgets.length ?? 0}개로 완전히 덮어씌워집니다. 계속할까요?`}
         confirmLabel="적용"
         isConfirming={isApplying}
       />
@@ -158,7 +155,7 @@ export function TemplatePanel({
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleResetConfirmed}
         title="배치 초기화"
-        message="이 카드의 위젯 배치(레이드 진행 상태 포함)가 모두 사라지고 그리드 높이도 기본값으로 되돌아갑니다. 캐릭터 귀속은 그대로 유지됩니다. 계속할까요?"
+        message="이 카드의 위젯(레이드 진행 상태 포함)이 모두 사라집니다. 캐릭터 귀속은 그대로 유지됩니다. 계속할까요?"
         confirmLabel="초기화"
         isConfirming={isResetting}
       />

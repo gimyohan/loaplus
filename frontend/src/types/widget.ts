@@ -24,9 +24,13 @@ export interface WidgetCatalogItem {
   label: string
   /** Default Value(시스템 제공) 위젯인지, Additional Value(커스텀) 위젯인지 */
   category: 'default' | 'additional'
-  /** 그리드 칸 단위 크기 */
-  w: number
-  h: number
+  /** 카드 폭(CARD_WIDTH, 350px) 기준 위젯 높이(px). 카드가 더 좁으면(모바일) 폭에 비례해 줄어들고,
+   * fixedHeight인 위젯은 그대로다. 이미지는 custom_data.size(S/M/L)가 높이를 정하므로 기본값(M)이다. */
+  height: number
+  /** true면 카드 폭이 좁아져도 높이를 줄이지 않는다(텍스트·루틴·카운터처럼 한 줄짜리). */
+  fixedHeight?: boolean
+  /** true면 카드 폭 전체가 아니라 height × height 정사각형 타일로 그린다(링크 & 아이콘 등). */
+  tile?: boolean
   /** 같은 값을 가진 항목끼리(예: 배너류) 위젯 목록에서 하나의 타일로 묶여 좌우 화살표로
    * 종류를 바꿔가며 고를 수 있다. 없으면 항상 독립된 타일이다. */
   group?: string
@@ -34,17 +38,7 @@ export interface WidgetCatalogItem {
    * 캐릭터 귀속 여부에 따른 노출 조건에 쓰이고, section은 그 위에 사용자가 보기 편하도록 얹은
    * 5개 그룹(배너/주간 콘텐츠/일일 콘텐츠/커스텀 위젯/툴)이다. */
   section: 'banner' | 'weekly' | 'daily' | 'custom' | 'tool'
-  /** true면 위젯 목록 카드에서 배치 전에 가로 칸 수(w)를 직접 조절할 수 있다(minW~maxW).
-   * 없으면 항상 w 그대로 고정 배치된다. */
-  resizable?: boolean
-  minW?: number
-  maxW?: number
-  /** true면 세로 칸 수(h)도 같은 방식으로 배치 전에 조절할 수 있다(minH~maxH). resizable(가로)과
-   * 서로 독립이다 — 텍스트/루틴처럼 가로만 조절되는 위젯은 이 값 없이 resizable만 켠다. */
-  resizableH?: boolean
-  minH?: number
-  maxH?: number
-  /** ScaleToFit으로 그릴 때 쓰는 디자인 원본 픽셀 크기. 가로/세로 칸 수를 자유롭게 고를 수 있는
+  /** ScaleToFit으로 그릴 때 쓰는 디자인 원본 픽셀 크기. 주어진 크기에 직접 맞춰 그리는
    * 위젯(text/textCheckbox/counter/image)은 ScaleToFit을 쓰지 않으므로 비워둔다. */
   nativeWidth?: number
   nativeHeight?: number
@@ -53,14 +47,10 @@ export interface WidgetCatalogItem {
   hidden?: boolean
 }
 
+/** 카드에 놓인 위젯 하나. 카드 안의 위치는 배열 순서(위→아래)가 정한다(docs/ui_redesign.md). */
 export interface PlacedWidget {
   id: string
   kind: WidgetKind
-  /** 그리드 칸 단위 좌표 */
-  x: number
-  y: number
-  w: number
-  h: number
   /** Additional Value 위젯(text/textCheckbox/counter/image/linkIcon)의 위젯별 데이터. Default Value 위젯은 null. */
   customData?: Record<string, unknown> | null
   /** kind === 'raid'일 때만 값이 있다(Character_Raids 참조, docs/api.typ 참고). */

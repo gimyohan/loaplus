@@ -3,23 +3,15 @@ import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
 import { requireAuth } from '../lib/session.js'
-import { ADDITIONAL_VALUE_KINDS, KIND_TO_WIDGET_TYPE, toWidgetResponse } from '../lib/widgetKind.js'
+import { ADDITIONAL_VALUE_KINDS, KIND_TO_WIDGET_TYPE, nextDisplayOrder, toWidgetResponse } from '../lib/widgetKind.js'
 
 const createWidgetSchema = z.object({
   characterId: z.string().uuid(),
   kind: z.enum(ADDITIONAL_VALUE_KINDS),
-  x: z.number().int().min(0),
-  y: z.number().int().min(0),
-  w: z.number().int().min(1),
-  h: z.number().int().min(1),
   customData: z.unknown().optional(),
 })
 
 const updateWidgetSchema = z.object({
-  x: z.number().int().min(0),
-  y: z.number().int().min(0),
-  w: z.number().int().min(1),
-  h: z.number().int().min(1),
   customData: z.unknown().optional(),
 })
 
@@ -66,10 +58,8 @@ export async function customWidgetRoutes(fastify: FastifyInstance) {
       data: {
         characterId: character.id,
         widgetType: KIND_TO_WIDGET_TYPE[parsed.data.kind],
-        gridX: parsed.data.x,
-        gridY: parsed.data.y,
-        width: parsed.data.w,
-        height: parsed.data.h,
+        // 카드 맨 아래에 붙인다. 순서 변경은 PUT /api/dashboards/{characterId}/widgets.
+        displayOrder: await nextDisplayOrder(fastify.prisma, character.id),
         customData: toInputJson(parsed.data.customData),
       },
     })
@@ -79,7 +69,7 @@ export async function customWidgetRoutes(fastify: FastifyInstance) {
 
   fastify.put<{ Params: { widgetId: string } }>(
     '/api/widgets/custom/:widgetId',
-    { preHandler: auth, schema: { tags: ['CustomWidgets'], summary: '커스텀 위젯 배치·데이터 수정(전체 교체)' } },
+    { preHandler: auth, schema: { tags: ['CustomWidgets'], summary: '커스텀 위젯 데이터(custom_data) 수정(전체 교체)' } },
     async (request, reply) => {
       const widget = await requireOwnedWidget(request.params.widgetId, request.userId!, reply)
       if (!widget) return
@@ -92,10 +82,6 @@ export async function customWidgetRoutes(fastify: FastifyInstance) {
       const updated = await fastify.prisma.dashboardWidget.update({
         where: { id: widget.id },
         data: {
-          gridX: parsed.data.x,
-          gridY: parsed.data.y,
-          width: parsed.data.w,
-          height: parsed.data.h,
           customData: toInputJson(parsed.data.customData) ?? Prisma.JsonNull,
         },
       })

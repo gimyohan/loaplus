@@ -10,7 +10,6 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "migrate:ability-stone": "tsx src/scripts/migrateAbilityStoneDump.ts",
-    "migrate:text-checkbox-width": "tsx src/scripts/migrateTextCheckboxWidth.ts",
     "grant-premium": "tsx src/scripts/grantPremium.ts",
     "test": "vitest run"
   },

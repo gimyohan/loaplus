@@ -109,7 +109,7 @@ export function RosterView({ onRosterChanged }: RosterViewProps) {
           <span
             className={cn(
               'shrink-0 whitespace-nowrap font-mono text-sm',
-              characters.length >= MAX_CHARACTERS_PER_USER ? 'text-destructive' : 'text-muted-foreground',
+              characters.length >= MAX_CHARACTERS_PER_USER ? 'text-danger' : 'text-muted-foreground',
             )}
           >
             {characters.length} / {MAX_CHARACTERS_PER_USER}
@@ -141,7 +141,7 @@ export function RosterView({ onRosterChanged }: RosterViewProps) {
         <Button type="submit" disabled={isSearching}>
           {isSearching ? '조회 중...' : '원정대 조회'}
         </Button>
-        {searchError && <p className="w-full text-sm text-destructive">{searchError}</p>}
+        {searchError && <p className="w-full text-sm text-danger">{searchError}</p>}
       </form>
 
       {siblings && (
