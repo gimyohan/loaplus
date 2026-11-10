@@ -29,13 +29,13 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
   { kind: 'banner', label: '캐릭터 배너(기본)', category: 'default', height: 80, group: 'banner', section: 'banner', hidden: true },
   { kind: 'bannerCompact', label: '캐릭터 배너(요약)', category: 'default', height: 80, group: 'banner', section: 'banner', hidden: true },
   // raid: 가디언/쿠르잔 전선과 레이아웃이 동일하다.
-  { kind: 'raid', label: '레이드', category: 'default', height: 108, group: 'weekly', section: 'weekly' },
+  { kind: 'raid', label: '레이드', category: 'default', height: 76, group: 'weekly', section: 'weekly' },
   { kind: 'paradise', label: '낙원', category: 'default', height: 44, group: 'weekly', section: 'weekly' },
   // 에브니 큐브는 실제로는 주간 콘텐츠가 아니지만, 마땅한 자리가 정해지기 전까지는 일단 여기에 둔다.
-  { kind: 'ebonyCube', label: '에브니 큐브', category: 'default', height: 72, group: 'weekly', section: 'weekly' },
+  { kind: 'ebonyCube', label: '에브니 큐브', category: 'default', height: 44, group: 'weekly', section: 'weekly' },
   { kind: 'halHourglass', label: '할의 모래시계', category: 'default', height: 44, group: 'weekly', section: 'weekly' },
-  { kind: 'guardian', label: '가디언', category: 'default', height: 76, group: 'daily', section: 'daily' },
-  { kind: 'kurzanFrontline', label: '쿠르잔 전선', category: 'default', height: 76, group: 'daily', section: 'daily' },
+  { kind: 'guardian', label: '가디언', category: 'default', height: 44, group: 'daily', section: 'daily' },
+  { kind: 'kurzanFrontline', label: '쿠르잔 전선', category: 'default', height: 44, group: 'daily', section: 'daily' },
   { kind: 'text', label: '텍스트', category: 'additional', height: 44, group: 'custom', section: 'custom' },
   { kind: 'textCheckbox', label: '루틴', category: 'additional', height: 44, group: 'custom', section: 'custom' },
   { kind: 'counter', label: '카운터', category: 'additional', height: 44, group: 'custom', section: 'custom' },

@@ -40,7 +40,9 @@ export function GuardianWidget({
         onToggleHarvested={onToggleHarvested}
         onOpenSettings={onOpenSettings}
         settingsLabel="가디언 설정"
+        // 첫 칸은 비운다 — 쿠르잔 전선의 공명비약 자리라, 편린·아제나 축복이 위아래 행에서 같은 위치에 온다.
         quickActions={[
+          null,
           { key: 'shard', label: '편린', icon: ShardIcon, onClick: () => setIsShardRewardModalOpen(true) },
           {
             key: 'azenaBlessing',

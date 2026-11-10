@@ -1,4 +1,4 @@
-import { Ban, Check } from 'lucide-react'
+import { Ban, Check, Plus } from 'lucide-react'
 
 import { ROW_PADDING_CLASSNAME, RowSettingsButton, RowTitle } from '@/components/widgets/rowParts'
 import { cn } from '@/lib/utils'
@@ -25,25 +25,32 @@ export interface RaidWidgetProps {
   className?: string
 }
 
+/** 관문 알약 안에 보일 짧은 골드 표시 — 골드가 있으면 골드, 없으면 귀속골드(흐리게), 둘 다 없거나
+ * 골드 획득을 거부 중이면 "-". 골드/귀속골드 전체는 알약 툴팁(gateTitle)에 있다. */
 function GateRewardText({ gate, goldRewardEnabled }: { gate: RaidGateView; goldRewardEnabled: boolean }) {
   if (!goldRewardEnabled || (gate.goldReward <= 0 && gate.boundGoldReward <= 0)) {
-    return <span className="font-mono text-[11px] leading-tight text-muted-foreground">-</span>
+    return <span className="text-muted-foreground">-</span>
   }
-  return (
-    <span className="flex flex-wrap items-center gap-x-0.5 font-mono text-[11px] leading-tight">
-      {gate.goldReward > 0 && <span className="text-gold">{gate.goldReward.toLocaleString('ko-KR')}</span>}
-      {gate.goldReward > 0 && gate.boundGoldReward > 0 && <span className="text-muted-foreground">/</span>}
-      {gate.boundGoldReward > 0 && (
-        <span className="text-muted-foreground">{gate.boundGoldReward.toLocaleString('ko-KR')}</span>
-      )}
-    </span>
-  )
+  if (gate.goldReward > 0) return <span className="text-gold">{gate.goldReward.toLocaleString('ko-KR')}</span>
+  return <span className="text-muted-foreground">{gate.boundGoldReward.toLocaleString('ko-KR')}</span>
+}
+
+function gateTitle(index: number, gate: RaidGateView, goldRewardEnabled: boolean) {
+  const parts = [`${index + 1}관문`]
+  if (!goldRewardEnabled) parts.push('골드 획득 거부 중')
+  else {
+    if (gate.goldReward > 0) parts.push(`골드 ${gate.goldReward.toLocaleString('ko-KR')}`)
+    if (gate.boundGoldReward > 0) parts.push(`귀속골드 ${gate.boundGoldReward.toLocaleString('ko-KR')}`)
+  }
+  if (gate.moreRewardEnabled) parts.push('더보기 켬')
+  return parts.join(' · ')
 }
 
 /**
  * 레이드(Raid) 위젯 — 카드 안 행 하나. 윗줄은 레이드 이름·난이도·골드 거부 표시·설정, 아랫줄은 관문
- * 칸들이다. 관문 칸 전체를 클릭/Enter·Space로 완료 처리하고(별도 체크박스 없음), 칸마다 획득
- * 골드/귀속골드와 '더보기' 토글이 있다(docs/widgets.md "레이드").
+ * 알약들이다. 알약을 클릭/Enter·Space하면 그 관문을 완료 처리하고(별도 체크박스 없음), 알약 안에
+ * 골드(없으면 귀속골드)와 '더보기' 토글(+)이 있다. 골드/귀속골드 전체는 알약 툴팁에 보인다
+ * (docs/widgets.md "레이드").
  */
 export function RaidWidget({
   raidName,
@@ -58,7 +65,7 @@ export function RaidWidget({
   const allCleared = gates.length > 0 && gates.every((gate) => gate.cleared)
 
   return (
-    <div className={cn(ROW_PADDING_CLASSNAME, 'flex flex-col gap-1.5', className)}>
+    <div className={cn(ROW_PADDING_CLASSNAME, 'flex flex-col gap-1', className)}>
       <div className="flex items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <RowTitle done={allCleared}>{raidName ?? '레이드'}</RowTitle>
@@ -83,7 +90,7 @@ export function RaidWidget({
       </div>
 
       {raidName === null ? (
-        <p className="text-[13px] text-muted-foreground">목표가 설정되지 않았습니다 · 톱니바퀴를 눌러 레이드를 선택하세요</p>
+        <p className="truncate text-[13px] text-muted-foreground">목표 미설정 · 톱니바퀴를 눌러 레이드를 고르세요</p>
       ) : (
         <div
           className="grid gap-1.5"
@@ -96,6 +103,7 @@ export function RaidWidget({
               tabIndex={0}
               aria-pressed={gate.cleared}
               aria-label={`${index + 1}관문 완료`}
+              title={gateTitle(index, gate, goldRewardEnabled)}
               onClick={() => onToggleGateCleared?.(index, !gate.cleared)}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter' && event.key !== ' ') return
@@ -103,34 +111,43 @@ export function RaidWidget({
                 onToggleGateCleared?.(index, !gate.cleared)
               }}
               className={cn(
-                'flex min-w-0 cursor-pointer select-none flex-col gap-0.5 rounded-md border px-2 py-1.5 transition-colors',
+                'flex h-7 min-w-0 cursor-pointer select-none items-center gap-1 rounded-md border pl-1.5 pr-0.5 transition-colors',
                 gate.cleared
                   ? 'border-primary/50 bg-primary/10'
                   : 'border-border hover:border-foreground/30 hover:bg-white/[0.03]',
               )}
             >
-              <div className="flex items-center justify-between gap-1">
-                <span className={cn('text-xs font-bold', gate.cleared ? 'text-primary' : 'text-foreground')}>
-                  {index + 1}관문
-                </span>
-                {gate.cleared && <Check className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={3} />}
-              </div>
-
-              <GateRewardText gate={gate} goldRewardEnabled={goldRewardEnabled} />
-
-              <label
-                onClick={(event) => event.stopPropagation()}
-                className="mt-0.5 flex w-fit cursor-pointer items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+              <span
+                className={cn(
+                  'flex shrink-0 items-center text-xs font-bold',
+                  gate.cleared ? 'text-primary' : 'text-foreground',
+                )}
               >
-                <input
-                  type="checkbox"
-                  checked={gate.moreRewardEnabled}
-                  onChange={(event) => onToggleMoreReward?.(index, event.target.checked)}
-                  aria-label={`${index + 1}관문 더보기`}
-                  className="h-3 w-3 shrink-0 cursor-pointer accent-primary"
-                />
-                더보기
-              </label>
+                {gate.cleared && <Check className="mr-0.5 h-3 w-3" strokeWidth={3} />}
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-right font-mono text-[11px]">
+                <GateRewardText gate={gate} goldRewardEnabled={goldRewardEnabled} />
+              </span>
+              {/* 더보기 토글 — 관문 완료 클릭으로 번지지 않게 막는다. */}
+              <button
+                type="button"
+                aria-label={`${index + 1}관문 더보기`}
+                aria-pressed={gate.moreRewardEnabled}
+                title="더보기"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onToggleMoreReward?.(index, !gate.moreRewardEnabled)
+                }}
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors',
+                  gate.moreRewardEnabled
+                    ? 'bg-primary/25 text-primary'
+                    : 'text-muted-foreground/70 hover:bg-white/[0.08] hover:text-foreground',
+                )}
+              >
+                <Plus className="h-3 w-3" strokeWidth={2.5} />
+              </button>
             </div>
           ))}
         </div>
