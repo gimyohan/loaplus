@@ -1,7 +1,9 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+import { GameIcon } from '@/components/ui/GameIcon'
 import { ROW_PADDING_CLASSNAME, RowSettingsButton, RowTitle } from '@/components/widgets/rowParts'
 import ebonyCubeRewardsData from '@/data/ebonyCubeRewards.json'
+import { GAME_ICONS } from '@/lib/gameAssets'
 import { cn } from '@/lib/utils'
 import type { EbonyCubeSummary, TicketType } from '@/types/ebonyCube'
 
@@ -56,7 +58,8 @@ export function EbonyCubeWidget({ data, onCycleTarget, onClear, onOpenSettings, 
         <ChevronLeft className="h-4 w-4" />
       </button>
       {selectedTicketType ? (
-        <span className="flex min-w-0 flex-1 items-baseline justify-center gap-1">
+        <span className="flex min-w-0 flex-1 items-center justify-center gap-0.5">
+          <GameIcon src={GAME_ICONS.ebonyCubeTicket[selectedTicketType]} className="h-4 w-4" />
           <span className="truncate text-[13px] text-foreground">{TICKET_LABELS[selectedTicketType]}</span>
           <span className="shrink-0 font-mono text-xs text-secondary">×{selectedCount}</span>
         </span>

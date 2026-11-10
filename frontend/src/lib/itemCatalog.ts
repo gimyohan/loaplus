@@ -9,8 +9,10 @@ export interface ItemDefinition {
   id: string
   name: string
   categoryKey: string
-  /** 아직 채워진 항목이 없다(항상 null) — RewardSelectionModal은 없으면 자리표시 아이콘을 보여준다 */
+  /** 공식 CDN 아이콘 주소 — RewardSelectionModal은 없거나 깨지면 자리표시 아이콘을 보여준다 */
   imageUrl: string | null
+  /** true면 imageUrl이 그 아이템 자체가 아니라 같은 계열의 대표 아이콘이다(정확한 그림을 못 찾음, docs/asset_cdn.md). */
+  imageApprox?: boolean
   /**
    * 이 아이템 1개가 실제로는 다른 아이템(주로 재화) 몇 개에 해당하는지(예: 300,000골드 번들 →
    * { itemId: "gold", amount: 300000 }) — 로그/통계용 실제 수량 환산은 백엔드(lib/itemCatalog.ts

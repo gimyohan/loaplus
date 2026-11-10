@@ -11,8 +11,10 @@ export interface ItemDefinition {
   id: string
   name: string
   categoryKey: string
-  /** 아이템 이미지 — 프론트의 RewardSelectionModal이 쓴다. 아직 채워진 항목이 없다(항상 null). */
+  /** 아이템 이미지(공식 CDN 주소) — 프론트의 RewardSelectionModal이 쓴다. */
   imageUrl: string | null
+  /** true면 imageUrl이 그 아이템 자체가 아니라 같은 계열의 대표 아이콘이다(정확한 그림을 못 찾음, docs/asset_cdn.md). */
+  imageApprox?: boolean
   /**
    * 이 아이템 1개가 실제로는 다른 아이템(주로 재화) 몇 개에 해당하는지 — {itemId, amount} 모양을
    * 그대로 재귀적으로 참조한다. 대부분의 아이템은 null(자기 자신이 곧 단위). "이름이 곧 금액"인

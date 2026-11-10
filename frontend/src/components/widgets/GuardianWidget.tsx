@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-import { AzenaBlessingIcon, ShardIcon } from '@/components/widgets/icons'
+import { FateShardIcon } from '@/components/widgets/gameItemIcons'
+import { AzenaBlessingIcon } from '@/components/widgets/icons'
 import { RestHomeworkRow } from '@/components/widgets/RestHomeworkRow'
 import { RewardSelectionModal, type RewardItem } from '@/components/widgets/RewardSelectionModal'
 import { AZENA_BLESSING_REWARD_CATEGORIES, SHARD_REWARD_CATEGORIES } from '@/lib/rewardCatalog'
@@ -43,7 +44,7 @@ export function GuardianWidget({
         // 첫 칸은 비운다 — 쿠르잔 전선의 공명비약 자리라, 편린·아제나 축복이 위아래 행에서 같은 위치에 온다.
         quickActions={[
           null,
-          { key: 'shard', label: '편린', icon: ShardIcon, onClick: () => setIsShardRewardModalOpen(true) },
+          { key: 'shard', label: '편린', icon: FateShardIcon, onClick: () => setIsShardRewardModalOpen(true) },
           {
             key: 'azenaBlessing',
             label: '아제나 축복',

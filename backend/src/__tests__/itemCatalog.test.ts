@@ -8,7 +8,8 @@ describe('findItem', () => {
       id: 'gemstoneTier4',
       name: '4티어 보석',
       categoryKey: 'gemstone',
-      imageUrl: null,
+      imageUrl: 'https://cdn-lostark.game.onstove.com/efui_iconatlas/use/use_12_103.png',
+      imageApprox: true,
       value: null,
     })
   })

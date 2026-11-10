@@ -1,7 +1,8 @@
-import { Hourglass, Ticket } from 'lucide-react'
+import { Ticket } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { AzenaBlessingIcon, ResonancePotionIcon, ShardIcon } from '@/components/widgets/icons'
+import { FateShardIcon, TrialSandIcon } from '@/components/widgets/gameItemIcons'
+import { AzenaBlessingIcon, ResonancePotionIcon } from '@/components/widgets/icons'
 import { RestHomeworkRow } from '@/components/widgets/RestHomeworkRow'
 import { RewardSelectionModal, type RewardItem } from '@/components/widgets/RewardSelectionModal'
 import { isChaosRiftKurzanTarget } from '@/lib/contentStages'
@@ -77,7 +78,7 @@ export function KurzanFrontlineWidget({
         checkboxFlashing={isResonanceWarningActive}
         quickActions={[
           { key: 'resonancePotion', label: '공명비약', icon: ResonancePotionIcon, onClick: handleResonancePotion },
-          { key: 'shard', label: '편린', icon: ShardIcon, onClick: () => setIsShardRewardModalOpen(true) },
+          { key: 'shard', label: '편린', icon: FateShardIcon, onClick: () => setIsShardRewardModalOpen(true) },
           {
             key: 'azenaBlessing',
             label: '아제나 축복',
@@ -87,7 +88,7 @@ export function KurzanFrontlineWidget({
           {
             key: 'ticket',
             label: isSandStage ? '시련의 모래' : '입장권',
-            icon: isSandStage ? Hourglass : Ticket,
+            icon: isSandStage ? TrialSandIcon : Ticket,
             onClick: () => onQuickAction?.('ticket'),
           },
         ]}
