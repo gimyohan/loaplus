@@ -165,21 +165,25 @@ export function refineLevelColor(refineLevel: number, itemName: string, grade: s
   return colorForLevel(refineLevel, set.buckets)
 }
 
-// 아이템 등급별 아이콘 배경색(사용자 확정) — 원본 아이콘 이미지가 투명 배경이라 이 색이 아이템
-// 뒤로 그대로 비친다. 장비/장신구/어빌리티 스톤/팔찌/완갑 전부 이 하나의 매핑을 공유한다 —
-// 예전엔 세트 이름(itemName)으로 장비만 따로 배경색을 정했는데(EQUIPMENT_BACKGROUND_COLORS),
-// Open API가 모든 아이템에 공통으로 내려주는 Grade로 일반화했다. 아직 색이 정해지지 않은 등급
-// (일반/고급/희귀/영웅)은 매핑에 없으므로 null을 반환해 호출부가 기본 배경(bg-background)을
-// 그대로 쓰게 한다.
-const GRADE_BACKGROUND_COLORS: Record<string, string> = {
-  전설: '#F99200',
-  유물: '#FA5D00',
-  고대: '#E3C7A1',
-  에스더: '#3CF2E6',
+// 아이템 등급별 아이콘 배경 — 공식 전투정보실(profile.pc.css의 data-grade 0~7 규칙)과 같은
+// 135도 그라데이션이다(2026-11-10, 사용자 확정). 원본 아이콘 이미지가 투명 배경이라 이 배경이
+// 아이템 뒤로 그대로 비친다. 장비/장신구/어빌리티 스톤/팔찌/완갑 전부 이 하나의 매핑을 공유하며,
+// Open API가 모든 아이템에 공통으로 내려주는 Grade 문자열로 찾는다. 등급 번호는 전투정보실 데이터로
+// 확인했다(영웅 3, 전설 4, 유물 5, 고대 6). 매핑에 없는 값(빈 문자열 = 미착용 등)은 null을 반환해
+// 호출부가 슬롯 기본 배경을 그대로 쓰게 한다.
+const GRADE_BACKGROUND_GRADIENTS: Record<string, string> = {
+  일반: 'linear-gradient(135deg, #232323 0%, #575757 100%)',
+  고급: 'linear-gradient(135deg, #18220b 0%, #304911 100%)',
+  희귀: 'linear-gradient(135deg, #111f2c 0%, #113d5d 100%)',
+  영웅: 'linear-gradient(135deg, #261331 0%, #480d5d 100%)',
+  전설: 'linear-gradient(135deg, #362003 0%, #9e5f04 100%)',
+  유물: 'linear-gradient(135deg, #341a09 0%, #a24006 100%)',
+  고대: 'linear-gradient(135deg, #3d3325 0%, #dcc999 100%)',
+  에스더: 'linear-gradient(135deg, #0c2e2c 0%, #2faba8 100%)',
 }
 
-export function gradeBackgroundColor(grade: string): string | null {
-  return GRADE_BACKGROUND_COLORS[grade] ?? null
+export function gradeBackground(grade: string): string | null {
+  return GRADE_BACKGROUND_GRADIENTS[grade] ?? null
 }
 
 // 어빌리티 스톤 전투 각인 레벨(0~4) 구간 색(사용자 확정) — 아이템 등급 팔레트를 그대로 재사용한다:

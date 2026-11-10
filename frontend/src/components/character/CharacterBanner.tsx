@@ -190,6 +190,7 @@ function ArmoryDetails({ character }: { character: CharacterSummary }) {
               <div className="flex w-full flex-col gap-1.5">
                 <div className="flex items-center gap-1.5">
                   <ItemIcon
+                    slot={key}
                     iconUrl={slot.iconUrl}
                     grade={slot.grade}
                     label={label}
@@ -235,6 +236,7 @@ function ArmoryDetails({ character }: { character: CharacterSummary }) {
             >
               <div className="flex flex-col items-center gap-1.5">
                 <ItemIcon
+                  slot={key}
                   iconUrl={slot.iconUrl}
                   grade={slot.grade}
                   label={label}
@@ -267,7 +269,7 @@ function ArmoryDetails({ character }: { character: CharacterSummary }) {
           }
         >
           <div className="flex flex-col items-center gap-1">
-            <ItemIcon iconUrl={abilityStone.iconUrl} grade={abilityStone.grade} label="어빌리티 스톤" arkPassiveKind={null} />
+            <ItemIcon slot="abilityStone" iconUrl={abilityStone.iconUrl} grade={abilityStone.grade} label="어빌리티 스톤" arkPassiveKind={null} />
             <span className="whitespace-nowrap font-mono text-[10px] font-bold leading-none">
               <span style={{ color: stoneA ? engravingLevelColor(stoneA.level) : undefined }}>{stoneA ? stoneA.level : '-'}</span>
               <span className="text-muted-foreground">/</span>
@@ -279,6 +281,7 @@ function ArmoryDetails({ character }: { character: CharacterSummary }) {
         <HoverDetail align="center" content={<EffectDetailList title="팔찌 효과" effects={bracelet.effects} />}>
           <div className="flex flex-col items-center gap-1.5">
             <ItemIcon
+              slot="bracelet"
               iconUrl={bracelet.iconUrl}
               grade={bracelet.grade}
               label="팔찌"
@@ -294,6 +297,7 @@ function ArmoryDetails({ character }: { character: CharacterSummary }) {
         <HoverDetail align="end" content={<PlainEffectList title="완갑 효과" lines={wristGuard.effects} />}>
           <div className="flex flex-col items-center gap-1">
             <ItemIcon
+              slot="wristGuard"
               iconUrl={wristGuard.iconUrl}
               grade={wristGuard.grade}
               label="완갑"

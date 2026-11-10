@@ -10,7 +10,7 @@ export interface EquipmentSlotDetail {
   /** 아이템 아이콘 이미지 URL. 상세 배너에서 직업 아이콘 대신 실제 장비 이미지를 보여주는 데 쓴다. */
   iconUrl: string
   /** 아이템 등급 — 일반/고급/희귀/영웅/전설/유물/고대/에스더 중 하나. 아이콘 배경색을 등급별로
-   * 통일해 정하는 데 쓴다(lib/armoryColors.ts의 gradeBackgroundColor 참고). */
+   * 통일해 정하는 데 쓴다(lib/armoryColors.ts의 gradeBackground 참고). */
   grade: string
   /** 아이템 티어 표기(현재까지 확인된 값은 전부 "티어 4") 여부 — 참이면 아크 패시브 프레임을
    * 씌운다(components/character/armorySlots.tsx의 ItemFrames 참고). */

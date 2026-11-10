@@ -1,15 +1,12 @@
-import { ImageOff } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
-import { gradeBackgroundColor } from '@/lib/armoryColors'
+import { gradeBackground } from '@/lib/armoryColors'
 import { cn } from '@/lib/utils'
 import type { AccessoryDetail, EquipmentDetail, PolishEffect } from '@/types/armory'
 
 // 캐릭터 배너 상세 영역(CharacterBanner)에서 쓰는 장비 슬롯 조각들.
 
-// 장비 슬롯 6종. 아이콘 이미지가 없을 때는 부위별로 다른 아이콘을 쓰지 않고 모두 ImageOff로
-// 통일한다(사용자 확정) — "이미지 없음"이라는 같은 상태를 부위마다 다르게 표현하면 오히려 실제
-// 아이템 아이콘처럼 오인될 수 있기 때문이다.
+// 장비 슬롯 6종. 빈 슬롯은 공식 전투정보실처럼 부위별 실루엣으로 그린다(아래 EMPTY_SLOT_URL).
 export const EQUIPMENT_SLOTS: { key: keyof EquipmentDetail; label: string }[] = [
   { key: 'head', label: '투구' },
   { key: 'shoulder', label: '어깨' },
@@ -43,6 +40,32 @@ const ARK_PASSIVE_FRAME_URL = {
 } as const
 
 export type ArkPassiveKind = keyof typeof ARK_PASSIVE_FRAME_URL
+
+// 빈 슬롯 실루엣 — 공식 전투정보실(profile.pc.css)이 슬롯마다 깔아 두는 배경 원본이다. 색이 없는
+// 어두운 윤곽이라 실제 아이템 아이콘과 헷갈리지 않는다(2026-11-10, 예전 ImageOff 통일을 대체, 사용자
+// 확정). 파일 번호는 공식 CSS가 슬롯에 붙인 것 그대로다 — 팔찌는 19, 어빌리티 스톤은 12, 완갑은 20.
+// 공식처럼 항상 아이콘 뒤에 깔아 두므로, 아이콘 이미지를 못 불러올 때도 이 실루엣이 보인다.
+function emptySlotUrl(fileNumber: number) {
+  return `${FRAME_ASSET_BASE}/bg_equipment_slot${fileNumber}.png`
+}
+const EMPTY_SLOT_URL = {
+  head: emptySlotUrl(1),
+  shoulder: emptySlotUrl(2),
+  chest: emptySlotUrl(3),
+  pants: emptySlotUrl(4),
+  gloves: emptySlotUrl(5),
+  weapon: emptySlotUrl(6),
+  necklace: emptySlotUrl(7),
+  earring1: emptySlotUrl(8),
+  earring2: emptySlotUrl(9),
+  ring1: emptySlotUrl(10),
+  ring2: emptySlotUrl(11),
+  abilityStone: emptySlotUrl(12),
+  bracelet: emptySlotUrl(19),
+  wristGuard: emptySlotUrl(20),
+} as const
+
+export type ArmorySlotKind = keyof typeof EMPTY_SLOT_URL
 
 // 아크 패시브 프레임을 아이콘보다 각 변 기준 몇 px 더 크게 그릴지. 예전 900px 배너(아이콘 44px)의
 // 12px을 350px 배너 아이콘 크기(30px)에 맞춰 비례로 줄인 값이다.
@@ -94,8 +117,10 @@ export function ItemFrames({
   )
 }
 
-/** 30px 아이템 아이콘 + 등급 배경 + 장식 프레임. 이미지가 없으면 항상 같은 "이미지 없음" 아이콘. */
+/** 30px 아이템 아이콘 + 등급 배경 + 장식 프레임. 레이어는 공식과 같이 아래부터 부위별 빈 슬롯
+ * 실루엣, 등급 그라데이션을 깐 아이템 이미지, 장식 프레임 순이다 — 이미지가 없거나 깨지면 실루엣만 남는다. */
 export function ItemIcon({
+  slot,
   iconUrl,
   grade,
   label,
@@ -104,6 +129,8 @@ export function ItemIcon({
   petBorder = 0,
   highlighted = false,
 }: {
+  /** 빈 슬롯 실루엣을 고르는 부위 */
+  slot: ArmorySlotKind
   iconUrl: string
   grade: string
   label: string
@@ -113,19 +140,27 @@ export function ItemIcon({
   /** 무기처럼 강조할 슬롯이면 테두리를 강조색으로 그린다. */
   highlighted?: boolean
 }) {
+  const [failedIconUrl, setFailedIconUrl] = useState<string | null>(null)
+  const showIcon = !!iconUrl && failedIconUrl !== iconUrl
   return (
     <div className="relative h-[30px] w-[30px] shrink-0">
       <div
+        role={showIcon ? undefined : 'img'}
+        aria-label={showIcon ? undefined : `${label} 비어 있음`}
         className={cn(
-          'flex h-full w-full items-center justify-center overflow-hidden rounded-[3px] border bg-background',
+          'h-full w-full overflow-hidden rounded-[3px] border bg-background bg-[length:100%_100%] bg-no-repeat',
           highlighted ? 'border-primary' : 'border-border',
         )}
-        style={{ backgroundColor: gradeBackgroundColor(grade) ?? undefined }}
+        style={{ backgroundImage: `url(${EMPTY_SLOT_URL[slot]})` }}
       >
-        {iconUrl ? (
-          <img src={iconUrl} alt={label} className="h-full w-full object-cover" />
-        ) : (
-          <ImageOff className={cn('h-3.5 w-3.5', highlighted ? 'text-primary' : 'text-muted-foreground')} />
+        {showIcon && (
+          <img
+            src={iconUrl}
+            alt={label}
+            onError={() => setFailedIconUrl(iconUrl)}
+            className="h-full w-full object-cover"
+            style={{ background: gradeBackground(grade) ?? undefined }}
+          />
         )}
       </div>
       <ItemFrames arkPassiveKind={arkPassiveKind} isTierGear={isTierGear} petBorder={petBorder} />
