@@ -189,18 +189,37 @@ export function HoverDetail({ align, content, children }: { align: HoverAlign; c
   )
 }
 
-export function EffectDetailList({ title, effects }: { title: string; effects: PolishEffect[] }) {
+export function EffectDetailList({
+  title,
+  effects,
+  colorValuesOnly = false,
+}: {
+  title: string
+  effects: PolishEffect[]
+  /** true면 공식 툴팁처럼 수치(색 있는 조각)만 색으로, 나머지 문장은 보통 글자로 그린다(팔찌). */
+  colorValuesOnly?: boolean
+}) {
   return (
     <div className="flex flex-col gap-1 text-[13px]">
       <p className="font-bold text-foreground">{title}</p>
       {effects.length === 0 ? (
         <p className="text-muted-foreground">정보 없음</p>
       ) : (
-        effects.map((effect, index) => (
-          <p key={index} style={{ color: effect.color }}>
-            {effect.text}
-          </p>
-        ))
+        effects.map((effect, index) =>
+          colorValuesOnly && effect.segments ? (
+            <p key={index} className="text-foreground">
+              {effect.segments.map((segment, segmentIndex) => (
+                <span key={segmentIndex} style={segment.color ? { color: segment.color } : undefined}>
+                  {segment.text}
+                </span>
+              ))}
+            </p>
+          ) : (
+            <p key={index} style={{ color: effect.color }}>
+              {effect.text}
+            </p>
+          ),
+        )
       )}
     </div>
   )

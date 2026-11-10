@@ -32,7 +32,11 @@ export interface EquipmentDetail {
 /** `<FONT COLOR='RRGGBB'>` 태그에서 그대로 뽑아낸 색상(`#RRGGBB`) — 백엔드가 파싱한 실제 게임 색상이다. */
 export interface PolishEffect {
   text: string
+  /** 효과를 대표하는 색(등급) — 요약 점에 쓴다. */
   color: string
+  /** 색이 있는 조각(수치)/없는 조각(color null)으로 나눈 문장 — 공식 툴팁처럼 수치만 색으로 보여주는 데
+   * 쓴다. 이 필드가 생기기 전에 저장된 캐릭터는 새로고침 전까지 없다. */
+  segments?: { text: string; color: string | null }[]
 }
 
 export interface AccessorySlotDetail {

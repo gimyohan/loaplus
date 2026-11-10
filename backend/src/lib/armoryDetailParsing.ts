@@ -54,9 +54,20 @@ export interface EquipmentDetail {
   shoulder: EquipmentSlotDetail
 }
 
-export interface PolishEffect {
+/** 효과 문장의 한 조각. color가 있으면 게임이 `<FONT COLOR>`로 색을 준 부분(주로 수치)이고, null이면
+ * 색이 없는 보통 글자다 — 공식 툴팁처럼 수치만 색으로 보여주는 데 쓴다. */
+export interface EffectSegment {
   text: string
+  color: string | null
+}
+
+export interface PolishEffect {
+  /** 태그를 벗긴 문장 전체(segments를 이어 붙인 것) */
+  text: string
+  /** 효과를 대표하는 색(등급) — 불리한 값 색(PENALTY_VALUE_COLOR)이 아닌 첫 수치의 색. 요약 점에 쓴다. */
   color: string
+  /** 색이 있는 조각/없는 조각으로 나눈 문장. 상세 툴팁이 쓴다. */
+  segments: EffectSegment[]
 }
 
 export interface AccessorySlotDetail {
@@ -225,18 +236,67 @@ function parseItemTitleFrame(tooltip: Tooltip): { isTierGear: boolean; petBorder
   return { isTierGear: false, petBorder: 0 }
 }
 
+// 팔찌 효과에서 "재사용 대기 시간이 2% 증가하지만"처럼 불리한 값에 붙는 색. 효과 하나에 값이 여럿이면
+// 이 색이 아닌 첫 값의 색을 그 효과의 색(등급)으로 쓴다.
+const PENALTY_VALUE_COLOR = '#FF9999'
+
+const FONT_TAG_PATTERN = /<FONT\s+COLOR=['"]#?([0-9A-Fa-f]{6})['"]>([\s\S]*?)<\/FONT>/gi
+
+function stripTags(html: string): string {
+  return html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ')
+}
+
+/** 한 줄을 색 있는 조각(`<FONT COLOR>` 안)과 색 없는 조각으로 나눈다. 줄 앞뒤 공백은 뗀다. */
+function splitLineSegments(rawLine: string): EffectSegment[] {
+  const segments: EffectSegment[] = []
+  let cursor = 0
+  for (const match of rawLine.matchAll(FONT_TAG_PATTERN)) {
+    segments.push({ text: stripTags(rawLine.slice(cursor, match.index)), color: null })
+    segments.push({ text: stripTags(match[2]!), color: `#${match[1]!.toUpperCase()}` })
+    cursor = match.index! + match[0].length
+  }
+  segments.push({ text: stripTags(rawLine.slice(cursor)), color: null })
+
+  const nonEmpty = segments.filter((segment) => segment.text.length > 0)
+  if (nonEmpty.length > 0) {
+    nonEmpty[0]!.text = nonEmpty[0]!.text.trimStart()
+    nonEmpty[nonEmpty.length - 1]!.text = nonEmpty[nonEmpty.length - 1]!.text.trimEnd()
+  }
+  return nonEmpty.filter((segment) => segment.text.length > 0)
+}
+
+function joinSegments(segments: EffectSegment[]): string {
+  return segments.map((segment) => segment.text).join('')
+}
+
 /**
- * `<img .../>효과 텍스트 <FONT color='RRGGBB'>+값</FONT>` 형식의 줄이 `<br>`로 이어진 문자열을
- * { text, color } 목록으로 변환한다. 장신구 "연마 효과"와 팔찌 "팔찌 효과"가 같은 형식을 쓴다.
+ * `<br>`로 이어진 효과 줄을 PolishEffect 목록으로 변환한다. 장신구 "연마 효과"와 팔찌 "팔찌 효과"가
+ * 같은 형식을 쓴다(실제 응답, 2026-11-10 확인):
+ * - 효과 하나는 `<img .../>`로 시작하는 줄이다. 값(`<FONT COLOR='RRGGBB'>값</FONT>`)은 줄 끝에만 있는
+ *   게 아니라 문장 가운데에 올 수도 있고("피해가 <FONT>3%</FONT> 증가한다."), 한 줄에 여럿일 수도 있다.
+ *   공식 툴팁은 이 값 부분만 색으로 칠하고 나머지는 보통 글자로 보여준다 — 그래서 segments로 나눠 둔다.
+ * - `<img>` 없이 시작하는 줄은 바로 앞 효과의 이어지는 문장이다(예: 팔찌의 "치명타 피해 증가" 뒤
+ *   "공격이 치명타로 적중 시 …" 줄). 앞 효과가 없으면 새 효과로 본다.
+ * 새 효과를 시작하는 줄에 값이 하나도 없으면 효과가 아니라고 보고 건너뛴다.
  */
-function parseEffectLines(html: string): PolishEffect[] {
+export function parseEffectLines(html: string): PolishEffect[] {
   const effects: PolishEffect[] = []
-  for (const rawSegment of html.split(/<br>/i)) {
-    const segment = rawSegment.replace(/<img[^>]*>(?:<\/img>)?/gi, '').trim()
-    const match = segment.match(/^(.*?)<FONT\s+COLOR=['"]#?([0-9A-Fa-f]{6})['"]>([^<]*)<\/FONT>$/i)
-    if (!match) continue
-    const [, prefix, color, value] = match
-    effects.push({ text: `${prefix}${value}`.trim(), color: `#${color.toUpperCase()}` })
+  for (const rawLine of html.split(/<br\s*\/?>/i)) {
+    const startsWithIcon = /^\s*<img\b/i.test(rawLine)
+    const segments = splitLineSegments(rawLine.replace(/<img[^>]*>(?:<\/img>)?/gi, ''))
+    if (segments.length === 0) continue
+
+    const previous = effects[effects.length - 1]
+    if (!startsWithIcon && previous) {
+      previous.segments.push({ text: ' ', color: null }, ...segments)
+      previous.text = joinSegments(previous.segments)
+      continue
+    }
+
+    const colors = segments.flatMap((segment) => (segment.color ? [segment.color] : []))
+    if (colors.length === 0) continue
+    const color = colors.find((candidate) => candidate !== PENALTY_VALUE_COLOR) ?? colors[0]!
+    effects.push({ text: joinSegments(segments), color, segments })
   }
   return effects
 }

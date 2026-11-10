@@ -278,7 +278,7 @@ function ArmoryDetails({ character }: { character: CharacterSummary }) {
           </div>
         </HoverDetail>
 
-        <HoverDetail align="center" content={<EffectDetailList title="팔찌 효과" effects={bracelet.effects} />}>
+        <HoverDetail align="center" content={<EffectDetailList title="팔찌 효과" effects={bracelet.effects} colorValuesOnly />}>
           <div className="flex flex-col items-center gap-1.5">
             <ItemIcon
               slot="bracelet"
