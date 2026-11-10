@@ -19,12 +19,11 @@ export function AbilityStoneWidget({ onOpen, className }: AbilityStoneWidgetProp
       onClick={onOpen}
       aria-label="어빌리티 스톤 세공 전략"
       className={cn(
-        'flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card shadow-lg transition-colors hover:bg-muted',
+        'flex h-full w-full items-center justify-center rounded-lg border border-border bg-white/[0.03] transition-colors hover:border-foreground/30',
         className,
       )}
     >
-      <Gem className="h-[45%] w-[45%] text-primary" />
-      <span className="text-[10px] font-medium leading-none text-muted-foreground">세공</span>
+      <Gem className="h-[55%] w-[55%] text-primary" />
     </button>
   )
 }

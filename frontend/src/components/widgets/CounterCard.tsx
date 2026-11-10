@@ -7,7 +7,6 @@ import type { WidgetCardProps } from '@/types/widget'
 
 export function CounterCard({
   width,
-  height,
   disabledClassName,
   className,
   customData,
@@ -24,7 +23,7 @@ export function CounterCard({
     <>
       {/* text/textCheckbox와 같은 이유로 ScaleToFit을 쓰지 않는다 — 카운터도 가로 칸 수를
           자유롭게 고를 수 있다(widgetCatalog.ts). */}
-      <div style={{ width, height }} className={cn('select-none', disabledClassName, className)}>
+      <div style={{ width }} className={cn('select-none', disabledClassName, className)}>
         <CounterWidget
           text={text}
           count={count}

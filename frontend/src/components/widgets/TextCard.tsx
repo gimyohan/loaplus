@@ -6,7 +6,6 @@ import type { WidgetCardProps } from '@/types/widget'
 
 export function TextCard({
   width,
-  height,
   disabledClassName,
   className,
   customData,
@@ -28,7 +27,7 @@ export function TextCard({
   // DashboardCard(카드 전체)가 이미 바깥에서 한 번 더 ScaleToFit을 걸고 있으므로(반응형 축소),
   // 화면 크기에 따라 줄어드는 동작 자체는 그대로 유지된다.
   return (
-    <div style={{ width, height }} className={cn('select-none', disabledClassName, className)}>
+    <div style={{ width }} className={cn('select-none', disabledClassName, className)}>
       <TextWidget
         value={textDraft}
         onChange={setTextDraft}

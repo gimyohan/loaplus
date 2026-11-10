@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 
-import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { KurzanFrontlineSettingsModal } from '@/components/widgets/KurzanFrontlineSettingsModal'
 import { KurzanFrontlineWidget } from '@/components/widgets/KurzanFrontlineWidget'
 import { kurzanTicketTierLabel } from '@/lib/contentStages'
@@ -23,7 +22,7 @@ import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
 import type { WidgetCardProps } from '@/types/widget'
 
 const LOADING_PLACEHOLDER_CLASSNAME =
-  'flex aspect-[5/3] items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground'
+  'flex h-11 items-center px-3 text-xs text-muted-foreground'
 
 interface KurzanFrontlineWidgetBoundProps {
   characterId: string
@@ -153,27 +152,19 @@ function KurzanFrontlineWidgetBound({
 
 export function KurzanFrontlineCard({
   width,
-  height,
   disabledClassName,
   className,
   bannerCharacter,
   record,
-  catalogItem,
 }: WidgetCardProps) {
   // record는 WidgetVisual의 placeholder 분기에서 이미 보장됨(kurzanFrontline이 DEFAULT_VALUE_KINDS에 포함).
   return (
-    <ScaleToFit
-      nativeWidth={catalogItem!.nativeWidth!}
-      nativeHeight={catalogItem!.nativeHeight!}
-      width={width}
-      height={height}
-      className={cn('select-none rounded-xl', disabledClassName, className)}
-    >
+    <div style={{ width }} className={cn('select-none', disabledClassName, className)}>
       <KurzanFrontlineWidgetBound
         key={record!.id}
         characterId={record!.id}
         characterNameForModal={bannerCharacter.characterName}
       />
-    </ScaleToFit>
+    </div>
   )
 }

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 
-import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { RaidTargetModal } from '@/components/widgets/RaidTargetModal'
 import { RaidWidget, type RaidGateView } from '@/components/widgets/RaidWidget'
 import { cn } from '@/lib/utils'
@@ -22,7 +21,6 @@ const MOCK_RAID_PREVIEW: RaidTargetSummary = {
 
 export function RaidCard({
   width,
-  height,
   disabledClassName,
   className,
   bannerCharacter,
@@ -34,7 +32,6 @@ export function RaidCard({
   onRaidMoreRewardToggle,
   onRaidTargetChange,
   onRaidGoldRewardChange,
-  catalogItem,
 }: WidgetCardProps) {
   const [isRaidSettingsOpen, setIsRaidSettingsOpen] = useState(false)
 
@@ -60,13 +57,7 @@ export function RaidCard({
 
   return (
     <>
-      <ScaleToFit
-        nativeWidth={catalogItem!.nativeWidth!}
-        nativeHeight={catalogItem!.nativeHeight!}
-        width={width}
-        height={height}
-        className={cn('select-none rounded-xl', disabledClassName, className)}
-      >
+      <div style={{ width }} className={cn('select-none', disabledClassName, className)}>
         <RaidWidget
           raidName={raidDefinition?.name ?? raidData.raidKey}
           difficultyName={difficultyDefinition?.name ?? raidData.difficultyKey}
@@ -76,7 +67,7 @@ export function RaidCard({
           onToggleMoreReward={onRaidMoreRewardToggle}
           onOpenSettings={() => setIsRaidSettingsOpen(true)}
         />
-      </ScaleToFit>
+      </div>
       <RaidTargetModal
         open={isRaidSettingsOpen}
         onClose={() => setIsRaidSettingsOpen(false)}

@@ -12,7 +12,6 @@ import type { WidgetCardProps } from '@/types/widget'
 
 export function TextCheckboxCard({
   width,
-  height,
   disabledClassName,
   className,
   customData,
@@ -36,7 +35,7 @@ export function TextCheckboxCard({
     <>
       {/* text와 같은 이유로 ScaleToFit을 쓰지 않는다 — 루틴도 가로 칸 수를 자유롭게 고를 수
           있어(widgetCatalog.ts) native 비율과 실제 배치 비율이 달라질 수 있다. */}
-      <div style={{ width, height }} className={cn('select-none', disabledClassName, className)}>
+      <div style={{ width }} className={cn('select-none', disabledClassName, className)}>
         <TextCheckboxWidget
           text={text}
           isChecked={isChecked}

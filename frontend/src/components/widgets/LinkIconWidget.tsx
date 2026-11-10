@@ -34,7 +34,7 @@ export function LinkIconWidget({ url, label, onOpenSettings, className }: LinkIc
   const content = (
     <div
       className={cn(
-        'relative flex h-full w-full items-center justify-center rounded-xl border border-border bg-card shadow-lg',
+        'relative flex h-full w-full items-center justify-center rounded-lg border border-border bg-white/[0.03] transition-colors hover:border-foreground/30',
         className,
       )}
     >
@@ -49,11 +49,11 @@ export function LinkIconWidget({ url, label, onOpenSettings, className }: LinkIc
             <img
               src={favicon}
               alt=""
-              className="h-[75%] w-[75%] rounded-sm object-contain"
+              className="h-[60%] w-[60%] rounded-sm object-contain"
               onError={() => setFaviconFailed(true)}
             />
           ) : (
-            <Link2 className="h-[75%] w-[75%]" />
+            <Link2 className="h-[55%] w-[55%]" />
           )}
         </a>
       ) : (
@@ -63,7 +63,7 @@ export function LinkIconWidget({ url, label, onOpenSettings, className }: LinkIc
           aria-label="링크 추가"
           className="flex h-full w-full items-center justify-center text-muted-foreground transition-colors hover:text-primary"
         >
-          <Plus className="h-8 w-8" />
+          <Plus className="h-4 w-4" />
         </button>
       )}
     </div>

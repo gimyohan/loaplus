@@ -1,6 +1,5 @@
 import { useState } from 'react'
 
-import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { LinkIconSettingsModal } from '@/components/widgets/LinkIconSettingsModal'
 import { LinkIconWidget } from '@/components/widgets/LinkIconWidget'
 import { cn } from '@/lib/utils'
@@ -13,7 +12,6 @@ export function LinkIconCard({
   className,
   customData,
   onCustomDataChange,
-  catalogItem,
 }: WidgetCardProps) {
   const [isLinkIconSettingsOpen, setIsLinkIconSettingsOpen] = useState(false)
   const url = (customData?.url as string | null) ?? null
@@ -21,15 +19,9 @@ export function LinkIconCard({
 
   return (
     <>
-      <ScaleToFit
-        nativeWidth={catalogItem!.nativeWidth!}
-        nativeHeight={catalogItem!.nativeHeight!}
-        width={width}
-        height={height}
-        className={cn('select-none rounded-xl', disabledClassName, className)}
-      >
+      <div style={{ width, height }} className={cn('select-none', disabledClassName, className)}>
         <LinkIconWidget url={url} label={label} onOpenSettings={() => setIsLinkIconSettingsOpen(true)} />
-      </ScaleToFit>
+      </div>
       <LinkIconSettingsModal
         open={isLinkIconSettingsOpen}
         onClose={() => setIsLinkIconSettingsOpen(false)}

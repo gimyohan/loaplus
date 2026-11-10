@@ -15,7 +15,6 @@ import { DefaultLayoutPromptModal } from '@/components/dashboard/DefaultLayoutPr
 import { WidgetPalette, type PaletteAddHandler } from '@/components/dashboard/WidgetPalette'
 import { TemplatePanel } from '@/components/dashboard/TemplatePanel'
 import { PlacedWidgetContent } from '@/components/dashboard/PlacedWidgetContent'
-import { GridSettingsButton } from '@/components/dashboard/GridSettingsButton'
 import { GridSettingsModal } from '@/components/dashboard/GridSettingsModal'
 import type { TemplateLayout } from '@/types/template'
 import type { PlacedWidget, WidgetKind } from '@/types/widget'
@@ -46,6 +45,38 @@ function newLocalId() {
 
 function widgetLabel(widget: PlacedWidget) {
   return findCatalogItem(widget.kind)?.label ?? widget.kind
+}
+
+// 자기 박스를 그대로 갖는 위젯(배너). 나머지는 카드 한 면 위의 행으로 묶인다.
+const STANDALONE_KINDS = new Set<WidgetKind>(['banner', 'bannerCompact', 'bannerDetailed'])
+
+type CardSegment =
+  | { type: 'standalone'; widget: PlacedWidget }
+  /** items의 배열 원소는 연속한 정사각형 타일(링크 & 아이콘 등) 묶음 — 한 행에 나란히 놓인다. */
+  | { type: 'rows'; key: string; items: Array<PlacedWidget | PlacedWidget[]> }
+
+/**
+ * 사용자가 정한 순서는 그대로 두고, 이어지는 행 위젯끼리만 한 면(구분선으로 나뉜 행들)으로 묶는다.
+ * 배너가 중간에 있으면 그 앞뒤가 서로 다른 면이 된다.
+ */
+function groupCardSegments(widgets: PlacedWidget[]): CardSegment[] {
+  const segments: CardSegment[] = []
+  for (const widget of widgets) {
+    if (STANDALONE_KINDS.has(widget.kind)) {
+      segments.push({ type: 'standalone', widget })
+      continue
+    }
+    let current = segments[segments.length - 1]
+    if (!current || current.type !== 'rows') {
+      current = { type: 'rows', key: widget.id, items: [] }
+      segments.push(current)
+    }
+    const isTile = Boolean(findCatalogItem(widget.kind)?.tile)
+    const last = current.items[current.items.length - 1]
+    if (isTile && Array.isArray(last)) last.push(widget)
+    else current.items.push(isTile ? [widget] : widget)
+  }
+  return segments
 }
 
 export interface WidgetDashboardProps {
@@ -350,27 +381,46 @@ export function WidgetDashboard({
     void persistOrder()
   }
 
+  const renderWidget = (widget: PlacedWidget) => (
+    <PlacedWidgetContent
+      key={widget.id}
+      widget={widget}
+      cardWidth={cardWidth}
+      interactive
+      characterName={characterName}
+      onCustomDataChange={(customData) => updateWidgetCustomData(widget.id, customData)}
+      onCheckboxToggle={(isChecked) => toggleWidgetChecked(widget.id, isChecked)}
+      onCounterDecrement={() => decrementWidgetCounter(widget.id)}
+      raidExcludedKeys={raidActions.raidExcludedKeysFor(widget.id)}
+      onRaidGateToggle={(gateIndex, cleared) => raidActions.toggleRaidGateCleared(widget.id, gateIndex, cleared)}
+      onRaidMoreRewardToggle={(gateIndex, enabled) => raidActions.toggleRaidGateMoreReward(widget.id, gateIndex, enabled)}
+      onRaidTargetChange={(raidKey, difficultyKey) => raidActions.changeRaidTarget(widget.id, raidKey, difficultyKey)}
+      onRaidGoldRewardChange={(enabled) => raidActions.changeRaidGoldReward(widget.id, enabled)}
+    />
+  )
+
   return (
     <div>
-      {/* 실제 대시보드에 보이는 카드. 위젯을 위→아래 순서대로 쌓는다. 배치 편집은 설정 버튼 → 모달. */}
+      {/* 실제 대시보드에 보이는 카드. 배너는 자기 박스로, 그 밖의 연속한 위젯들은 카드 한 면 위의
+          행으로 묶어 그린다(groupCardSegments). 배치 편집은 오른쪽 위 도구 막대 → 설정 모달. */}
       <div className="group relative flex flex-col gap-2" style={{ width: cardWidth }}>
-        {widgets.map((widget) => (
-          <PlacedWidgetContent
-            key={widget.id}
-            widget={widget}
-            cardWidth={cardWidth}
-            interactive
-            characterName={characterName}
-            onCustomDataChange={(customData) => updateWidgetCustomData(widget.id, customData)}
-            onCheckboxToggle={(isChecked) => toggleWidgetChecked(widget.id, isChecked)}
-            onCounterDecrement={() => decrementWidgetCounter(widget.id)}
-            raidExcludedKeys={raidActions.raidExcludedKeysFor(widget.id)}
-            onRaidGateToggle={(gateIndex, cleared) => raidActions.toggleRaidGateCleared(widget.id, gateIndex, cleared)}
-            onRaidMoreRewardToggle={(gateIndex, enabled) => raidActions.toggleRaidGateMoreReward(widget.id, gateIndex, enabled)}
-            onRaidTargetChange={(raidKey, difficultyKey) => raidActions.changeRaidTarget(widget.id, raidKey, difficultyKey)}
-            onRaidGoldRewardChange={(enabled) => raidActions.changeRaidGoldReward(widget.id, enabled)}
-          />
-        ))}
+        {groupCardSegments(widgets).map((segment) =>
+          segment.type === 'standalone' ? (
+            renderWidget(segment.widget)
+          ) : (
+            <div key={segment.key} className="divide-y divide-border rounded-xl border border-border bg-card">
+              {segment.items.map((item) =>
+                Array.isArray(item) ? (
+                  <div key={item[0].id} className="flex flex-wrap gap-2 px-3 py-2">
+                    {item.map(renderWidget)}
+                  </div>
+                ) : (
+                  renderWidget(item)
+                ),
+              )}
+            </div>
+          ),
+        )}
 
         {widgets.length === 0 && (
           <button
@@ -383,18 +433,30 @@ export function WidgetDashboard({
           </button>
         )}
 
-        <GridSettingsButton onClick={() => setIsSettingsOpen(true)} />
-
-        {onRemove && (
+        {/* 카드 단위 도구 막대(슬랙 메시지의 호버 도구 막대 자리) — 카드에 마우스를 올리면 오른쪽 위
+            모서리에 뜬다. 첫 위젯의 자체 설정 버튼과 겹치지 않도록 카드 바깥쪽으로 살짝 띄운다. */}
+        <div className="absolute -top-3 right-3 z-20 flex items-center rounded-lg border border-border bg-card p-0.5 opacity-0 shadow-lg transition-opacity focus-within:opacity-100 group-hover:opacity-100">
           <button
             type="button"
-            onClick={onRemove}
-            aria-label="카드 삭제"
-            className="absolute left-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-card/80 text-muted-foreground opacity-0 shadow-sm backdrop-blur transition-opacity hover:border-danger hover:text-danger group-hover:opacity-100"
+            onClick={() => setIsSettingsOpen(true)}
+            aria-label="위젯 설정"
+            title="위젯 설정"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
           >
-            <X className="h-3.5 w-3.5" />
+            <Settings className="h-4 w-4" />
           </button>
-        )}
+          {onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label="카드 삭제"
+              title="카드 삭제"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-danger/15 hover:text-danger"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <GridSettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)}>

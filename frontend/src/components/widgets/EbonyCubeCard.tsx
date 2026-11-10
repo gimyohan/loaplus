@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 
-import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { EbonyCubeSettingsModal } from '@/components/widgets/EbonyCubeSettingsModal'
 import { EbonyCubeWidget } from '@/components/widgets/EbonyCubeWidget'
 import { adjustEbonyCubeTicket, clearEbonyCube, cycleEbonyCubeTarget, fetchHomeworks } from '@/lib/homeworks'
@@ -11,7 +10,7 @@ import type { WidgetCardProps } from '@/types/widget'
 
 // 낙원과 레이아웃 비율이 동일하다.
 const PARADISE_LOADING_PLACEHOLDER_CLASSNAME =
-  'flex aspect-[5/2] items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground'
+  'flex h-11 items-center px-3 text-xs text-muted-foreground'
 
 interface EbonyCubeWidgetBoundProps {
   characterId: string
@@ -91,23 +90,15 @@ function EbonyCubeWidgetBound({ characterId, characterNameForModal }: EbonyCubeW
 
 export function EbonyCubeCard({
   width,
-  height,
   disabledClassName,
   className,
   bannerCharacter,
   record,
-  catalogItem,
 }: WidgetCardProps) {
   // record는 WidgetVisual의 placeholder 분기에서 이미 보장됨(ebonyCube가 DEFAULT_VALUE_KINDS에 포함).
   return (
-    <ScaleToFit
-      nativeWidth={catalogItem!.nativeWidth!}
-      nativeHeight={catalogItem!.nativeHeight!}
-      width={width}
-      height={height}
-      className={cn('select-none rounded-xl', disabledClassName, className)}
-    >
+    <div style={{ width }} className={cn('select-none', disabledClassName, className)}>
       <EbonyCubeWidgetBound key={record!.id} characterId={record!.id} characterNameForModal={bannerCharacter.characterName} />
-    </ScaleToFit>
+    </div>
   )
 }

@@ -10,8 +10,8 @@ export interface ImageWidgetProps {
 }
 
 /**
- * 외부 이미지 URL을 입력해 프레임을 채우는 위젯 (docs/widgets.typ 참고).
- * URL이 없으면 입력 폼을, 있으면 이미지를 채워 보여주고 호버 시 수정 버튼을 노출한다.
+ * 이미지 위젯 — 카드 안 행 하나를 이미지로 채운다(높이는 S/M/L, lib/widgetCatalog.ts). URL이 없으면
+ * 바로 입력 폼을, 있으면 이미지와 마우스를 올렸을 때 보이는 수정 버튼을 보여준다.
  */
 export function ImageWidget({ url, onChangeUrl, className }: ImageWidgetProps) {
   const [isEditing, setIsEditing] = useState(!url)
@@ -24,53 +24,43 @@ export function ImageWidget({ url, onChangeUrl, className }: ImageWidgetProps) {
     setIsEditing(false)
   }
 
-  if (isEditing) {
-    return (
-      <div
-        className={cn(
-          'flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card p-4 shadow-lg',
-          className,
-        )}
-      >
-        <ImagePlus className="h-6 w-6 text-muted-foreground" />
-        <form onSubmit={handleSubmit} className="flex w-full flex-col gap-2">
-          <input
-            type="text"
-            value={draftUrl}
-            onChange={(event) => setDraftUrl(event.target.value)}
-            placeholder="이미지 URL"
-            className="w-full min-w-0 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          <button
-            type="submit"
-            className="rounded-md bg-primary-strong px-2 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary-strong/90"
-          >
-            적용
-          </button>
-        </form>
-      </div>
-    )
-  }
-
   return (
-    <div
-      className={cn(
-        'group relative aspect-square overflow-hidden rounded-xl border border-border bg-card shadow-lg',
-        className,
+    <div className={cn('h-full w-full p-2', className)}>
+      {isEditing ? (
+        <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4">
+          <ImagePlus className="h-5 w-5 text-muted-foreground" />
+          <form onSubmit={handleSubmit} className="flex w-full max-w-[260px] gap-1.5">
+            <input
+              type="text"
+              value={draftUrl}
+              onChange={(event) => setDraftUrl(event.target.value)}
+              placeholder="https://… 이미지 주소"
+              className="h-7 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <button
+              type="submit"
+              className="h-7 shrink-0 rounded-md bg-secondary-strong px-2.5 text-xs font-bold text-secondary-foreground transition-colors hover:bg-secondary-strong/90"
+            >
+              적용
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div className="group/image relative h-full overflow-hidden rounded-lg">
+          <img src={url!} alt="" className="h-full w-full object-cover" />
+          <button
+            type="button"
+            aria-label="이미지 수정"
+            onClick={() => {
+              setDraftUrl(url ?? '')
+              setIsEditing(true)
+            }}
+            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover/image:opacity-100"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </div>
       )}
-    >
-      <img src={url!} alt="" className="h-full w-full object-cover" />
-      <button
-        type="button"
-        aria-label="이미지 수정"
-        onClick={() => {
-          setDraftUrl(url ?? '')
-          setIsEditing(true)
-        }}
-        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card/80 text-muted-foreground opacity-0 shadow-sm backdrop-blur transition-opacity hover:text-foreground group-hover:opacity-100"
-      >
-        <Pencil className="h-3.5 w-3.5" />
-      </button>
     </div>
   )
 }

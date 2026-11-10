@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 
-import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { ParadiseGoldRewardModal } from '@/components/widgets/ParadiseGoldRewardModal'
 import { ParadiseSettingsModal } from '@/components/widgets/ParadiseSettingsModal'
 import { ParadiseWidget } from '@/components/widgets/ParadiseWidget'
@@ -17,7 +16,7 @@ import type { WidgetCardProps } from '@/types/widget'
 
 // 낙원(5x2)은 가디언/쿠르잔 전선(5x3)과 원본 비율이 달라 로딩 중 자리표시 상자도 따로 둔다.
 const PARADISE_LOADING_PLACEHOLDER_CLASSNAME =
-  'flex aspect-[5/2] items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground'
+  'flex h-11 items-center px-3 text-xs text-muted-foreground'
 
 interface ParadiseWidgetBoundProps {
   characterId: string
@@ -92,23 +91,15 @@ function ParadiseWidgetBound({ characterId, characterNameForModal }: ParadiseWid
 
 export function ParadiseCard({
   width,
-  height,
   disabledClassName,
   className,
   bannerCharacter,
   record,
-  catalogItem,
 }: WidgetCardProps) {
   // record는 WidgetVisual의 placeholder 분기에서 이미 보장됨(paradise가 DEFAULT_VALUE_KINDS에 포함).
   return (
-    <ScaleToFit
-      nativeWidth={catalogItem!.nativeWidth!}
-      nativeHeight={catalogItem!.nativeHeight!}
-      width={width}
-      height={height}
-      className={cn('select-none rounded-xl', disabledClassName, className)}
-    >
+    <div style={{ width }} className={cn('select-none', disabledClassName, className)}>
       <ParadiseWidgetBound key={record!.id} characterId={record!.id} characterNameForModal={bannerCharacter.characterName} />
-    </ScaleToFit>
+    </div>
   )
 }

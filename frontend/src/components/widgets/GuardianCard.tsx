@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 
-import { ScaleToFit } from '@/components/dashboard/ScaleToFit'
 import { GuardianSettingsModal } from '@/components/widgets/GuardianSettingsModal'
 import { GuardianWidget } from '@/components/widgets/GuardianWidget'
 import {
@@ -20,7 +19,7 @@ import type { GuardianSummary } from '@/types/guardian'
 import type { WidgetCardProps } from '@/types/widget'
 
 const LOADING_PLACEHOLDER_CLASSNAME =
-  'flex aspect-[5/3] items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground'
+  'flex h-11 items-center px-3 text-xs text-muted-foreground'
 
 interface GuardianWidgetBoundProps {
   characterId: string
@@ -128,28 +127,20 @@ function GuardianWidgetBound({
 
 export function GuardianCard({
   width,
-  height,
   disabledClassName,
   className,
   bannerCharacter,
   record,
-  catalogItem,
 }: WidgetCardProps) {
   // record는 WidgetVisual의 placeholder 분기에서 이미 보장됨(guardian이 DEFAULT_VALUE_KINDS에 포함).
   return (
-    <ScaleToFit
-      nativeWidth={catalogItem!.nativeWidth!}
-      nativeHeight={catalogItem!.nativeHeight!}
-      width={width}
-      height={height}
-      className={cn('select-none rounded-xl', disabledClassName, className)}
-    >
+    <div style={{ width }} className={cn('select-none', disabledClassName, className)}>
       <GuardianWidgetBound
         key={record!.id}
         characterId={record!.id}
         characterNameForModal={bannerCharacter.characterName}
         characterItemLevel={bannerCharacter.itemLevel}
       />
-    </ScaleToFit>
+    </div>
   )
 }
