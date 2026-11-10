@@ -115,7 +115,7 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className={cn('flex flex-1 flex-col gap-0.5 overflow-y-auto py-3', isCollapsed ? 'px-2' : 'px-2.5')}>
+      <div className={cn('scrollbar-on-hover flex flex-1 flex-col gap-0.5 overflow-y-auto py-3', isCollapsed ? 'px-2' : 'px-2.5')}>
         {navItems.map(({ view, label, icon: Icon }) => (
           <button
             key={view}

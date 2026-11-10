@@ -50,6 +50,8 @@
   }
 
   .dark {
+    /* 브라우저 기본 컨트롤(스크롤바, 폼 요소)도 어두운 테마로 그리게 한다. */
+    color-scheme: dark;
     /* 면 단계: 사이드바(가장 어두움) < 본문 < 카드·모달 < 호버 */
     --sidebar: 25 23 29; /* #19171d */
     --sidebar-foreground: 209 210 211;
@@ -86,6 +88,10 @@
 
   * {
     @apply border-border;
+    /* 스크롤바를 테마에 맞춘다 — 얇게, 트랙 없이 옅은 손잡이만(슬랙 톤). 표준 속성만 쓴다(Chrome
+       121+/Firefox). 사이드바처럼 평소엔 숨기고 싶은 곳은 아래 .scrollbar-on-hover를 쓴다. */
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--foreground) / 0.2) transparent;
   }
 
   body {
@@ -98,6 +104,16 @@
   html {
     scrollbar-gutter: stable;
   }
+}
+
+/* 평소엔 스크롤바 손잡이를 숨기고 마우스를 올렸을 때만 보여준다(슬랙 사이드바와 같은 동작). */
+.scrollbar-on-hover {
+  scrollbar-color: transparent transparent;
+}
+
+.scrollbar-on-hover:hover,
+.scrollbar-on-hover:focus-within {
+  scrollbar-color: rgb(var(--foreground) / 0.25) transparent;
 }
 
 /* 완료 전 공명비약 사용 시 체크박스를 빨갛게 깜빡여 경고하는 용도 */

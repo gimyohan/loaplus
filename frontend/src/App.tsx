@@ -177,189 +177,190 @@ function App() {
           className={cn(
             'px-4 pb-20 pt-8 transition-[margin] duration-200 md:px-8 md:pb-12',
             isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
-            'mx-auto max-w-[1200px]',
           )}
         >
-          {/* key=previewView: 탭이 바뀌면 캐러셀을 통째로 새로 마운트해서, 각 탭의 스크린샷
-              인덱스가 0부터 다시 시작하도록 한다(사용자 확인: 탭별로 완전히 독립된 쌍). */}
-          <ScreenshotCarousel
-            key={previewView}
-            pairs={PREVIEW_SCREENSHOTS[previewView]}
-            onLoginClick={() => setShowLoginScreen(true)}
-          />
-        </main>
+          {/* 사이드바를 뺀 영역 안에서 가운데 정렬한다(아래 로그인 후 본문과 같은 이유). */}
+          <div className="mx-auto w-full max-w-[1200px]">
+              {/* key=previewView: 탭이 바뀌면 캐러셀을 통째로 새로 마운트해서, 각 탭의 스크린샷
+                  인덱스가 0부터 다시 시작하도록 한다(사용자 확인: 탭별로 완전히 독립된 쌍). */}
+              <ScreenshotCarousel
+                key={previewView}
+                pairs={PREVIEW_SCREENSHOTS[previewView]}
+                onLoginClick={() => setShowLoginScreen(true)}
+              />
+            </div>
+          </main>
 
-        {/* Sidebar는 md 미만에서 아예 숨겨지므로(hidden md:flex), 모바일에서 대시보드 밖의 다른
-            미리보기 탭으로 이동할 유일한 수단이다(사용자 확인). */}
-        <BottomNav
-          activeView={previewView}
-          onNavigate={(view) => setPreviewView(view as Exclude<NavView, 'market' | 'settings'>)}
-          isPremium={false}
-          isAuthenticated={false}
+          {/* Sidebar는 md 미만에서 아예 숨겨지므로(hidden md:flex), 모바일에서 대시보드 밖의 다른
+              미리보기 탭으로 이동할 유일한 수단이다(사용자 확인). */}
+          <BottomNav
+            activeView={previewView}
+            onNavigate={(view) => setPreviewView(view as Exclude<NavView, 'market' | 'settings'>)}
+            isPremium={false}
+            isAuthenticated={false}
+          />
+
+          <Toaster />
+        </div>
+      )
+    }
+
+    const handleRemoveCard = (id: string) => {
+      const boundCharacter = characters.find((character) => character.id === id)
+      if (!boundCharacter) {
+        // 아직 검색으로 귀속되지 않은 임시 카드 — 서버에 아무 것도 없으니 그냥 목록에서 지운다.
+        setCardIds((prev) => prev?.filter((cardId) => cardId !== id) ?? prev)
+        return
+      }
+
+      // 귀속된 카드는 곧 실제 캐릭터라, 삭제하면 가디언/쿠르잔 전선/낙원 상태와 로그·통계까지
+      // 함께 영구히 삭제된다(docs/api.typ 캐릭터 삭제 참고) — 되돌릴 수 없는 작업이라 먼저 확인받는다.
+      setPendingRemoval({ id, characterName: boundCharacter.characterName })
+    }
+
+    const confirmRemoveCard = () => {
+      if (!pendingRemoval) return
+      const { id } = pendingRemoval
+      setIsRemoving(true)
+      remove(id)
+        .then(() => {
+          setCardIds((prev) => prev?.filter((cardId) => cardId !== id) ?? prev)
+          setPendingRemoval(null)
+        })
+        .catch((err) => console.error('캐릭터 삭제 실패', err))
+        .finally(() => setIsRemoving(false))
+    }
+
+    const handleCardBound = (id: string, characterId: string) => {
+      setCardIds((prev) => {
+        if (!prev) return prev
+        if (id === characterId) {
+          // 이미 이 characterId로 귀속된 카드가 같은 이름을 다시 적용한 경우(예: 입력창에서 Enter로
+          // 재제출) — 바뀌는 게 없으니 그대로 둔다. 이 검사 없이 아래 "이미 다른 카드에 귀속된
+          // 캐릭터" 처리로 넘어가면 자기 자신과 충돌한 것으로 판정돼 카드가 통째로 사라져버린다.
+          return prev
+        }
+        if (prev.includes(characterId)) {
+          // 이미 다른 카드에 귀속된 캐릭터를 또 검색한 경우 — 그대로 교체하면 같은 characterId가
+          // 배열에 두 번 들어가 React key가 중복되고(카드 삭제가 엉뚱하게 동작하는 원인), 그 카드는
+          // 이미 다른 자리에 떠 있으므로 이 임시 카드는 그냥 없앤다.
+          return prev.filter((cardId) => cardId !== id)
+        }
+        return prev.map((cardId) => (cardId === id ? characterId : cardId))
+      })
+      // 이 카드가 Add Character로 막 추가돼 자동으로 설정 모달이 열려 있던 카드였다면(autoOpenCardId
+      // === id), 위 id → characterId 교체로 React key가 바뀌어 WidgetDashboard가 새로 마운트되면서
+      // isSettingsOpen 로컬 상태가 초기화돼 모달이 닫혀버린다 — autoOpenCardId도 같이 새 id를
+      // 가리키도록 옮겨두면, 새로 마운트되는 인스턴스가 다시 autoOpenSettings=true로 열려서 사용자
+      // 눈에는 모달이 계속 열려 있던 것처럼 보인다.
+      setAutoOpenCardId((prev) => (prev === id ? characterId : prev))
+    }
+
+    const handleNavigate = (next: NavView) => {
+      if (activeView === 'dashboard' && next !== 'dashboard') {
+        dashboardScrollY.current = window.scrollY
+      }
+      setActiveView(next)
+    }
+
+    const handleAddCharacter = () => {
+      const newId = crypto.randomUUID()
+      setCardIds((prev) => [...(prev ?? []), newId])
+      setAutoOpenCardId(newId)
+    }
+
+    // 사이드바 캐릭터 목록은 대시보드 카드 순서를 그대로 따른다(아직 이름을 안 정한 임시 카드는 제외).
+    const sidebarCharacters = (cardIds ?? []).flatMap((id) => {
+      const character = characters.find((candidate) => candidate.id === id)
+      return character ? [{ id, characterName: character.characterName, imageUrl: character.imageUrl }] : []
+    })
+
+    // 사이드바에서 캐릭터를 누르면 대시보드로 가서 그 카드로 스크롤하고 잠깐 강조한다(슬랙에서 채널을
+    // 누르면 그 채널로 이동하는 자리). 다른 탭에 있었다면 대시보드 스크롤 복원(useLayoutEffect)이
+    // 먼저 끝난 뒤 이동해야 하므로 다음 프레임까지 미룬다.
+    const handleCharacterClick = (characterId: string) => {
+      handleNavigate('dashboard')
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const card = document.getElementById(`dashboard-card-${characterId}`)
+          if (!card) return
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          card.classList.remove('animate-card-focus')
+          // 같은 카드를 연달아 눌러도 애니메이션이 다시 돌도록 리플로우를 한 번 강제한다.
+          void card.offsetWidth
+          card.classList.add('animate-card-focus')
+        })
+      })
+    }
+
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <Sidebar
+          activeView={activeView}
+          onNavigate={handleNavigate}
+          onSignOut={() => logout()}
+          isPremium={isPremium ?? false}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapsed={() => setIsSidebarCollapsed((v) => !v)}
+          isAuthenticated
+          characters={sidebarCharacters}
+          onCharacterClick={handleCharacterClick}
+          onAddCharacter={
+            characters.length < MAX_CHARACTERS_PER_USER
+              ? () => {
+                  handleNavigate('dashboard')
+                  handleAddCharacter()
+                }
+              : undefined
+          }
+        />
+        <TopAppBar
+          title={VIEW_TITLES[activeView]}
+          nickname={user?.nickname}
+          isDark={isDark}
+          onToggleDark={() => setIsDark((v) => !v)}
+          isSidebarCollapsed={isSidebarCollapsed}
         />
 
-        <Toaster />
-      </div>
-    )
-  }
-
-  const handleRemoveCard = (id: string) => {
-    const boundCharacter = characters.find((character) => character.id === id)
-    if (!boundCharacter) {
-      // 아직 검색으로 귀속되지 않은 임시 카드 — 서버에 아무 것도 없으니 그냥 목록에서 지운다.
-      setCardIds((prev) => prev?.filter((cardId) => cardId !== id) ?? prev)
-      return
-    }
-
-    // 귀속된 카드는 곧 실제 캐릭터라, 삭제하면 가디언/쿠르잔 전선/낙원 상태와 로그·통계까지
-    // 함께 영구히 삭제된다(docs/api.typ 캐릭터 삭제 참고) — 되돌릴 수 없는 작업이라 먼저 확인받는다.
-    setPendingRemoval({ id, characterName: boundCharacter.characterName })
-  }
-
-  const confirmRemoveCard = () => {
-    if (!pendingRemoval) return
-    const { id } = pendingRemoval
-    setIsRemoving(true)
-    remove(id)
-      .then(() => {
-        setCardIds((prev) => prev?.filter((cardId) => cardId !== id) ?? prev)
-        setPendingRemoval(null)
-      })
-      .catch((err) => console.error('캐릭터 삭제 실패', err))
-      .finally(() => setIsRemoving(false))
-  }
-
-  const handleCardBound = (id: string, characterId: string) => {
-    setCardIds((prev) => {
-      if (!prev) return prev
-      if (id === characterId) {
-        // 이미 이 characterId로 귀속된 카드가 같은 이름을 다시 적용한 경우(예: 입력창에서 Enter로
-        // 재제출) — 바뀌는 게 없으니 그대로 둔다. 이 검사 없이 아래 "이미 다른 카드에 귀속된
-        // 캐릭터" 처리로 넘어가면 자기 자신과 충돌한 것으로 판정돼 카드가 통째로 사라져버린다.
-        return prev
-      }
-      if (prev.includes(characterId)) {
-        // 이미 다른 카드에 귀속된 캐릭터를 또 검색한 경우 — 그대로 교체하면 같은 characterId가
-        // 배열에 두 번 들어가 React key가 중복되고(카드 삭제가 엉뚱하게 동작하는 원인), 그 카드는
-        // 이미 다른 자리에 떠 있으므로 이 임시 카드는 그냥 없앤다.
-        return prev.filter((cardId) => cardId !== id)
-      }
-      return prev.map((cardId) => (cardId === id ? characterId : cardId))
-    })
-    // 이 카드가 Add Character로 막 추가돼 자동으로 설정 모달이 열려 있던 카드였다면(autoOpenCardId
-    // === id), 위 id → characterId 교체로 React key가 바뀌어 WidgetDashboard가 새로 마운트되면서
-    // isSettingsOpen 로컬 상태가 초기화돼 모달이 닫혀버린다 — autoOpenCardId도 같이 새 id를
-    // 가리키도록 옮겨두면, 새로 마운트되는 인스턴스가 다시 autoOpenSettings=true로 열려서 사용자
-    // 눈에는 모달이 계속 열려 있던 것처럼 보인다.
-    setAutoOpenCardId((prev) => (prev === id ? characterId : prev))
-  }
-
-  const handleNavigate = (next: NavView) => {
-    if (activeView === 'dashboard' && next !== 'dashboard') {
-      dashboardScrollY.current = window.scrollY
-    }
-    setActiveView(next)
-  }
-
-  const handleAddCharacter = () => {
-    const newId = crypto.randomUUID()
-    setCardIds((prev) => [...(prev ?? []), newId])
-    setAutoOpenCardId(newId)
-  }
-
-  // 사이드바 캐릭터 목록은 대시보드 카드 순서를 그대로 따른다(아직 이름을 안 정한 임시 카드는 제외).
-  const sidebarCharacters = (cardIds ?? []).flatMap((id) => {
-    const character = characters.find((candidate) => candidate.id === id)
-    return character ? [{ id, characterName: character.characterName, imageUrl: character.imageUrl }] : []
-  })
-
-  // 사이드바에서 캐릭터를 누르면 대시보드로 가서 그 카드로 스크롤하고 잠깐 강조한다(슬랙에서 채널을
-  // 누르면 그 채널로 이동하는 자리). 다른 탭에 있었다면 대시보드 스크롤 복원(useLayoutEffect)이
-  // 먼저 끝난 뒤 이동해야 하므로 다음 프레임까지 미룬다.
-  const handleCharacterClick = (characterId: string) => {
-    handleNavigate('dashboard')
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const card = document.getElementById(`dashboard-card-${characterId}`)
-        if (!card) return
-        card.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        card.classList.remove('animate-card-focus')
-        // 같은 카드를 연달아 눌러도 애니메이션이 다시 돌도록 리플로우를 한 번 강제한다.
-        void card.offsetWidth
-        card.classList.add('animate-card-focus')
-      })
-    })
-  }
-
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Sidebar
-        activeView={activeView}
-        onNavigate={handleNavigate}
-        onSignOut={() => logout()}
-        isPremium={isPremium ?? false}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapsed={() => setIsSidebarCollapsed((v) => !v)}
-        isAuthenticated
-        characters={sidebarCharacters}
-        onCharacterClick={handleCharacterClick}
-        onAddCharacter={
-          characters.length < MAX_CHARACTERS_PER_USER
-            ? () => {
-                handleNavigate('dashboard')
-                handleAddCharacter()
-              }
-            : undefined
-        }
-      />
-      <TopAppBar
-        title={VIEW_TITLES[activeView]}
-        nickname={user?.nickname}
-        isDark={isDark}
-        onToggleDark={() => setIsDark((v) => !v)}
-        isSidebarCollapsed={isSidebarCollapsed}
-      />
-
-      <main
-        className={cn(
-          // 상단 탭 제목 바(TopAppBar)가 더 이상 fixed가 아니라 문서 흐름 안에 있으므로(사용자
-          // 확정: 스크롤해도 안 붙어있게), 예전엔 그 고정 높이(h-16)만큼 비워두던 pt-24를
-          // 그 여백분(pt-8)만으로 줄인다. 모바일은 하단에 고정된 BottomNav만큼(pb-20) 더 띄워서
-          // 콘텐츠 마지막 줄이 탭바에 가리지 않게 하고, md 이상은 BottomNav가 없으니 pb-12로 되돌린다.
-          'px-4 pb-20 pt-8 transition-[margin] duration-200 md:px-8 md:pb-12',
-          isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
-          // 대시보드 탭은 카드가 화면 오른쪽까지 꽉 차게 배치되도록 폭 제한을 풀고, 나머지
-          // 탭(표/글 위주 화면)은 가독성을 위해 기존 1200px 중앙 정렬을 유지한다. 여기서 폭을
-          // 아예 지정하지 않아야(width: auto) 사이드바의 md:ml-[240px] 마진만큼을 브라우저가
-          // 알아서 빼고 계산한다 — w-full(width: 100%)을 쓰면 마진이 빠지지 않아 240px만큼
-          // 오버플로우되고, 그 늘어난 폭 그대로 카드 크기 계산에 들어가 카드가 커지고 가로
-          // 스크롤이 생긴다.
-          activeView !== 'dashboard' && 'mx-auto max-w-[1200px]',
-        )}
-      >
-        {/* 탭을 옮겨도 카드에 귀속된 캐릭터/위젯 배치가 유지되도록 언마운트 대신 숨김 처리한다 */}
-        <div className={activeView === 'dashboard' ? undefined : 'hidden'}>
-          {cardIds === null || isCharacterDirectoryLoading ? (
-            // 카드 순서(characterId 배열)만 먼저 도착하고 캐릭터 목록이 아직이면, 이미 귀속된
-            // 카드도 initialCharacterName 없이 마운트돼버려 위젯 배치를 못 받아온다 — 그 값은
-            // 최초 마운트 시에만 쓰이므로 나중에 목록이 도착해도 스스로 고쳐지지 않는다. 그래서
-            // 두 조회가 모두 끝난 뒤에만 그린다.
-            <p className="py-24 text-center text-sm text-muted-foreground">불러오는 중...</p>
-          ) : (
-            <DashboardView
-              cardIds={cardIds}
-              autoOpenCardId={autoOpenCardId}
-              onRemoveCard={handleRemoveCard}
-              onCardBound={handleCardBound}
-              onAddCharacter={handleAddCharacter}
-            />
+        <main
+          className={cn(
+            // 상단 탭 제목 바(TopAppBar)가 더 이상 fixed가 아니라 문서 흐름 안에 있으므로(사용자
+            // 확정: 스크롤해도 안 붙어있게), 예전엔 그 고정 높이(h-16)만큼 비워두던 pt-24를
+            // 그 여백분(pt-8)만으로 줄인다. 모바일은 하단에 고정된 BottomNav만큼(pb-20) 더 띄워서
+            // 콘텐츠 마지막 줄이 탭바에 가리지 않게 하고, md 이상은 BottomNav가 없으니 pb-12로 되돌린다.
+            'px-4 pb-20 pt-8 transition-[margin] duration-200 md:px-8 md:pb-12',
+            isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[240px]',
           )}
+        >
+          {/* 본문은 사이드바를 뺀 영역 안에서 가운데 정렬한다. main 자체에 mx-auto를 주면 md 이상에서
+              md:ml-[240px]이 왼쪽 여백을 덮어써 콘텐츠가 왼쪽으로 붙는다 — 그래서 main은 사이드바
+              자리만 비우고, 가운데 정렬은 안쪽 래퍼가 맡는다. 대시보드는 카드 3장 폭(1,082px)까지만
+              쓰고(DashboardView), 나머지 탭은 표/글 가독성을 위해 1,200px까지 쓴다. */}
+          <div className="mx-auto w-full max-w-[1200px]">
+          {/* 탭을 옮겨도 카드에 귀속된 캐릭터/위젯 배치가 유지되도록 언마운트 대신 숨김 처리한다 */}
+          <div className={activeView === 'dashboard' ? undefined : 'hidden'}>
+            {cardIds === null || isCharacterDirectoryLoading ? (
+              // 카드 순서(characterId 배열)만 먼저 도착하고 캐릭터 목록이 아직이면, 이미 귀속된
+              // 카드도 initialCharacterName 없이 마운트돼버려 위젯 배치를 못 받아온다 — 그 값은
+              // 최초 마운트 시에만 쓰이므로 나중에 목록이 도착해도 스스로 고쳐지지 않는다. 그래서
+              // 두 조회가 모두 끝난 뒤에만 그린다.
+              <p className="py-24 text-center text-sm text-muted-foreground">불러오는 중...</p>
+            ) : (
+              <DashboardView
+                cardIds={cardIds}
+                autoOpenCardId={autoOpenCardId}
+                onRemoveCard={handleRemoveCard}
+                onCardBound={handleCardBound}
+                onAddCharacter={handleAddCharacter}
+              />
+            )}
+          </div>
+          {activeView === 'logs' && <LogsView />}
+          {activeView === 'roster' && <RosterView onRosterChanged={refreshCardOrder} />}
+          {activeView === 'statistics' && <StatisticsView />}
+          {activeView === 'market' && <MarketView isPremium={isPremium ?? false} />}
+          {activeView === 'settings' && <SettingsView />}
         </div>
-        {activeView === 'logs' && <LogsView />}
-        {activeView === 'roster' && <RosterView onRosterChanged={refreshCardOrder} />}
-        {activeView === 'statistics' && <StatisticsView />}
-        {activeView === 'market' && <MarketView isPremium={isPremium ?? false} />}
-        {activeView === 'settings' && <SettingsView />}
       </main>
 
       {/* Sidebar는 md 미만에서 아예 숨겨지므로(hidden md:flex), 이게 없으면 모바일에서 대시보드

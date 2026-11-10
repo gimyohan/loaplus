@@ -4,6 +4,11 @@ import { DashboardCardCarousel } from '@/components/dashboard/DashboardCardCarou
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MAX_CHARACTERS_PER_USER } from '@/lib/characters'
+import { CARD_WIDTH } from '@/lib/widgetCatalog'
+
+const CARDS_PER_ROW = 3
+// gap-4와 같은 값(px)
+const CARD_GAP = 16
 
 export interface DashboardViewProps {
   cardIds: string[]
@@ -49,11 +54,18 @@ export function DashboardView({
     )
   }
 
-  // 카드는 고정 폭(CARD_WIDTH)이라 한 줄에 몇 장이 들어갈지는 화면 폭이 정하고, 남는 카드는 다음
-  // 줄로 넘어간다(docs/ui_redesign.md "화면 폭과 카드 개수"). items-start: 카드마다 위젯 수가 달라
-  // 높이가 다르므로 같은 줄 카드를 가장 큰 높이로 늘리지 않는다.
+  // 카드는 고정 폭(CARD_WIDTH)이고 한 줄에 최대 3장이다(사용자 확정) — 컨테이너 최대 폭을 카드 3장
+  // 폭으로 묶고 auto-fill 열을 쓰면, 화면이 넓어도 3열을 넘지 않고 좁으면 2열/1열로 줄어든다.
+  // justify-center로 실제로 만들어진 열 묶음을 가운데에 둔다. items-start: 카드마다 위젯 수가
+  // 달라 높이가 다르므로 같은 줄 카드를 가장 큰 높이로 늘리지 않는다.
   return (
-    <div className="flex flex-wrap items-start gap-4">
+    <div
+      className="mx-auto grid w-full items-start justify-center gap-4"
+      style={{
+        maxWidth: CARD_WIDTH * CARDS_PER_ROW + CARD_GAP * (CARDS_PER_ROW - 1),
+        gridTemplateColumns: `repeat(auto-fill, ${CARD_WIDTH}px)`,
+      }}
+    >
       {cardIds.map((id) => {
         // 이미 실제 캐릭터로 등록된 id라면 이름을 미리 채워 마운트 즉시 위젯 목록을 조회하게 한다.
         const boundCharacter = characters.find((character) => character.id === id)
