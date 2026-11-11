@@ -1,11 +1,11 @@
 import { Ticket } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { FateShardIcon, TrialSandIcon } from '@/components/widgets/gameItemIcons'
+import { EBONY_CUBE_TICKET_ICONS, FateShardIcon, TrialSandIcon } from '@/components/widgets/gameItemIcons'
 import { AzenaBlessingIcon, ResonancePotionIcon } from '@/components/widgets/icons'
 import { RestHomeworkRow } from '@/components/widgets/RestHomeworkRow'
 import { RewardSelectionModal, type RewardItem } from '@/components/widgets/RewardSelectionModal'
-import { isChaosRiftKurzanTarget } from '@/lib/contentStages'
+import { isChaosRiftKurzanTarget, kurzanTicketType } from '@/lib/contentStages'
 import { AZENA_BLESSING_REWARD_CATEGORIES, SHARD_REWARD_CATEGORIES } from '@/lib/rewardCatalog'
 import type { KurzanFrontlineSummary } from '@/types/kurzanFrontline'
 
@@ -43,6 +43,9 @@ export function KurzanFrontlineWidget({
   className,
 }: KurzanFrontlineWidgetProps) {
   const isSandStage = isChaosRiftKurzanTarget(data.targetName)
+  // 입장권 버튼은 대상 단계가 주는 에브니 큐브 입장권 등급의 공식 아이콘. 매핑이 없는 대상이면 기존 티켓 아이콘.
+  const ticketType = kurzanTicketType(data.targetName)
+  const TicketIcon = ticketType ? EBONY_CUBE_TICKET_ICONS[ticketType] : Ticket
 
   const [isResonanceWarningActive, setIsResonanceWarningActive] = useState(false)
   const resonanceWarningTimeoutRef = useRef<number | undefined>(undefined)
@@ -88,7 +91,7 @@ export function KurzanFrontlineWidget({
           {
             key: 'ticket',
             label: isSandStage ? '시련의 모래' : '입장권',
-            icon: isSandStage ? TrialSandIcon : Ticket,
+            icon: isSandStage ? TrialSandIcon : TicketIcon,
             onClick: () => onQuickAction?.('ticket'),
           },
         ]}

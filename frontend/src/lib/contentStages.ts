@@ -1,5 +1,6 @@
 import contentStagesData from '@/data/contentStages.json'
 import ebonyCubeRewardsData from '@/data/ebonyCubeRewards.json'
+import type { TicketType } from '@/types/ebonyCube'
 
 const CHAOS_RIFT_STAGE_NAMES = new Set(contentStagesData.chaosRift.stages.map((stage) => stage.name))
 
@@ -34,6 +35,11 @@ const TICKET_TIER_LABEL_BY_TYPE: Record<string, string> = Object.fromEntries(
  * ebonyCubeCatalog.ts의 ticketTypeForKurzanTarget과 동일 판정이며, 여기서는 획득 토스트
  * 문구를 만드는 용도로만 쓴다(실제 적립은 서버가 최종 결정).
  */
+/** 쿠르잔 전선 targetName에 대응하는 에브니 큐브 입장권 종류(예: "unlock1"). 매핑이 없으면 null. */
+export function kurzanTicketType(targetName: string): TicketType | null {
+  return (KURZAN_TICKET_TYPE_BY_TARGET_NAME[targetName] as TicketType | undefined) ?? null
+}
+
 export function kurzanTicketTierLabel(targetName: string): string | null {
   const ticketType = KURZAN_TICKET_TYPE_BY_TARGET_NAME[targetName]
   if (!ticketType) return null
