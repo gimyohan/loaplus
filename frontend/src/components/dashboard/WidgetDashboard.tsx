@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type SetStateAction } from 'react'
-import { ArrowDown, ArrowUp, Settings, X } from 'lucide-react'
+import { Settings, X } from 'lucide-react'
 
 import { useCharacterDirectory } from '@/contexts/CharacterDirectoryContext'
 import { checkCustomWidget, decrementCounterWidget, updateCustomWidget } from '@/lib/customWidgets'
@@ -8,14 +8,14 @@ import { pickDefaultLayout } from '@/data/defaultLayouts'
 import { useRaidWidgetActions } from '@/hooks/useRaidWidgetActions'
 import { runOptimistic } from '@/lib/optimistic'
 import { createRaidWidget, deleteRaidWidget } from '@/lib/raids'
-import { cn } from '@/lib/utils'
-import { CARD_WIDTH, IMAGE_SIZE_HEIGHTS, findCatalogItem, readImageSize, type ImageSize } from '@/lib/widgetCatalog'
+import { CARD_WIDTH, findCatalogItem } from '@/lib/widgetCatalog'
 import { CharacterNameForm } from '@/components/dashboard/CharacterNameForm'
 import { DefaultLayoutPromptModal } from '@/components/dashboard/DefaultLayoutPromptModal'
 import { WidgetPalette, type PaletteAddHandler } from '@/components/dashboard/WidgetPalette'
 import { TemplatePanel } from '@/components/dashboard/TemplatePanel'
 import { PlacedWidgetContent } from '@/components/dashboard/PlacedWidgetContent'
 import { GridSettingsModal } from '@/components/dashboard/GridSettingsModal'
+import { WidgetOrderList } from '@/components/dashboard/WidgetOrderList'
 import type { TemplateLayout } from '@/types/template'
 import type { PlacedWidget, WidgetKind } from '@/types/widget'
 
@@ -29,8 +29,6 @@ const DEFAULT_CUSTOM_DATA: Partial<Record<WidgetKind, Record<string, unknown>>> 
   linkIcon: { url: null, label: null },
 }
 
-const IMAGE_SIZES = Object.keys(IMAGE_SIZE_HEIGHTS) as ImageSize[]
-
 // 아직 서버에 저장되지 않은 위젯의 임시 id 앞머리. 일반 위젯은 다음 순서 저장(PUT)에서 kind로
 // 보내져 서버가 만들고, 레이드는 POST .../raids 응답이 오면 진짜 위젯으로 교체된다.
 const LOCAL_ID_PREFIX = 'local-'
@@ -41,10 +39,6 @@ function isLocalWidget(widget: PlacedWidget) {
 
 function newLocalId() {
   return LOCAL_ID_PREFIX + crypto.randomUUID()
-}
-
-function widgetLabel(widget: PlacedWidget) {
-  return findCatalogItem(widget.kind)?.label ?? widget.kind
 }
 
 // 자기 박스를 그대로 갖는 위젯(배너). 나머지는 카드 한 면 위의 행으로 묶인다.
@@ -300,12 +294,15 @@ export function WidgetDashboard({
     void persistOrder()
   }
 
-  const moveWidget = (index: number, delta: -1 | 1) => {
-    const target = index + delta
-    if (target < 0 || target >= widgetsRef.current.length) return
+  // 순서 목록(WidgetOrderList)에서 fromIndex 위젯을 toIndex 자리로 옮긴다 — 맞바꾸기가 아니라
+  // 끼워넣기라 그 사이 위젯들은 한 칸씩 밀린다. 드래그는 놓을 때 한 번만 불러 저장도 한 번이다.
+  const moveWidgetTo = (fromIndex: number, toIndex: number) => {
+    const length = widgetsRef.current.length
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= length || toIndex >= length) return
     updateWidgets((prev) => {
       const next = [...prev]
-      ;[next[index], next[target]] = [next[target], next[index]]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved!)
       return next
     })
     void persistOrder()
@@ -467,39 +464,34 @@ export function WidgetDashboard({
               onCharacterNameChange={setCharacterName}
               locked={isBindingCommitted}
             />
+            {/* 순서 목록은 모달에서 가장 자주 만지는 곳이라 배치 코드 패널보다 위에 둔다 — 아래에
+                있을 땐 모달을 열 때마다 스크롤해 내려가야 했다. */}
+            <section aria-label="위젯 순서" className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-sm font-bold text-foreground">위젯 순서</h3>
+                <span className="text-xs text-muted-foreground">끌어서 순서를 바꿉니다 · 위에서부터 카드에 쌓입니다</span>
+              </div>
+              {widgets.length === 0 ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">오른쪽 위젯 목록에서 추가하세요.</p>
+              ) : (
+                <WidgetOrderList
+                  widgets={widgets}
+                  isLocalWidget={isLocalWidget}
+                  onMove={moveWidgetTo}
+                  onRemove={removeWidget}
+                  onImageSizeChange={(widget, size) =>
+                    updateWidgetCustomData(widget.id, { ...(widget.customData ?? {}), size })
+                  }
+                />
+              )}
+            </section>
+
             <TemplatePanel
               widgets={widgets}
               boundCharacterId={boundCharacterId}
               onApplyLayout={applyTemplateLayout}
               onResetLayout={resetLayout}
             />
-
-            <section aria-label="위젯 순서" className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
-              <div className="flex items-baseline justify-between">
-                <h3 className="text-sm font-bold text-foreground">위젯 순서</h3>
-                <span className="text-xs text-muted-foreground">위에서부터 카드에 쌓입니다</span>
-              </div>
-              {widgets.length === 0 ? (
-                <p className="py-6 text-center text-xs text-muted-foreground">오른쪽 위젯 목록에서 추가하세요.</p>
-              ) : (
-                <ol className="flex flex-col gap-1">
-                  {widgets.map((widget, index) => (
-                    <WidgetOrderRow
-                      key={widget.id}
-                      widget={widget}
-                      isFirst={index === 0}
-                      isLast={index === widgets.length - 1}
-                      onMoveUp={() => moveWidget(index, -1)}
-                      onMoveDown={() => moveWidget(index, 1)}
-                      onRemove={() => removeWidget(widget)}
-                      onImageSizeChange={(size) =>
-                        updateWidgetCustomData(widget.id, { ...(widget.customData ?? {}), size })
-                      }
-                    />
-                  ))}
-                </ol>
-              )}
-            </section>
           </div>
 
           <WidgetPalette className="min-w-[260px] flex-[4]" characterName={characterName} onAdd={handleAddWidget} />
@@ -513,70 +505,5 @@ export function WidgetDashboard({
         onKeepCurrent={handleKeepCurrentLayout}
       />
     </div>
-  )
-}
-
-interface WidgetOrderRowProps {
-  widget: PlacedWidget
-  isFirst: boolean
-  isLast: boolean
-  onMoveUp: () => void
-  onMoveDown: () => void
-  onRemove: () => void
-  onImageSizeChange: (size: ImageSize) => void
-}
-
-/** 위젯 순서 목록의 한 줄 — 이름(레이드는 목표), 이미지면 높이 단계, 위/아래 이동, 삭제. */
-function WidgetOrderRow({ widget, isFirst, isLast, onMoveUp, onMoveDown, onRemove, onImageSizeChange }: WidgetOrderRowProps) {
-  const isPendingRaid = widget.kind === 'raid' && isLocalWidget(widget)
-  const iconButtonClass =
-    'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30'
-
-  return (
-    <li className="flex h-10 items-center gap-2 rounded-lg bg-background px-2">
-      <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-        {widgetLabel(widget)}
-        {isPendingRaid && <span className="ml-2 text-xs text-muted-foreground">추가 중…</span>}
-      </span>
-
-      {widget.kind === 'image' && (
-        <div role="radiogroup" aria-label="이미지 높이" className="flex rounded-md border border-border p-0.5">
-          {IMAGE_SIZES.map((size) => {
-            const active = readImageSize(widget.customData) === size
-            return (
-              <button
-                key={size}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => onImageSizeChange(size)}
-                className={cn(
-                  'h-6 w-7 rounded text-[11px] font-bold transition-colors',
-                  active ? 'bg-primary-strong text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {size}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      <button type="button" aria-label="위로" disabled={isFirst} onClick={onMoveUp} className={iconButtonClass}>
-        <ArrowUp className="h-4 w-4" />
-      </button>
-      <button type="button" aria-label="아래로" disabled={isLast} onClick={onMoveDown} className={iconButtonClass}>
-        <ArrowDown className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        aria-label="위젯 삭제"
-        disabled={isPendingRaid}
-        onClick={onRemove}
-        className={cn(iconButtonClass, 'hover:bg-danger/15 hover:text-danger')}
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </li>
   )
 }
